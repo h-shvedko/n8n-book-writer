@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone:*)",
+      "Bash(openssl rand:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker logs:*)",
+      "Bash(if [ ! -d \"$HOME/.claude/skills\" ])",
+      "Bash(then mkdir -p \"$HOME/.claude/skills\")",
+      "Bash(else echo \"Skills directory already exists\")",
+      "Bash(fi)",
+      "Bash(python3:*)",
+      "Skill(n8n-node-configuration)",
+      "Skill(n8n-node-configuration:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git fetch:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "book_id": "slot-react-hooks",
+  "product_definition": "Tiefgehende Behandlung von React Hooks für Frontend-Entwickler. Dieses Buch erklärt alle eingebauten Hooks (useState, useEffect, useContext, useReducer, useMemo, useCallback, useRef, useLayoutEffect) sowie die Erstellung eigener Custom Hooks. Schwerpunkte: State Management mit Hooks, Performance-Optimierung, Testing von Hooks, Best Practices und Anti-Patterns. Praxisnahe Beispiele aus realen Projekten.",
+  "target_audience": "Junior Developers",
+  "focus_areas": "Performance, Testing, Custom Hooks, Real-World Examples",
+  "num_chapters": 8
+}

@@ -1,0 +1,26 @@
+# n8n-mcp and n8n-skills repositories (cloned)
+n8n-mcp/
+n8n-skills/
+
+# Environment files with secrets
+.env
+.mcp.json
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp

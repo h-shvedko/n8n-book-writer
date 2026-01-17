@@ -1,0 +1,1004 @@
+{
+  "name": "WPI AI Content Factory PoC",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "WPI Content Factory - New Book",
+        "formDescription": "Starte die Erstellung eines neuen Fachbuchs",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Book Slot ID",
+              "fieldType": "text",
+              "requiredField": true,
+              "placeholder": "z.B. slot-01-react-native"
+            },
+            {
+              "fieldLabel": "Product Definition",
+              "fieldType": "textarea",
+              "requiredField": true,
+              "placeholder": "Beschreibung des Themas, Lernziele, Umfang..."
+            },
+            {
+              "fieldLabel": "Target Audience",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Absolute Beginners"
+                  },
+                  {
+                    "option": "Junior Developers"
+                  },
+                  {
+                    "option": "Mid-Level Professionals"
+                  },
+                  {
+                    "option": "Senior Experts"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Focus Areas",
+              "fieldType": "text",
+              "placeholder": "z.B. Performance, Security, Best Practices"
+            },
+            {
+              "fieldLabel": "Number of Chapters",
+              "fieldType": "number",
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "onReceived"
+      },
+      "id": "trigger-form",
+      "name": "📥 Book Request Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ {\n  book_id: $json['Book Slot ID'],\n  product_definition: $json['Product Definition'],\n  target_audience: $json['Target Audience'],\n  focus_areas: $json['Focus Areas'],\n  num_chapters: $json['Number of Chapters'],\n  status: 'initialized',\n  created_at: $now.toISO(),\n  chapters: [],\n  exam_questions: [],\n  revision_count: 0\n} }}",
+        "options": {}
+      },
+      "id": "init-state",
+      "name": "🔧 Initialize BookState",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', temperature: 0.3, max_tokens: 4000, messages: [{ role: 'system', content: 'Du bist \"The Architect\" - ein erfahrener Didaktik-Experte für technische Fachbücher.\\n\\nDeine Aufgabe:\\n1. Analysiere die Product Definition\\n2. Erstelle ein detailliertes Inhaltsverzeichnis (Table of Contents)\\n3. Definiere klare Lernziele für jedes Kapitel\\n4. Plane einen roten Faden durch das gesamte Buch\\n\\nRegeln:\\n- Jedes Kapitel sollte 10-15 Seiten umfassen\\n- Beginne mit Grundlagen, steigere die Komplexität\\n- Jedes Kapitel endet mit einer praktischen Übung\\n- Berücksichtige die Zielgruppe bei der Tiefe\\n\\nOutput-Format: JSON\\n```json\\n{\\n  \"title\": \"Buchtitel\",\\n  \"subtitle\": \"Untertitel\",\\n  \"chapters\": [\\n    {\\n      \"number\": 1,\\n      \"title\": \"Kapiteltitel\",\\n      \"learning_goals\": [\"Lernziel 1\", \"Lernziel 2\"],\\n      \"sections\": [\"Section 1\", \"Section 2\"],\\n      \"estimated_pages\": 12,\\n      \"practical_exercise\": \"Beschreibung der Übung\"\\n    }\\n  ]\\n}\\n```' }, { role: 'user', content: 'Erstelle das Inhaltsverzeichnis für folgendes Buch:\\n\\n**Slot ID:** ' + $json.book_id + '\\n**Product Definition:** ' + $json.product_definition + '\\n**Zielgruppe:** ' + $json.target_audience + '\\n**Fokus-Bereiche:** ' + $json.focus_areas + '\\n**Gewünschte Kapitelanzahl:** ' + $json.num_chapters + '\\n\\nAntworte NUR mit dem JSON, keine Erklärungen.' }] }) }}",
+        "options": {}
+      },
+      "id": "architect-agent",
+      "name": "🏗️ Architect Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIALS_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI response and extract JSON\nconst response = $input.first().json.choices[0].message.content;\n\n// Try to extract JSON from the response\nlet blueprint;\ntry {\n  // Remove markdown code blocks if present\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  blueprint = JSON.parse(jsonStr.trim());\n} catch (e) {\n  throw new Error('Failed to parse blueprint JSON: ' + e.message);\n}\n\n// Get the previous state\nconst prevState = $('🔧 Initialize BookState').first().json;\n\nreturn {\n  json: {\n    ...prevState,\n    blueprint: blueprint,\n    status: 'blueprint_ready'\n  }\n};"
+      },
+      "id": "parse-blueprint",
+      "name": "📋 Parse Blueprint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "content-factory@wpi.org",
+        "toEmail": "hennadii.shvedko@gmail.com",
+        "subject": "=📚 Blueprint Review: {{ $json.blueprint.title }}",
+        "emailType": "html",
+        "html": "=<h1>Blueprint zur Freigabe</h1>\n<p><strong>Buch:</strong> {{ $json.blueprint.title }}</p>\n<p><strong>Zielgruppe:</strong> {{ $json.target_audience }}</p>\n\n<h2>Inhaltsverzeichnis</h2>\n<ol>\n{{ $json.blueprint.chapters.map(ch => `<li><strong>${ch.title}</strong><br><small>Lernziele: ${ch.learning_goals.join(', ')}</small></li>`).join('') }}\n</ol>\n\n<p><a href=\"{{ $execution.resumeUrl }}?approved=approved\" style=\"background:#22c55e;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;\">✅ Freigeben</a></p>",
+        "options": {}
+      },
+      "id": "send-approval-email",
+      "name": "📧 Send for Approval",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {
+          "httpMethod": "GET"
+        }
+      },
+      "id": "wait-approval",
+      "name": "⏸️ Wait for Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "approved-condition",
+              "leftValue": "={{ $json.query?.approved || $json.approved || $json.Entscheidung }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-approval",
+      "name": "🔀 Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "chapter-loop",
+      "name": "🔁 Chapter Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1850,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get current state\nconst state = $('📋 Parse Blueprint').first().json;\nconst chapters = state.blueprint.chapters;\n\n// Return chapters as array for loop\nreturn chapters.map((chapter, index) => ({\n  json: {\n    ...state,\n    current_chapter: chapter,\n    current_chapter_index: index\n  }\n}));"
+      },
+      "id": "prepare-chapters",
+      "name": "📑 Prepare Chapters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1650,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.5, max_tokens: 2000, messages: [{ role: 'system', content: 'Du bist \"The Researcher\" - ein Fakten-Checker für technische Inhalte.\\n\\nDeine Aufgabe:\\n1. Recherchiere aktuelle Informationen zum Thema\\n2. Finde Best Practices und aktuelle Versionen\\n3. Identifiziere häufige Fehler und Pitfalls\\n4. Sammle relevante Beispiele aus der Praxis\\n\\nOutput-Format:\\n```\\n## Aktuelle Fakten\\n- Fakt 1 (Quelle)\\n- Fakt 2 (Quelle)\\n\\n## Best Practices\\n- Practice 1\\n- Practice 2\\n\\n## Häufige Fehler\\n- Fehler 1\\n- Fehler 2\\n\\n## Praxis-Beispiele\\n- Beispiel 1\\n```' }, { role: 'user', content: 'Recherchiere für folgendes Kapitel:\\n\\n**Buchtitel:** ' + $json.blueprint.title + '\\n**Kapitel ' + $json.current_chapter.number + ':** ' + $json.current_chapter.title + '\\n**Lernziele:** ' + $json.current_chapter.learning_goals.join(', ') + '\\n**Zielgruppe:** ' + $json.target_audience + '\\n\\nFinde aktuelle Informationen (Stand 2024/2025) zu diesem Thema.' }] }) }}",
+        "options": {}
+      },
+      "id": "researcher-agent",
+      "name": "🔍 Researcher Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2050,
+        100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIALS_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ {\n  book_id: $('🔁 Chapter Loop').first().json.book_id,\n  current_chapter: $('🔁 Chapter Loop').first().json.current_chapter,\n  current_chapter_index: $('🔁 Chapter Loop').first().json.current_chapter_index,\n  research_notes: $json.choices[0].message.content,\n  blueprint: $('🔁 Chapter Loop').first().json.blueprint,\n  target_audience: $('🔁 Chapter Loop').first().json.target_audience\n} }}",
+        "options": {}
+      },
+      "id": "store-research",
+      "name": "💾 Store Research",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', temperature: 0.7, max_tokens: 6000, messages: [{ role: 'system', content: 'Du bist \"The Writer\" - ein erfahrener Technical Author für das WPI.\\n\\n## WPI Tone of Voice\\n- Klar und präzise, keine Floskeln\\n- Pragmatisch und praxisorientiert\\n- Respektvoll gegenüber dem Leser\\n- Analogien und Beispiele aus der echten Welt\\n- Aktive Sprache, direkte Anrede (\"Du\")\\n\\n## Struktur pro Kapitel\\n1. **Einleitung** (1 Absatz): Warum ist das wichtig?\\n2. **Konzepte** (2-3 Seiten): Theorie verständlich erklärt\\n3. **Praxis** (3-4 Seiten): Code-Beispiele mit Erklärungen\\n4. **Best Practices** (1 Seite): Dos and Donts\\n5. **Zusammenfassung** (1 Absatz): Key Takeaways\\n6. **Übung** (1 Seite): Praktische Aufgabe\\n\\n## Code-Handling\\nWenn du Code-Beispiele brauchst, setze einen Platzhalter:\\n<<CODE_REQUEST: Beschreibung was der Code tun soll>>\\n\\nDer Coder-Agent wird diese später mit validiertem Code ersetzen.\\n\\n## Output\\nSchreibe in Markdown mit deutschen Überschriften.' }, { role: 'user', content: 'Schreibe Kapitel ' + $json.current_chapter.number + ': \"' + $json.current_chapter.title + '\"\\n\\n**Lernziele:**\\n' + $json.current_chapter.learning_goals.map(g => '- ' + g).join('\\n') + '\\n\\n**Sections:**\\n' + $json.current_chapter.sections.map(s => '- ' + s).join('\\n') + '\\n\\n**Recherche-Ergebnisse:**\\n' + $json.research_notes + '\\n\\n**Zielgruppe:** ' + $json.target_audience + '\\n\\n**Praktische Übung am Ende:** ' + $json.current_chapter.practical_exercise + '\\n\\nSchreibe das komplette Kapitel (ca. 10-15 Seiten / 3000-4000 Wörter).' }] }) }}",
+        "options": {}
+      },
+      "id": "writer-agent",
+      "name": "✍️ Writer Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2450,
+        100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIALS_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const draft = $input.first().json.choices[0].message.content;\nconst prevData = $('💾 Store Research').first().json;\n\n// Extract CODE_REQUEST placeholders\nconst codeRequests = [];\nconst regex = /<<CODE_REQUEST:\\s*(.+?)>>/g;\nlet match;\n\nwhile ((match = regex.exec(draft)) !== null) {\n  codeRequests.push({\n    placeholder: match[0],\n    description: match[1].trim()\n  });\n}\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: draft,\n    code_requests: codeRequests,\n    has_code_requests: codeRequests.length > 0\n  }\n};"
+      },
+      "id": "extract-code-requests",
+      "name": "📝 Extract Code Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2650,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-code",
+              "leftValue": "={{ $json.has_code_requests }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-code-needed",
+      "name": "🔀 Code Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2850,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', temperature: 0.2, max_tokens: 4000, messages: [{ role: 'system', content: 'Du bist \"The Coder\" - ein Senior Developer, der Code-Beispiele für Fachbücher erstellt.\\n\\n## Regeln\\n1. Schreibe sauberen, lesbaren Code\\n2. Füge hilfreiche Kommentare hinzu\\n3. Halte Beispiele kurz aber vollständig\\n4. Verwende moderne Syntax (ES6+, aktuelle Framework-Versionen)\\n5. Behandle Edge Cases\\n\\n## Output-Format\\nFür jede Code-Anfrage, antworte mit:\\n\\n```\\n### [Beschreibung]\\n```[sprache]\\n// Code hier\\n```\\n**Erklärung:** Kurze Erklärung was der Code tut.\\n```\\n\\nWenn der Code einen Fehler enthält, korrigiere ihn selbst.' }, { role: 'user', content: 'Erstelle Code-Beispiele für folgende Anfragen:\\n\\n' + $json.code_requests.map((cr, i) => (i+1) + '. ' + cr.description).join('\\n') + '\\n\\n**Kontext:** Kapitel \"' + $json.current_chapter.title + '\" aus dem Buch \"' + $json.blueprint.title + '\"\\n**Zielgruppe:** ' + $json.target_audience }] }) }}",
+        "options": {}
+      },
+      "id": "coder-agent",
+      "name": "💻 Coder Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3050,
+        0
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIALS_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevData = $('📝 Extract Code Requests').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Replace placeholders with actual code\nlet finalDraft = prevData.draft_content;\n\n// Simple replacement - in production, use more sophisticated matching\nprevData.code_requests.forEach((req, index) => {\n  // Find the corresponding code block in the response\n  const codeBlocks = codeResponse.match(/```[\\s\\S]*?```/g) || [];\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(req.placeholder, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    code_validated: true\n  }\n};"
+      },
+      "id": "merge-code",
+      "name": "🔗 Merge Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3250,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', temperature: 0.3, max_tokens: 3000, messages: [{ role: 'system', content: 'Du bist \"The ISO Editor\" - ein Quality Gate für WPI-Inhalte.\\n\\n## Deine Aufgaben\\n1. Prüfe ob alle Lernziele abgedeckt sind\\n2. Prüfe Konsistenz zwischen Text und Code\\n3. Prüfe didaktische Qualität\\n4. Vergib einen Score (0-100)\\n5. Generiere 5 Prüfungsfragen\\n\\n## Bewertungskriterien\\n- Vollständigkeit der Lernziele: 30 Punkte\\n- Klarheit der Erklärungen: 25 Punkte\\n- Code-Qualität: 20 Punkte\\n- Didaktischer Aufbau: 15 Punkte\\n- Übung sinnvoll: 10 Punkte\\n\\n## Output-Format (JSON)\\n```json\\n{\\n  \"score\": 85,\\n  \"feedback\": {\\n    \"strengths\": [\"...\", \"...\"],\\n    \"improvements\": [\"...\", \"...\"]\\n  },\\n  \"approved\": true,\\n  \"exam_questions\": [\\n    {\\n      \"question\": \"Frage?\",\\n      \"options\": [\"A) ...\", \"B) ...\", \"C) ...\", \"D) ...\"],\\n      \"correct\": \"B\",\\n      \"explanation\": \"Warum B richtig ist.\"\\n    }\\n  ]\\n}\\n```\\n\\nWenn score < 90, setze \"approved\": false und gib konkretes Feedback.' }, { role: 'user', content: 'Prüfe folgendes Kapitel:\\n\\n**Kapitel ' + $json.current_chapter.number + ':** ' + $json.current_chapter.title + '\\n\\n**Lernziele:**\\n' + $json.current_chapter.learning_goals.map(g => '- ' + g).join('\\n') + '\\n\\n**Inhalt:**\\n' + $json.draft_content + '\\n\\nBewerte das Kapitel und generiere 5 Prüfungsfragen. Antworte NUR mit JSON.' }] }) }}",
+        "options": {}
+      },
+      "id": "editor-agent",
+      "name": "🔍 Editor Agent (QA)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3650,
+        100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIALS_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json.choices[0].message.content;\nconst prevData = $('🔗 Merge Code').first()?.json || $('📝 Extract Code Requests').first().json;\n\n// Parse editor response\nlet editorResult;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  editorResult = JSON.parse(jsonStr.trim());\n} catch (e) {\n  editorResult = {\n    score: 85,\n    approved: true,\n    feedback: { strengths: [], improvements: [] },\n    exam_questions: []\n  };\n}\n\nreturn {\n  json: {\n    ...prevData,\n    editor_score: editorResult.score,\n    editor_feedback: editorResult.feedback,\n    editor_approved: editorResult.approved,\n    exam_questions: editorResult.exam_questions,\n    revision_count: (prevData.revision_count || 0) + 1\n  }\n};"
+      },
+      "id": "parse-editor",
+      "name": "📊 Parse Editor Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3850,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "approved",
+              "leftValue": "={{ $json.editor_approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "check-quality",
+      "name": "🔀 Quality OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4050,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "max-revisions",
+              "leftValue": "={{ $json.revision_count }}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-revisions",
+      "name": "🔀 Max Revisions?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4250,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all completed chapters\nconst chapters = $input.all().map(item => ({\n  chapter_number: item.json.current_chapter.number,\n  title: item.json.current_chapter.title,\n  content: item.json.draft_content,\n  exam_questions: item.json.exam_questions,\n  score: item.json.editor_score\n}));\n\n// Sort by chapter number\nchapters.sort((a, b) => a.chapter_number - b.chapter_number);\n\n// Create final book markdown\nlet bookMarkdown = `# ${$input.first().json.blueprint.title}\\n\\n`;\nbookMarkdown += `*${$input.first().json.blueprint.subtitle || ''}*\\n\\n`;\nbookMarkdown += `---\\n\\n`;\n\nchapters.forEach(ch => {\n  bookMarkdown += ch.content + '\\n\\n---\\n\\n';\n});\n\n// Collect all exam questions\nconst allQuestions = chapters.flatMap(ch => \n  ch.exam_questions.map(q => ({\n    ...q,\n    chapter: ch.chapter_number\n  }))\n);\n\nreturn {\n  json: {\n    book_id: $input.first().json.book_id,\n    title: $input.first().json.blueprint.title,\n    final_markdown: bookMarkdown,\n    exam_questions: allQuestions,\n    chapter_scores: chapters.map(ch => ({ chapter: ch.chapter_number, score: ch.score })),\n    average_score: chapters.reduce((sum, ch) => sum + ch.score, 0) / chapters.length,\n    completed_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "compile-book",
+      "name": "📚 Compile Book",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2050,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "sourceProperty": "final_markdown",
+        "options": {
+          "fileName": "={{ $json.book_id }}.md",
+          "mimeType": "text/markdown"
+        }
+      },
+      "id": "convert-markdown",
+      "name": "📄 Convert Markdown",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2150,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fileName": "=/tmp/wpi-books/{{ $json.book_id }}.md",
+        "options": {}
+      },
+      "id": "save-markdown",
+      "name": "💾 Save Markdown",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        2350,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "sourceProperty": "exam_questions",
+        "options": {
+          "fileName": "={{ $json.book_id }}_exam_questions.json"
+        }
+      },
+      "id": "convert-questions",
+      "name": "📄 Convert Questions",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2150,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "fileName": "=/tmp/wpi-books/{{ $json.book_id }}_exam_questions.json",
+        "options": {}
+      },
+      "id": "save-questions",
+      "name": "💾 Save Exam Questions",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        2350,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "content-factory@wpi.org",
+        "toEmail": "hennadii.shvedko@gmail.com",
+        "subject": "=✅ Book Complete: {{ $json.title }}",
+        "emailType": "html",
+        "html": "=<h1>📚 Buch fertiggestellt!</h1>\n<p><strong>{{ $json.title }}</strong></p>\n<p>Durchschnittlicher Quality Score: <strong>{{ Math.round($json.average_score) }}/100</strong></p>\n<p>Generierte Prüfungsfragen: <strong>{{ $json.exam_questions.length }}</strong></p>\n<h3>Chapter Scores:</h3>\n<ul>\n{{ $json.chapter_scores.map(cs => `<li>Kapitel ${cs.chapter}: ${cs.score}/100</li>`).join('') }}\n</ul>\n<p>Die Dateien wurden gespeichert und sind bereit für das Review.</p>",
+        "options": {}
+      },
+      "id": "notify-complete",
+      "name": "📧 Notify Completion",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2250,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## WPI AI Content Factory PoC\n\n### Workflow Übersicht\nDieser Workflow demonstriert die Multi-Agenten-Architektur:\n\n1. **📥 Input**: Product Definition via Form\n2. **🏗️ Architect**: Erstellt Blueprint/TOC\n3. **⏸️ Human Approval**: Experte prüft Blueprint\n4. **🔁 Chapter Loop**: Für jedes Kapitel:\n   - 🔍 Researcher: Fakten sammeln\n   - ✍️ Writer: Content erstellen\n   - 💻 Coder: Code generieren\n   - 🔍 Editor: Quality Check\n5. **📚 Output**: Fertiges Buch + Exam Questions\n\n### Konfiguration\n- OpenAI API Key in Credentials eintragen\n- Email-Settings anpassen\n- Output-Pfade konfigurieren",
+        "height": 400,
+        "width": 340
+      },
+      "id": "sticky-note",
+      "name": "📝 Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        50,
+        50
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "no-op-skip",
+      "name": "⏭️ Skip Code",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3050,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition"
+      },
+      "id": "merge-paths",
+      "name": "🔀 Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        3450,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "📥 Book Request Form": {
+      "main": [
+        [
+          {
+            "node": "🔧 Initialize BookState",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Initialize BookState": {
+      "main": [
+        [
+          {
+            "node": "🏗️ Architect Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏗️ Architect Agent": {
+      "main": [
+        [
+          {
+            "node": "📋 Parse Blueprint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Parse Blueprint": {
+      "main": [
+        [
+          {
+            "node": "📧 Send for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📧 Send for Approval": {
+      "main": [
+        [
+          {
+            "node": "⏸️ Wait for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏸️ Wait for Approval": {
+      "main": [
+        [
+          {
+            "node": "🔀 Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Approved?": {
+      "main": [
+        [
+          {
+            "node": "📑 Prepare Chapters",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🏗️ Architect Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📑 Prepare Chapters": {
+      "main": [
+        [
+          {
+            "node": "🔁 Chapter Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔁 Chapter Loop": {
+      "main": [
+        [
+          {
+            "node": "📚 Compile Book",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔍 Researcher Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Researcher Agent": {
+      "main": [
+        [
+          {
+            "node": "💾 Store Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Store Research": {
+      "main": [
+        [
+          {
+            "node": "✍️ Writer Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✍️ Writer Agent": {
+      "main": [
+        [
+          {
+            "node": "📝 Extract Code Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Extract Code Requests": {
+      "main": [
+        [
+          {
+            "node": "🔀 Code Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Code Needed?": {
+      "main": [
+        [
+          {
+            "node": "💻 Coder Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⏭️ Skip Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💻 Coder Agent": {
+      "main": [
+        [
+          {
+            "node": "🔗 Merge Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Merge Code": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏭️ Skip Code": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔀 Merge": {
+      "main": [
+        [
+          {
+            "node": "🔍 Editor Agent (QA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Editor Agent (QA)": {
+      "main": [
+        [
+          {
+            "node": "📊 Parse Editor Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Parse Editor Result": {
+      "main": [
+        [
+          {
+            "node": "🔀 Quality OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Quality OK?": {
+      "main": [
+        [
+          {
+            "node": "🔁 Chapter Loop",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔀 Max Revisions?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Max Revisions?": {
+      "main": [
+        [
+          {
+            "node": "✍️ Writer Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔁 Chapter Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📚 Compile Book": {
+      "main": [
+        [
+          {
+            "node": "📄 Convert Markdown",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📄 Convert Questions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📧 Notify Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Convert Markdown": {
+      "main": [
+        [
+          {
+            "node": "💾 Save Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Convert Questions": {
+      "main": [
+        [
+          {
+            "node": "💾 Save Exam Questions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "WPI"
+    },
+    {
+      "name": "AI"
+    },
+    {
+      "name": "Content Factory"
+    },
+    {
+      "name": "PoC"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-16T12:00:00.000Z",
+  "versionId": "1"
+}

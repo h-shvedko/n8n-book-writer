@@ -1,0 +1,7 @@
+{
+  "book_id": "test-html-basics",
+  "product_definition": "Einführung in HTML für absolute Anfänger. Dieses Buch vermittelt die Grundlagen der Webentwicklung mit HTML. Themen: Grundstruktur einer HTML-Seite, wichtigste Tags (Überschriften, Absätze, Links, Bilder, Listen), Formulare und Eingabefelder, semantisches HTML und Barrierefreiheit, Best Practices für sauberen HTML-Code.",
+  "target_audience": "Absolute Beginners",
+  "focus_areas": "Semantic HTML, Accessibility, Clean Code",
+  "num_chapters": 5
+}
