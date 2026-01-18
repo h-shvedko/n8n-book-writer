@@ -260,14 +260,12 @@
     },
     {
       "parameters": {
-        "mode": "raw",
-        "jsonOutput": "={{ {\n  book_id: $('🔁 Chapter Loop').first().json.book_id,\n  current_chapter: $('🔁 Chapter Loop').first().json.current_chapter,\n  current_chapter_index: $('🔁 Chapter Loop').first().json.current_chapter_index,\n  research_notes: $json.choices[0].message.content,\n  blueprint: $('🔁 Chapter Loop').first().json.blueprint,\n  target_audience: $('🔁 Chapter Loop').first().json.target_audience\n} }}",
-        "options": {}
+        "jsCode": "// Reset revision counter for this chapter (using workflow static data)\nconst staticData = $getWorkflowStaticData('global');\nstaticData.revision_count = 0;\n\n// Get chapter data\nconst chapterLoop = $('🔁 Chapter Loop').first().json;\nconst researchNotes = $input.first().json.choices[0].message.content;\n\nreturn {\n  json: {\n    book_id: chapterLoop.book_id,\n    current_chapter: chapterLoop.current_chapter,\n    current_chapter_index: chapterLoop.current_chapter_index,\n    research_notes: researchNotes,\n    blueprint: chapterLoop.blueprint,\n    target_audience: chapterLoop.target_audience,\n    revision_count: 0\n  }\n};"
       },
       "id": "6dd4a74f-3927-428d-b578-d64c7129a8dc",
       "name": "💾 Store Research",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -23376,
         9272
@@ -310,7 +308,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const draft = $input.first().json.choices[0].message.content;\nconst prevData = $('💾 Store Research').first().json;\n\n// Extract CODE_REQUEST placeholders\nconst codeRequests = [];\nconst regex = /<<CODE_REQUEST:\\s*(.+?)>>/g;\nlet match;\n\nwhile ((match = regex.exec(draft)) !== null) {\n  codeRequests.push({\n    placeholder: match[0],\n    description: match[1].trim()\n  });\n}\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: draft,\n    code_requests: codeRequests,\n    has_code_requests: codeRequests.length > 0\n  }\n};"
+        "jsCode": "const draft = $input.first().json.choices[0].message.content;\n\n// Get base data from Store Research (always available)\nlet prevData = $('💾 Store Research').first().json;\n\n// Get revision count from workflow static data (persists across loop iterations)\nconst staticData = $getWorkflowStaticData('global');\nlet revision_count = staticData.revision_count || 0;\n\n// Extract CODE_REQUEST placeholders\nconst codeRequests = [];\nconst regex = /<<CODE_REQUEST:\\s*(.+?)>>/g;\nlet match;\n\nwhile ((match = regex.exec(draft)) !== null) {\n  codeRequests.push({\n    placeholder: match[0],\n    description: match[1].trim()\n  });\n}\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: draft,\n    code_requests: codeRequests,\n    has_code_requests: codeRequests.length > 0,\n    revision_count: revision_count\n  }\n};"
       },
       "id": "32ae110c-52a2-47c5-8cc1-3ffb2f9bd2c2",
       "name": "📝 Extract Code Requests",
@@ -438,7 +436,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json.choices[0].message.content;\nconst prevData = $('🔗 Merge Code').first()?.json || $('📝 Extract Code Requests').first().json;\n\n// Parse editor response\nlet editorResult;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  editorResult = JSON.parse(jsonStr.trim());\n} catch (e) {\n  editorResult = {\n    score: 85,\n    approved: true,\n    feedback: { strengths: [], improvements: [] },\n    exam_questions: []\n  };\n}\n\nreturn {\n  json: {\n    ...prevData,\n    editor_score: editorResult.score,\n    editor_feedback: editorResult.feedback,\n    editor_approved: editorResult.approved,\n    exam_questions: editorResult.exam_questions,\n    revision_count: (prevData.revision_count || 0) + 1\n  }\n};"
+        "jsCode": "const response = $input.first().json.choices[0].message.content;\n\n// Get previous data - try Merge Code first (if code was needed), otherwise Skip Code or Extract Code Requests\nlet prevData;\ntry {\n  prevData = $('🔗 Merge Code').first().json;\n} catch (e1) {\n  try {\n    prevData = $('⏭️ Skip Code').first().json;\n  } catch (e2) {\n    prevData = $('📝 Extract Code Requests').first().json;\n  }\n}\n\n// Parse editor response\nlet editorResult;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  editorResult = JSON.parse(jsonStr.trim());\n} catch (e) {\n  editorResult = {\n    score: 85,\n    approved: true,\n    feedback: { strengths: [], improvements: [] },\n    exam_questions: []\n  };\n}\n\n// Increment revision count using workflow static data (persists across loop)\nconst staticData = $getWorkflowStaticData('global');\nstaticData.revision_count = (staticData.revision_count || 0) + 1;\nconst revision_count = staticData.revision_count;\n\nreturn {\n  json: {\n    ...prevData,\n    editor_score: editorResult.score,\n    editor_feedback: editorResult.feedback,\n    editor_approved: editorResult.approved,\n    exam_questions: editorResult.exam_questions,\n    revision_count: revision_count\n  }\n};"
       },
       "id": "e531fb59-53d7-4489-9ffc-f208d0799c69",
       "name": "📊 Parse Editor Result",
@@ -528,7 +526,12 @@
     },
     {
       "parameters": {
-        "operation": "text"
+        "operation": "toText",
+        "sourceProperty": "final_markdown",
+        "options": {
+          "fileName": "book.md",
+          "mimeType": "text/markdown"
+        }
       },
       "id": "9caa16f8-d383-4b33-92f1-fb931b57619e",
       "name": "📄 Convert Markdown",
@@ -541,21 +544,10 @@
     },
     {
       "parameters": {
-        "fileName": "=/tmp/wpi-books/{{ $json.book_id }}.md",
-        "options": {}
-      },
-      "id": "0fe1311a-5033-4e13-b013-2c09aa7b4711",
-      "name": "💾 Save Markdown",
-      "type": "n8n-nodes-base.writeBinaryFile",
-      "typeVersion": 1,
-      "position": [
-        -23152,
-        9464
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "json"
+        "operation": "toJson",
+        "options": {
+          "fileName": "exam_questions.json"
+        }
       },
       "id": "c90499fb-3c61-45b7-98b1-fa22117ecf1d",
       "name": "📄 Convert Questions",
@@ -568,25 +560,13 @@
     },
     {
       "parameters": {
-        "fileName": "=/tmp/wpi-books/{{ $json.book_id }}_exam_questions.json",
-        "options": {}
-      },
-      "id": "d65c2628-3496-412a-844f-da2fd56809c2",
-      "name": "💾 Save Exam Questions",
-      "type": "n8n-nodes-base.writeBinaryFile",
-      "typeVersion": 1,
-      "position": [
-        -23152,
-        9656
-      ]
-    },
-    {
-      "parameters": {
         "fromEmail": "content-factory@wpi.org",
         "toEmail": "hennadii.shvedko@gmail.com",
         "subject": "=✅ Book Complete: {{ $json.title }}",
-        "html": "=<h1>📚 Buch fertiggestellt!</h1>\n<p><strong>{{ $json.title }}</strong></p>\n<p>Durchschnittlicher Quality Score: <strong>{{ Math.round($json.average_score) }}/100</strong></p>\n<p>Generierte Prüfungsfragen: <strong>{{ $json.exam_questions.length }}</strong></p>\n<h3>Chapter Scores:</h3>\n<ul>\n{{ $json.chapter_scores.map(cs => `<li>Kapitel ${cs.chapter}: ${cs.score}/100</li>`).join('') }}\n</ul>\n<p>Die Dateien wurden gespeichert und sind bereit für das Review.</p>",
-        "options": {}
+        "html": "=<h1>📚 Buch fertiggestellt!</h1>\n<p><strong>{{ $json.title }}</strong></p>\n<p>Durchschnittlicher Quality Score: <strong>{{ Math.round($json.average_score) }}/100</strong></p>\n<p>Generierte Prüfungsfragen: <strong>{{ $json.exam_questions.length }}</strong></p>\n<h3>Chapter Scores:</h3>\n<ul>\n{{ $json.chapter_scores.map(cs => `<li>Kapitel ${cs.chapter}: ${cs.score}/100</li>`).join('') }}\n</ul>\n<p>Die Dateien sind als Anhang beigefügt.</p>",
+        "options": {
+          "attachments": "data"
+        }
       },
       "id": "c90cab4a-da6a-4f34-aaeb-3f662625d37d",
       "name": "📧 Notify Completion",
@@ -925,11 +905,6 @@
             "node": "📄 Convert Questions",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "📧 Notify Completion",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -938,7 +913,7 @@
       "main": [
         [
           {
-            "node": "💾 Save Markdown",
+            "node": "📧 Notify Completion",
             "type": "main",
             "index": 0
           }
@@ -949,7 +924,7 @@
       "main": [
         [
           {
-            "node": "💾 Save Exam Questions",
+            "node": "📧 Notify Completion",
             "type": "main",
             "index": 0
           }

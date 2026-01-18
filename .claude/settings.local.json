@@ -17,7 +17,9 @@
       "Bash(git fetch:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: WPI AI Content Factory n8n workflow\n\n- n8n workflow for AI-powered book generation\n- 5 AI agents: Architect, Researcher, Writer, Coder, Editor\n- Human-in-the-loop approval for blueprints\n- Chapter loop with quality gates\n- File saving and email notifications\n- Claude Code skills for n8n development\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)"
     ]
   }
 }
