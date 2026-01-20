@@ -3,7 +3,7 @@
 ## Automatisierte Erstellung von Schulungsmaterialien
 
 **Version:** 1.0 (Proof of Concept)
-**Datum:** Januar 2025
+**Datum:** Januar 2026
 **Autor:** Hennadii Shvedko
 
 ---
@@ -406,4 +406,4 @@ Praktische Aufgabe zum Selbermachen...
 
 ---
 
-*Dieses Dokument beschreibt den Proof of Concept Stand Januar 2025. Features und Kosten können sich in der Produktionsversion ändern.*
+*Dieses Dokument beschreibt den Proof of Concept Stand Januar 2026. Features und Kosten können sich in der Produktionsversion ändern.*
