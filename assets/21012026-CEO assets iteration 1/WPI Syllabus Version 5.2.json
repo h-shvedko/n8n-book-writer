@@ -1,0 +1,403 @@
+{
+    "scheme_id": "WPI-SYL-SEOAI-V5.2",
+    "profile": "WPI Certified Professional SEO & AI Visibility Manager",
+    "slots": [
+        {
+            "slot_number": 1,
+            "slot_title": "The Technical Architect",
+            "domains": [
+                {
+                    "id": "domain-1.1",
+                    "title": "Foundations – The Architecture of Search",
+                    "study_guide_chapter": 1,
+                    "learning_objectives": [
+                        {
+                            "id": "K1.1.1",
+                            "objective": "Search Landscape: Analyse der Marktanteile von Suchmaschinen und KI-Antwortmaschinen in verschiedenen Zielmärkten (Google vs. Bing vs. AI-Agents).",
+                            "bloom_level": "K2"
+                        },
+                        {
+                            "id": "K1.1.2",
+                            "objective": "AI Ecosystem Dependency: Bewertung der strategischen Rolle sekundärer Suchmaschinen (Bing) als Datenlieferant für Drittsysteme (ChatGPT, Ecosia, DuckDuckGo). Begründung der Notwendigkeit von Bing-Optimierung für Generative KI ("Grounding").",
+                            "bloom_level": "K5"
+                        },
+                        {
+                            "id": "K1.1.3",
+                            "objective": "Traffic Value Calculation: Berechnung des monetären Werts organischer Rankings im Vergleich zu Paid Search (Formel: Traffic * CPC). Nutzung der Metrik zur Argumentation von Budget-Entscheidungen ("Digitale Dividende").",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K1.1.4",
+                            "objective": "Funnel Classification: Zuordnung von Suchanfragen und Content-Formaten (Ratgeber, Vergleich, Produktseite) zu den Phasen des See-Think-Do-Care Modells. Analyse von "Funnel Gaps" in der Content-Strategie.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K1.1.5",
+                            "objective": "Inverted Index Mechanics: Skizzierung der Datenstruktur eines Invertierten Index und Erklärung des Prozesses der Tokenisierung (Zerlegung in Such-Tokens). Ableitung von Indexierungslücken durch fehlende Token-Extraktion (z.B. "No Token = No Ranking" bei JavaScript-Fehlern).",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K1.1.6",
+                            "objective": "Crawl Types: Differenzierung zwischen Discovery Crawl (Finden neuer URLs) und Refresh Crawl (Aktualisierung bekannter URLs). Ableitung von Maßnahmen zur Steuerung der Refresh-Frequenz (z.B. via lastmod in Sitemaps).",
+                            "bloom_level": "K2"
+                        }
+                    ]
+                },
+                {
+                    "id": "domain-1.2",
+                    "title": "Advanced Crawling & Indexing Control",
+                    "study_guide_chapter": 2,
+                    "learning_objectives": [
+                        {
+                            "id": "K1.2.1",
+                            "objective": "Rendering Types: Differenzierung zwischen CSR (Client-Side), SSR (Server-Side) und Dynamic Rendering sowie Analyse der Auswirkungen auf Crawl-Budget und Indexierungslatenz.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K1.2.2",
+                            "objective": "Robots Protocol: Anwendung der robots.txt Syntax (Allow, Disallow, Wildcards) zur Steuerung von Crawlern. Spezifische Konfiguration von User-Agents (GPTBot, CCBot) zur Verwaltung von KI-Trainingsdaten.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K1.2.3",
+                            "objective": "HTTP Status Codes: Identifikation von Statuscodes (2xx, 3xx, 4xx, 5xx) in Server-Logs. Ableitung von Korrekturmaßnahmen für Soft-404, Redirect Chains und Server-Errors.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K1.2.4",
+                            "objective": "Canonicalization & Duplicates: Einsatz von rel="canonical" zur Vermeidung von Duplicate Content. Strategien zur Behandlung von Dubletten bei Parameter-URLs und Facetten-Navigation.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K1.2.5",
+                            "objective": "XML Sitemaps: Erstellung und Validierung von XML-Sitemaps zur Indexierungssteuerung. Konzeption von Sitemap-Index-Strategien und Video-Sitemaps für große Portale.",
+                            "bloom_level": "K3"
+                        }
+                    ]
+                },
+                {
+                    "id": "domain-1.3",
+                    "title": "Security, Compliance & International Architecture",
+                    "study_guide_chapter": 3,
+                    "learning_objectives": [
+                        {
+                            "id": "K1.3.1",
+                            "objective": "Security & Hygiene: Implementierung von HTTPS, SSL-Zertifikaten und HSTS. Identifikation und Behebung von "Mixed Content" Fehlern.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K1.3.2",
+                            "objective": "Legal Compliance: Anwendung grundlegender Web-Rechts-Standards (Impressumspflicht, DSGVO-konforme Einbindung von externen Ressourcen/Maps/Videos) zur Vermeidung von Abmahnrisiken.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K1.3.3",
+                            "objective": "Internationalization: Implementierung von Multi-Region-Architekturen mittels hreflang (HTML-Tags oder Sitemap) und Validierung bidirektionaler Referenzen.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K1.3.4",
+                            "objective": "Domain Strategy: Strategische Auswahl von Top-Level-Domains (ccTLD vs. gTLD) und URL-Strukturen (Subdomain vs. Subfolder) für internationale Märkte.",
+                            "bloom_level": "K5"
+                        }
+                    ]
+                },
+                {
+                    "id": "domain-1.4",
+                    "title": "Asset Optimization & Performance",
+                    "study_guide_chapter": 4,
+                    "learning_objectives": [
+                        {
+                            "id": "K1.4.1",
+                            "objective": "Core Web Vitals: Definition der Metriken LCP, INP und CLS. Diagnose von Ursachen für schlechte Werte (z.B. Render-Blocking Resources, Layout Shifts) mittels Browser DevTools (PageSpeed Insights).",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K1.4.2",
+                            "objective": "Mobile First: Anwendung der Mobile-First-Indexing Richtlinien auf Web-Architekturen und Responsive Design.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K1.4.3",
+                            "objective": "Asset SEO: Optimierung von Medienformaten (WebP/AVIF) und Metadaten für Google Discover. Nutzung von Computer Vision KI zur automatisierten Generierung von Alt-Attributen für große Bildmengen (Accelerator).",
+                            "bloom_level": "K3"
+                        }
+                    ]
+                },
+                {
+                    "id": "domain-1.5",
+                    "title": "Diagnostics & Data Mining",
+                    "study_guide_chapter": 5,
+                    "learning_objectives": [
+                        {
+                            "id": "K1.5.1",
+                            "objective": "Audit Configuration: Konfiguration von Crawlern (z.B. Screaming Frog) hinsichtlich User-Agent Simulation und JavaScript-Rendering. Identifikation von "Orphan Pages" (verwaisten Seiten).",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K1.5.2",
+                            "objective": "Diagnostic Operators: Anwendung von Suchoperatoren (z.B. site:, cache:, related:) zur schnellen Diagnose von Indexierungsproblemen.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K1.5.3",
+                            "objective": "Regular Expressions: Anwendung von Regex zur Filterung komplexer URL-Muster in Analysetools (GSC) und Crawl-Daten.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K1.5.4",
+                            "objective": "AI-Coding (Methodik): Generierung valider technischer Syntax (Regex, Robots-Regeln, .htaccess) mittels LLM-Prompting unter Anwendung von Validierungs-Routinen (Accelerator Competence).",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K1.5.5",
+                            "objective": "Reporting Strategy: Priorisierung technischer Fehler nach Impact/Effort-Matrix. Formulierung von Entwickler-Anforderungen (Tickets) im User-Story-Format.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K1.5.6",
+                            "objective": "Crawl Budget & Pruning: Management von Crawl-Kapazitäten. Identifikation und Bereinigung von Low-Quality-Content ("Content Pruning").",
+                            "bloom_level": "K4"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "slot_number": 2,
+            "slot_title": "The Semantic Strategist",
+            "domains": [
+                {
+                    "id": "domain-2.1",
+                    "title": "Semantic Architecture & On-Page Signals",
+                    "study_guide_chapter": 6,
+                    "learning_objectives": [
+                        {
+                            "id": "K2.1.1",
+                            "objective": "Entity Extraction: Abgrenzung von Keywords (Strings) und Entitäten (Things). Extraktion von Entitäten mittels NLP-Tools oder LLMs und Visualisierung semantischer Beziehungen (Topical Maps).",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K2.1.2",
+                            "objective": "Search Intent: Klassifizierung von Keywords nach User Intent (Navigational, Informational, Transactional). Optimierung von Meta-Tags zur Steigerung der CTR.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K2.1.3",
+                            "objective": "HTML Signals: Optimierung der Dokumenten-Outline (H1-H6 Hierarchie) und semantischer URL-Strukturen für Mensch und Maschine.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K2.1.4",
+                            "objective": "SERP Interface: Identifikation und Optimierung für spezifische SERP Features (Knowledge Panel, Featured Snippets). Psychologische Optimierung von Title-Tags/Meta-Descriptions.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K2.1.5",
+                            "objective": "E-E-A-T & Helpful Content: Bewertung von Inhalten nach dem "People-First"-Prinzip. Planung von Maßnahmen zur Stärkung von Experience, Expertise, Authoritativeness und Trust (YMYL).",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K2.1.6",
+                            "objective": "Search Economics: Analyse der "Search Demand Curve" zur strategischen Priorisierung von Keywords (Fat Head vs. Long Tail) basierend auf Volumen, Wettbewerb und Conversion-Wahrscheinlichkeit.",
+                            "bloom_level": "K4"
+                        }
+                    ]
+                },
+                {
+                    "id": "domain-2.2",
+                    "title": "Structured Data Engineering",
+                    "study_guide_chapter": 7,
+                    "learning_objectives": [
+                        {
+                            "id": "K2.2.1",
+                            "objective": "JSON-LD Syntax: Anwendung der JSON-LD Syntaxregeln. Auswahl korrekter Typen (Article, Product, Review, FAQ) für spezifische Inhalte.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K2.2.2",
+                            "objective": "Advanced Nesting: Konstruktion verschachtelter Schemas (Nesting) zur Abbildung komplexer Objekt-Beziehungen.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K2.2.3",
+                            "objective": "Validation: Prüfung von Markup mittels Rich Results Test. Analyse des Einflusses von Rich Snippets auf die Click-Through-Rate (CTR).",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K2.2.4",
+                            "objective": "AI-Generation (Methodik): Nutzung von LLMs als Code-Generator für komplexe Schema-Strukturen unter Berücksichtigung von Halluzinations-Risiken (Co-Pilot Competence).",
+                            "bloom_level": "K3"
+                        }
+                    ]
+                },
+                {
+                    "id": "domain-2.3",
+                    "title": "Authority & Trust Strategy",
+                    "study_guide_chapter": 8,
+                    "learning_objectives": [
+                        {
+                            "id": "K2.3.1",
+                            "objective": "Topic Clusters: Konzeption von "Hub & Spoke" Modellen (Pillar Pages). Nutzung von KI zum automatisierten Clustering großer Keyword-Sets (Keyword Clustering).",
+                            "bloom_level": "K5"
+                        },
+                        {
+                            "id": "K2.3.2",
+                            "objective": "Internal Link Flow: Strategische Steuerung der internen Linkkraft ("Linkjuice") zur Stärkung wichtiger Unterseiten und Vermeidung von Orphan Pages.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K2.3.3",
+                            "objective": "Cannibalization: Identifikation und Behebung von Keyword-Kannibalisierung (wenn mehrere Seiten für dasselbe Keyword ranken) durch Mergers oder Content-Updates.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K2.3.4",
+                            "objective": "Link Hygiene: Auditierung von Backlink-Profilen. Identifikation toxischer Links und Anwendung des Disavow-Files bei manuellen Maßnahmen.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K2.3.5",
+                            "objective": "Active Authority: Entwicklung ethischer Link-Building-Strategien (Digital PR, Content Assets) zur Stärkung des Graph-Trusts.",
+                            "bloom_level": "K5"
+                        },
+                        {
+                            "id": "K2.3.6",
+                            "objective": "Anchor Text Strategy: Analyse und Steuerung der Verteilung von Linktexten (Brand, Money, Compound) zur Vermeidung von Überoptimierung (Penguin-Filter).",
+                            "bloom_level": "K4"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "slot_number": 3,
+            "slot_title": "The GEO Optimizer",
+            "domains": [
+                {
+                    "id": "domain-3.1",
+                    "title": "AI Search Mechanics",
+                    "study_guide_chapter": 9,
+                    "learning_objectives": [
+                        {
+                            "id": "K3.1.1",
+                            "objective": "RAG-Process: Erklärung des Retrieval Augmented Generation Prozesses. Analyse der Faktoren, die zu einer Zitation in LLM-Antworten führen.",
+                            "bloom_level": "K2"
+                        },
+                        {
+                            "id": "K3.1.2",
+                            "objective": "Search Logic: Analyse der Unterschiede zwischen deterministischer Suche (Klassisch) und probabilistischer Antwort-Generierung (Generative AI).",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K3.1.3",
+                            "objective": "Simulation: Vergleichende Nutzung von LLMs (Perplexity, ChatGPT, Gemini) zur Simulation von "Konsens-Antworten" (Reverse Engineering) und Pre-Testing von GEO-Strategien.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K3.1.4",
+                            "objective": "AI Risk Awareness: Bewertung der Grenzen von KI-Modellen (Halluzinationen, Bias) bei der Strategieplanung (Hazard Competence).",
+                            "bloom_level": "K4"
+                        }
+                    ]
+                },
+                {
+                    "id": "domain-3.2",
+                    "title": "Multimodal Content & Formatting",
+                    "study_guide_chapter": 10,
+                    "learning_objectives": [
+                        {
+                            "id": "K3.2.1",
+                            "objective": "AEO Writing: Anwendung KI-optimierter Schreibstrategien (Inverted Pyramid, hohe Fakten-Dichte) zur Erhöhung der Extraktionswahrscheinlichkeit.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K3.2.2",
+                            "objective": "Data Formatting: Strukturierung von Informationen in LLM-freundliche Formate (Listen, Datentabellen, semantisches HTML).",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K3.2.3",
+                            "objective": "Voice Search: Optimierung von Inhalten für sprachgesteuerte Suchanfragen (Natural Language Queries) und deren Ausgabe durch digitale Assistenten.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K3.2.4",
+                            "objective": "Multimodal SEO: Optimierung von Bildern für RAG-Systeme (Vektor-Kontext). Nutzung von Transkripten für Videoinhalte.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K3.2.5",
+                            "objective": "Video Platform SEO: Optimierung von Videoinhalten für Plattform-Algorithmen (YouTube Rankingfaktoren: Watchtime, CTR, Engagement) und SERP-Video-Integrationen.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K3.2.6",
+                            "objective": "Local AEO: Optimierung von NAP-Daten (Name, Address, Phone) und Google Unternehmensprofilen für standortbezogene KI-Antworten.",
+                            "bloom_level": "K3"
+                        }
+                    ]
+                },
+                {
+                    "id": "domain-3.3",
+                    "title": "Hybrid Metrics & Analysis",
+                    "study_guide_chapter": 11,
+                    "learning_objectives": [
+                        {
+                            "id": "K3.3.1",
+                            "objective": "Share of Model: Messung der Markenwahrnehmung in KI-Modellen (Brand Mentions ohne Link). Durchführung von Gap-Analysen zwischen eigenem Content und Modell-Wissen.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K3.3.2",
+                            "objective": "Trend Analysis: Nutzung von Tools (Google Trends) zur Identifikation saisonaler Nachfragespitzen und Real-Time-Optimierung für aktuelle Ereignisse ("News SEO").",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K3.3.3",
+                            "objective": "Scientific Method: Differenzierung zwischen Korrelation (z.B. Social Signals) und Kausalität bei der Bewertung von Rankingfaktoren und Studienergebnissen.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K3.3.4",
+                            "objective": "Success Metrics: Definition von SMARTen Business-KPIs (Traffic, Umsatz) sowie Messung probabilistischer KI-Sichtbarkeit (Varianz in LLM-Antworten).",
+                            "bloom_level": "K4"
+                        }
+                    ]
+                },
+                {
+                    "id": "domain-3.4",
+                    "title": "Strategic Management & Ethics",
+                    "study_guide_chapter": 12,
+                    "learning_objectives": [
+                        {
+                            "id": "K3.4.1",
+                            "objective": "Digital PR for AI: Konzeption von Maßnahmen, um Erwähnungen in High-Authority-Quellen zu generieren, die als Trainingsdaten für LLMs dienen.",
+                            "bloom_level": "K5"
+                        },
+                        {
+                            "id": "K3.4.2",
+                            "objective": "Hybrid Roadmap: Entwicklung einer Strategie, die klassische Traffic-Ziele (SEO) mit Branding-Zielen in KI-Antworten (GEO) und Zero-Click-Szenarien ausbalanciert.",
+                            "bloom_level": "K5"
+                        },
+                        {
+                            "id": "K3.4.3",
+                            "objective": "Risk Management: Bewertung rechtlicher Risiken (Content Scraping) und Abwägung von Schutzmaßnahmen (Bot-Blockaden) gegenüber Sichtbarkeitsverlust.",
+                            "bloom_level": "K4"
+                        },
+                        {
+                            "id": "K3.4.4",
+                            "objective": "Industry Intelligence: Identifikation autoritativer Quellen (Google Search Central, Research Papers, Patente) und Nutzung von Fachkonferenzen zur kontinuierlichen Anpassung der Strategie.",
+                            "bloom_level": "K3"
+                        },
+                        {
+                            "id": "K3.4.5",
+                            "objective": "Governance & Stakeholder Management: Etablierung von Prozessen zur KI-Qualitätssicherung und Kommunikation von SEO/GEO-Anforderungen an interne Stakeholder (Dev, Legal, Content).",
+                            "bloom_level": "K5"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
