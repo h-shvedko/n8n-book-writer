@@ -1,0 +1,240 @@
+{
+  "id": "WPI-WEB-DEV-2025",
+  "name": "WPI Web Development Professional Certification",
+  "version": "1.0.0",
+  "certificationBody": "Web Professional Institute (WPI)",
+  "isoStandard": "ISO/IEC 17024",
+  "lastUpdated": "2025-01-21",
+  "domains": [
+    {
+      "id": "D1",
+      "name": "HTML & Semantic Markup",
+      "description": "Fundamentals of HTML5 and semantic web markup for accessible, standards-compliant web pages",
+      "weight": 20,
+      "topics": [
+        {
+          "id": "D1.1",
+          "title": "HTML5 Document Structure",
+          "description": "Understanding the basic structure of HTML5 documents",
+          "estimatedHours": 4,
+          "learningObjectives": [
+            {
+              "id": "LO-D1.1-001",
+              "description": "Create a valid HTML5 document with proper DOCTYPE, head, and body sections",
+              "bloomLevel": "create",
+              "keywords": ["DOCTYPE", "html", "head", "body", "meta"]
+            },
+            {
+              "id": "LO-D1.1-002",
+              "description": "Explain the purpose of semantic HTML elements",
+              "bloomLevel": "understand",
+              "keywords": ["semantic", "header", "footer", "nav", "article", "section"]
+            }
+          ],
+          "resources": ["MDN Web Docs", "W3C HTML5 Specification"]
+        },
+        {
+          "id": "D1.2",
+          "title": "Forms and Input Elements",
+          "description": "Building accessible and functional web forms",
+          "estimatedHours": 6,
+          "learningObjectives": [
+            {
+              "id": "LO-D1.2-001",
+              "description": "Implement various HTML5 input types with appropriate validation",
+              "bloomLevel": "apply",
+              "keywords": ["input", "form", "validation", "required", "pattern"]
+            },
+            {
+              "id": "LO-D1.2-002",
+              "description": "Associate labels with form controls for accessibility",
+              "bloomLevel": "apply",
+              "keywords": ["label", "for", "accessibility", "ARIA"]
+            }
+          ]
+        }
+      ],
+      "prerequisites": []
+    },
+    {
+      "id": "D2",
+      "name": "CSS & Responsive Design",
+      "description": "Cascading Style Sheets and modern responsive design techniques",
+      "weight": 25,
+      "topics": [
+        {
+          "id": "D2.1",
+          "title": "CSS Selectors and Specificity",
+          "description": "Understanding CSS selector syntax and the cascade",
+          "estimatedHours": 5,
+          "learningObjectives": [
+            {
+              "id": "LO-D2.1-001",
+              "description": "Apply CSS selectors to target specific HTML elements",
+              "bloomLevel": "apply",
+              "keywords": ["selector", "class", "id", "attribute", "pseudo-class"]
+            },
+            {
+              "id": "LO-D2.1-002",
+              "description": "Calculate specificity to resolve conflicting styles",
+              "bloomLevel": "analyze",
+              "keywords": ["specificity", "cascade", "inheritance", "!important"]
+            }
+          ]
+        },
+        {
+          "id": "D2.2",
+          "title": "Flexbox and Grid Layout",
+          "description": "Modern CSS layout techniques",
+          "estimatedHours": 8,
+          "learningObjectives": [
+            {
+              "id": "LO-D2.2-001",
+              "description": "Create flexible layouts using CSS Flexbox",
+              "bloomLevel": "create",
+              "keywords": ["flexbox", "flex-direction", "justify-content", "align-items"]
+            },
+            {
+              "id": "LO-D2.2-002",
+              "description": "Design complex grid-based layouts using CSS Grid",
+              "bloomLevel": "create",
+              "keywords": ["grid", "grid-template", "grid-area", "fr"]
+            }
+          ]
+        },
+        {
+          "id": "D2.3",
+          "title": "Responsive Design",
+          "description": "Building websites that work across all device sizes",
+          "estimatedHours": 6,
+          "learningObjectives": [
+            {
+              "id": "LO-D2.3-001",
+              "description": "Implement media queries for responsive breakpoints",
+              "bloomLevel": "apply",
+              "keywords": ["media query", "breakpoint", "viewport", "mobile-first"]
+            }
+          ]
+        }
+      ],
+      "prerequisites": ["D1"]
+    },
+    {
+      "id": "D3",
+      "name": "JavaScript Fundamentals",
+      "description": "Core JavaScript programming concepts and DOM manipulation",
+      "weight": 30,
+      "topics": [
+        {
+          "id": "D3.1",
+          "title": "Variables and Data Types",
+          "description": "JavaScript variables, primitive types, and type coercion",
+          "estimatedHours": 4,
+          "learningObjectives": [
+            {
+              "id": "LO-D3.1-001",
+              "description": "Declare variables using let, const, and var with appropriate scoping",
+              "bloomLevel": "apply",
+              "keywords": ["let", "const", "var", "scope", "hoisting"]
+            },
+            {
+              "id": "LO-D3.1-002",
+              "description": "Differentiate between primitive and reference types",
+              "bloomLevel": "understand",
+              "keywords": ["string", "number", "boolean", "null", "undefined", "object", "array"]
+            }
+          ]
+        },
+        {
+          "id": "D3.2",
+          "title": "Functions and Scope",
+          "description": "Function declarations, expressions, and closures",
+          "estimatedHours": 6,
+          "learningObjectives": [
+            {
+              "id": "LO-D3.2-001",
+              "description": "Write functions using different declaration styles",
+              "bloomLevel": "create",
+              "keywords": ["function", "arrow function", "callback", "closure"]
+            }
+          ]
+        },
+        {
+          "id": "D3.3",
+          "title": "DOM Manipulation",
+          "description": "Selecting and modifying DOM elements",
+          "estimatedHours": 8,
+          "learningObjectives": [
+            {
+              "id": "LO-D3.3-001",
+              "description": "Select DOM elements using various methods",
+              "bloomLevel": "apply",
+              "keywords": ["querySelector", "getElementById", "getElementsByClassName"]
+            },
+            {
+              "id": "LO-D3.3-002",
+              "description": "Modify element content, attributes, and styles dynamically",
+              "bloomLevel": "apply",
+              "keywords": ["innerHTML", "textContent", "setAttribute", "style"]
+            }
+          ]
+        }
+      ],
+      "prerequisites": ["D1", "D2"]
+    },
+    {
+      "id": "D4",
+      "name": "React Fundamentals",
+      "description": "Building user interfaces with React",
+      "weight": 25,
+      "topics": [
+        {
+          "id": "D4.1",
+          "title": "Components and JSX",
+          "description": "Creating and composing React components",
+          "estimatedHours": 6,
+          "learningObjectives": [
+            {
+              "id": "LO-D4.1-001",
+              "description": "Create functional React components using JSX syntax",
+              "bloomLevel": "create",
+              "keywords": ["component", "JSX", "props", "functional component"]
+            },
+            {
+              "id": "LO-D4.1-002",
+              "description": "Pass and validate props between components",
+              "bloomLevel": "apply",
+              "keywords": ["props", "PropTypes", "children", "composition"]
+            }
+          ]
+        },
+        {
+          "id": "D4.2",
+          "title": "State and Hooks",
+          "description": "Managing component state with React Hooks",
+          "estimatedHours": 8,
+          "learningObjectives": [
+            {
+              "id": "LO-D4.2-001",
+              "description": "Manage component state using useState hook",
+              "bloomLevel": "apply",
+              "keywords": ["useState", "state", "setState", "immutability"]
+            },
+            {
+              "id": "LO-D4.2-002",
+              "description": "Handle side effects using useEffect hook",
+              "bloomLevel": "apply",
+              "keywords": ["useEffect", "dependency array", "cleanup", "lifecycle"]
+            }
+          ]
+        }
+      ],
+      "prerequisites": ["D3"]
+    }
+  ],
+  "metadata": {
+    "totalHours": 61,
+    "targetAudience": "Aspiring web developers",
+    "assessmentFormat": "Multiple choice and practical coding exercises"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "mcp-research",
+  "version": "1.0.0",
+  "description": "MCP Server for Research with Qdrant Vector Database Integration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:http": "MCP_MODE=http node dist/index.js",
+    "dev": "tsc -w",
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "qdrant",
+    "vector-search",
+    "hybrid-search",
+    "embeddings"
+  ],
+  "author": "WPI AI Content Factory",
+  "license": "MIT",
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.12.0",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.0",
+    "openai": "^4.77.0",
+    "uuid": "^11.0.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "@types/express": "^4.17.21",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
