@@ -1,6 +1,5 @@
 import { Syllabus, WorkflowExecution, ServiceStatus, DocumentMetadata } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '';
 const N8N_API_BASE = import.meta.env.VITE_N8N_API_BASE || '/api/n8n';
 const MCP_RESEARCH_BASE = import.meta.env.VITE_MCP_RESEARCH_BASE || '/api/mcp-research';
 const MCP_STANDARDS_BASE = import.meta.env.VITE_MCP_STANDARDS_BASE || '/api/mcp-standards';

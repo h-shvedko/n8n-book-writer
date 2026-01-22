@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store';
 import { standardsApi } from '../api';
-import { Syllabus, Domain, Topic, LearningObjective } from '../types';
+import type { Domain, Topic, LearningObjective } from '../types';
 
 // Bloom taxonomy levels
 const BLOOM_LEVELS = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'] as const;

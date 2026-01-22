@@ -58,7 +58,7 @@ services:
     networks:
       - wpi-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/6333 && echo -e \"GET / HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n\" >&3 && cat <&3 | head -1 | grep -q 200'"]
       interval: 30s
       timeout: 10s
       retries: 3
