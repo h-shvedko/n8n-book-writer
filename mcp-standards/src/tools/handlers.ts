@@ -6,6 +6,8 @@ import {
   SearchSyllabusInputSchema,
   LoadSyllabusInputSchema,
 } from './schemas';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface ToolResult {
   content: Array<{ type: 'text'; text: string }>;
@@ -258,6 +260,78 @@ export function handleGetIsoRequirements(args: unknown): ToolResult {
       content: [{
         type: 'text',
         text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }],
+      isError: true,
+    };
+  }
+}
+
+/**
+ * Handle get_editorial_guide tool call
+ */
+export function handleGetEditorialGuide(): ToolResult {
+  try {
+    const editorialGuidePath = path.join(process.cwd(), 'data', 'editorial_guide.md');
+
+    if (!fs.existsSync(editorialGuidePath)) {
+      return {
+        content: [{
+          type: 'text',
+          text: 'Editorial guide not found. Please ensure editorial_guide.md exists in /app/data directory.',
+        }],
+        isError: true,
+      };
+    }
+
+    const content = fs.readFileSync(editorialGuidePath, 'utf-8');
+
+    return {
+      content: [{
+        type: 'text',
+        text: content,
+      }],
+    };
+  } catch (error) {
+    return {
+      content: [{
+        type: 'text',
+        text: `Error reading editorial guide: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }],
+      isError: true,
+    };
+  }
+}
+
+/**
+ * Handle get_chapter_template tool call
+ */
+export function handleGetChapterTemplate(): ToolResult {
+  try {
+    const templatePath = path.join(process.cwd(), 'data', 'kapitel1.md');
+
+    if (!fs.existsSync(templatePath)) {
+      return {
+        content: [{
+          type: 'text',
+          text: 'Chapter template not found. Please ensure kapitel1.md exists in /app/data directory.',
+        }],
+        isError: true,
+      };
+    }
+
+    const content = fs.readFileSync(templatePath, 'utf-8');
+
+    return {
+      content: [{
+        type: 'text',
+        text: content,
+      }],
+    };
+  } catch (error) {
+    return {
+      content: [{
+        type: 'text',
+        text: `Error reading chapter template: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }],
       isError: true,
     };

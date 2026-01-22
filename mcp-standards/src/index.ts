@@ -10,6 +10,8 @@ import {
   handleLoadSyllabus,
   handleExportSyllabus,
   handleGetIsoRequirements,
+  handleGetEditorialGuide,
+  handleGetChapterTemplate,
 } from './tools/handlers';
 import { syllabusService } from './services/syllabus-service';
 
@@ -85,6 +87,12 @@ app.post('/call', authMiddleware, async (req: Request, res: Response) => {
         break;
       case 'get_iso_requirements':
         result = handleGetIsoRequirements(args);
+        break;
+      case 'get_editorial_guide':
+        result = handleGetEditorialGuide();
+        break;
+      case 'get_chapter_template':
+        result = handleGetChapterTemplate();
         break;
       default:
         res.status(404).json({ error: `Unknown tool: ${name}` });
