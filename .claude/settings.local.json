@@ -21,7 +21,9 @@
       "Bash(docker ps:*)",
       "Bash(docker exec:*)",
       "Bash(dir /s /b)",
-      "Bash(docker cp:*)"
+      "Bash(docker cp:*)",
+      "Bash(npm install:*)",
+      "Bash(docker compose build:*)"
     ]
   }
 }

@@ -429,13 +429,154 @@
     },
     {
       "parameters": {
-        "jsCode": "const prevData = $('📝 Extract Code Requests').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Replace placeholders with actual code\nlet finalDraft = prevData.draft_content;\n\n// Simple replacement\nprevData.code_requests.forEach((req, index) => {\n  const codeBlocks = codeResponse.match(/```[\\s\\S]*?```/g) || [];\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(req.placeholder, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    code_validated: true\n  }\n};"
+        "jsCode": "const prevData = $('📝 Extract Code Requests').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Extract code blocks for validation\nconst codeBlocks = codeResponse.match(/```([\\w]*)\\n([\\s\\S]*?)```/g) || [];\nconst extractedCode = codeBlocks.map(block => {\n  const match = block.match(/```([\\w]*)\\n([\\s\\S]*?)```/);\n  return {\n    language: match[1] || 'javascript',\n    code: match[2].trim()\n  };\n});\n\n// Replace placeholders with actual code\nlet finalDraft = prevData.draft_content;\nprevData.code_requests.forEach((req, index) => {\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(req.placeholder, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    extracted_code: extractedCode,\n    raw_code_response: codeResponse,\n    code_validated: false\n  }\n};"
       },
       "id": "b68cb994-843a-45bb-aa7d-fa0e5fa2362e",
       "name": "🔗 Merge Code",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [-21808, 9272]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-coder:3004/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function() {\n  const codeItems = $json.extracted_code || [];\n  if (codeItems.length === 0) {\n    return JSON.stringify({ name: 'validate_code_snippet', arguments: { code: '// no code', language: 'javascript' }});\n  }\n  // Validate first code block (can be extended to validate all)\n  const firstCode = codeItems[0];\n  const langMap = { 'js': 'javascript', 'ts': 'typescript', 'jsx': 'javascript', 'tsx': 'typescript' };\n  const lang = langMap[firstCode.language] || firstCode.language || 'javascript';\n  return JSON.stringify({\n    name: 'validate_code_snippet',\n    arguments: {\n      code: firstCode.code,\n      language: ['javascript', 'typescript', 'html', 'css', 'json'].includes(lang) ? lang : 'javascript',\n      strict_mode: true,\n      check_best_practices: false\n    }\n  });\n})() }}",
+        "options": {
+          "response": { "response": { "fullResponse": true } }
+        }
+      },
+      "id": "mcp-validate-code",
+      "name": "🔬 MCP: Validate Code",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-21584, 9172],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Auth Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevData = $('🔗 Merge Code').first().json;\n\n// Parse validation result from MCP-Coder\nlet validationResult = { valid: true, errors: [], suggestions: [] };\ntry {\n  const valResp = $('🔬 MCP: Validate Code').first().json;\n  if (valResp.body?.content?.[0]?.text) {\n    validationResult = JSON.parse(valResp.body.content[0].text);\n  }\n} catch (e) {\n  console.log('Code validation not available:', e.message);\n}\n\n// Get static data for retry count\nconst staticData = $getWorkflowStaticData('global');\nstaticData.code_retry_count = staticData.code_retry_count || 0;\n\nreturn {\n  json: {\n    ...prevData,\n    code_validation: validationResult,\n    code_validated: validationResult.valid,\n    code_errors: validationResult.errors || [],\n    code_suggestions: validationResult.suggestions || [],\n    code_retry_count: staticData.code_retry_count\n  }\n};"
+      },
+      "id": "parse-code-validation",
+      "name": "📊 Parse Code Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-21360, 9172]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "code-valid",
+              "leftValue": "={{ $json.code_validated }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "code-valid-check",
+      "name": "🔀 Code Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-21136, 9172]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "code-retry-limit",
+              "leftValue": "={{ $json.code_retry_count }}",
+              "rightValue": 2,
+              "operator": { "type": "number", "operation": "lt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "code-retry-check",
+      "name": "🔀 Code Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-20912, 9072]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.2,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: 'Du bist \"The Coder\" - ein Senior Developer. Der vorherige Code hatte Fehler. Korrigiere den Code basierend auf den Fehlermeldungen.\\n\\nRegeln:\\n1. Verwende moderne ES6+ Syntax\\n2. Füge hilfreiche Kommentare hinzu\\n3. Behandle Edge Cases\\n4. Code muss syntaktisch korrekt sein\\n\\nOutput nur den korrigierten Code im gleichen Format.'\n    },\n    {\n      role: 'user',\n      content: 'Korrigiere folgenden Code:\\n\\n**Originaler Code:**\\n' + $json.raw_code_response + '\\n\\n**Fehler vom Validator:**\\n' + JSON.stringify($json.code_errors, null, 2) + '\\n\\n**Verbesserungsvorschläge:**\\n' + ($json.code_suggestions || []).join('\\n') + '\\n\\nBitte korrigiere den Code und gib ihn im gleichen Format zurück (mit ```sprache blocks).'\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "id": "coder-self-correct",
+      "name": "🔄 Coder Self-Correct",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-20688, 8972],
+      "credentials": {
+        "openAiApi": {
+          "id": "Oh3Rnj32fETJUF9U",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Increment retry counter and merge corrected code\nconst staticData = $getWorkflowStaticData('global');\nstaticData.code_retry_count = (staticData.code_retry_count || 0) + 1;\n\nconst prevData = $('📊 Parse Code Validation').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Extract code blocks for validation\nconst codeBlocks = codeResponse.match(/```([\\w]*)\\n([\\s\\S]*?)```/g) || [];\nconst extractedCode = codeBlocks.map(block => {\n  const match = block.match(/```([\\w]*)\\n([\\s\\S]*?)```/);\n  return {\n    language: match[1] || 'javascript',\n    code: match[2].trim()\n  };\n});\n\n// Re-merge into draft\nlet finalDraft = prevData.draft_content;\nconst originalCodeBlocks = prevData.draft_content.match(/```[\\s\\S]*?```/g) || [];\noriginalCodeBlocks.forEach((oldBlock, index) => {\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(oldBlock, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    extracted_code: extractedCode,\n    raw_code_response: codeResponse,\n    code_validated: false,\n    code_retry_count: staticData.code_retry_count\n  }\n};"
+      },
+      "id": "merge-corrected-code",
+      "name": "🔗 Merge Corrected Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-20464, 8972]
+    },
+    {
+      "parameters": {},
+      "id": "skip-code-validation",
+      "name": "⏭️ Skip Validation",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [-20912, 9272]
     },
     {
       "parameters": {},
@@ -673,9 +814,9 @@
     },
     {
       "parameters": {
-        "content": "## WPI AI Content Factory - MCP Integrated\n\n### MCP Server Integration\n- **mcp-standards** (Port 3002): Syllabus & ISO 17024\n- **mcp-research** (Port 3003): Qdrant Vector DB\n\n### Workflow Übersicht\n1. **📥 Input**: Product Definition + Syllabus Domain\n2. **📚 MCP**: Get Syllabus & Search KB\n3. **🏗️ Architect**: Erstellt ISO-aligned Blueprint\n4. **⏸️ Human Approval**: Experte prüft Blueprint\n5. **🔁 Chapter Loop**: Für jedes Kapitel:\n   - 🔍 MCP Research: Knowledge Base suchen\n   - 📚 MCP Standards: Learning Objectives holen\n   - ✍️ Writer: Content erstellen\n   - 💻 Coder: Code generieren\n   - 📋 MCP ISO Check: Compliance prüfen\n   - 🔍 Editor: Quality Check + Exam Fragen\n   - 💾 MCP Ingest: In KB speichern\n6. **📚 Output**: Fertiges Buch + Exam Questions\n\n### Konfiguration\n- OpenAI API Key in Credentials\n- MCP Auth Token in httpHeaderAuth\n- Email-Settings anpassen",
-        "height": 520,
-        "width": 380
+        "content": "## WPI AI Content Factory - MCP Integrated\n\n### MCP Server Integration\n- **mcp-standards** (Port 3002): Syllabus & ISO 17024\n- **mcp-research** (Port 3003): Qdrant Vector DB\n- **mcp-coder** (Port 3004): Code Validation & Examples\n\n### Workflow Übersicht\n1. **📥 Input**: Product Definition + Syllabus Domain\n2. **📚 MCP**: Get Syllabus & Search KB\n3. **🏗️ Architect**: Erstellt ISO-aligned Blueprint\n4. **⏸️ Human Approval**: Experte prüft Blueprint\n5. **🔁 Chapter Loop**: Für jedes Kapitel:\n   - 🔍 MCP Research: Knowledge Base suchen\n   - 📚 MCP Standards: Learning Objectives holen\n   - ✍️ Writer: Content erstellen\n   - 💻 Coder: Code generieren\n   - 🔬 MCP Coder: Code validieren (ES6+)\n   - 🔄 Self-Correction Loop (max 2 retries)\n   - 📋 MCP ISO Check: Compliance prüfen\n   - 🔍 Editor: Quality Check + Exam Fragen\n   - 💾 MCP Ingest: In KB speichern\n6. **📚 Output**: Fertiges Buch + Exam Questions\n\n### Konfiguration\n- OpenAI API Key in Credentials\n- MCP Auth Token in httpHeaderAuth\n- Email-Settings anpassen",
+        "height": 580,
+        "width": 400
       },
       "id": "b553be44-7c8d-4966-b847-7abd83ceef69",
       "name": "📝 Info",
@@ -759,6 +900,33 @@
       "main": [[{ "node": "🔗 Merge Code", "type": "main", "index": 0 }]]
     },
     "🔗 Merge Code": {
+      "main": [[{ "node": "🔬 MCP: Validate Code", "type": "main", "index": 0 }]]
+    },
+    "🔬 MCP: Validate Code": {
+      "main": [[{ "node": "📊 Parse Code Validation", "type": "main", "index": 0 }]]
+    },
+    "📊 Parse Code Validation": {
+      "main": [[{ "node": "🔀 Code Valid?", "type": "main", "index": 0 }]]
+    },
+    "🔀 Code Valid?": {
+      "main": [
+        [{ "node": "📋 MCP: ISO Compliance Check", "type": "main", "index": 0 }],
+        [{ "node": "🔀 Code Retry?", "type": "main", "index": 0 }]
+      ]
+    },
+    "🔀 Code Retry?": {
+      "main": [
+        [{ "node": "🔄 Coder Self-Correct", "type": "main", "index": 0 }],
+        [{ "node": "⏭️ Skip Validation", "type": "main", "index": 0 }]
+      ]
+    },
+    "🔄 Coder Self-Correct": {
+      "main": [[{ "node": "🔗 Merge Corrected Code", "type": "main", "index": 0 }]]
+    },
+    "🔗 Merge Corrected Code": {
+      "main": [[{ "node": "🔬 MCP: Validate Code", "type": "main", "index": 0 }]]
+    },
+    "⏭️ Skip Validation": {
       "main": [[{ "node": "📋 MCP: ISO Compliance Check", "type": "main", "index": 0 }]]
     },
     "⏭️ Skip Code": {

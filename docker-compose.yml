@@ -144,6 +144,37 @@ services:
           memory: 256M
 
   # ============================================
+  # MCP Coder Server (Code Validation & Examples)
+  # ============================================
+  mcp-coder:
+    build:
+      context: ./mcp-coder
+      dockerfile: Dockerfile
+    container_name: wpi-mcp-coder
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - MCP_MODE=http
+      - PORT=3004
+      - AUTH_TOKEN=${MCP_AUTH_TOKEN:-}
+    ports:
+      - "${MCP_CODER_PORT:-3004}:3004"
+    networks:
+      - wpi-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ============================================
   # n8n-MCP Server (Node Discovery & Validation)
   # ============================================
   n8n-mcp:
