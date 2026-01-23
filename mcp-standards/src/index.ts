@@ -12,6 +12,7 @@ import {
   handleGetIsoRequirements,
   handleGetEditorialGuide,
   handleGetChapterTemplate,
+  handleGetMasterPrompt,
 } from './tools/handlers';
 import { syllabusService } from './services/syllabus-service';
 
@@ -93,6 +94,9 @@ app.post('/call', authMiddleware, async (req: Request, res: Response) => {
         break;
       case 'get_chapter_template':
         result = handleGetChapterTemplate();
+        break;
+      case 'get_masterprompt':
+        result = handleGetMasterPrompt();
         break;
       default:
         res.status(404).json({ error: `Unknown tool: ${name}` });

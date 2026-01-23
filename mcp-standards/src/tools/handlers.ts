@@ -337,3 +337,40 @@ export function handleGetChapterTemplate(): ToolResult {
     };
   }
 }
+
+/**
+ * Handle get_masterprompt tool call
+ * Returns the Master Prompt v4.4 for WPI Chapter Generation (WPI Technical Architect)
+ */
+export function handleGetMasterPrompt(): ToolResult {
+  try {
+    const masterPromptPath = path.join(process.cwd(), 'data', 'masterprompt-chapter-generation.md');
+
+    if (!fs.existsSync(masterPromptPath)) {
+      return {
+        content: [{
+          type: 'text',
+          text: 'Master prompt not found. Please ensure masterprompt-chapter-generation.md exists in /app/data directory.',
+        }],
+        isError: true,
+      };
+    }
+
+    const content = fs.readFileSync(masterPromptPath, 'utf-8');
+
+    return {
+      content: [{
+        type: 'text',
+        text: content,
+      }],
+    };
+  } catch (error) {
+    return {
+      content: [{
+        type: 'text',
+        text: `Error reading master prompt: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      }],
+      isError: true,
+    };
+  }
+}
