@@ -243,7 +243,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get current state\nconst state = $('📋 Parse Blueprint').first().json;\nconst chapters = state.blueprint.chapters;\n\n// Return chapters as array for loop\nreturn chapters.map((chapter, index) => ({\n  json: {\n    ...state,\n    current_chapter: chapter,\n    current_chapter_index: index\n  }\n}));"
+        "jsCode": "// Clear any stale data from previous runs\nconst staticData = $getWorkflowStaticData('global');\nstaticData.processed_chapters = [];\nstaticData.revision_count = 0;\nstaticData.code_retry_count = 0;\n\n// Get current state\nconst state = $('📋 Parse Blueprint').first().json;\nconst chapters = state.blueprint.chapters;\n\n// Return chapters as array for loop\nreturn chapters.map((chapter, index) => ({\n  json: {\n    ...state,\n    current_chapter: chapter,\n    current_chapter_index: index\n  }\n}));"
       },
       "id": "4af29a1a-34cb-4979-be57-b5f214885477",
       "name": "📑 Prepare Chapters",
@@ -325,13 +325,35 @@
     },
     {
       "parameters": {
-        "jsCode": "// Reset revision counter for this chapter\nconst staticData = $getWorkflowStaticData('global');\nstaticData.revision_count = 0;\n\n// Get chapter data from loop\nconst chapterLoop = $('🔁 Chapter Loop').first().json;\n\n// Extract research from MCP-Research\nlet chapterResearch = [];\ntry {\n  const researchResp = $('🔍 MCP: Chapter Research').first().json;\n  if (researchResp.body?.content?.[0]?.text) {\n    const parsed = JSON.parse(researchResp.body.content[0].text);\n    chapterResearch = parsed.results || [];\n  }\n} catch (e) {\n  console.log('Chapter research not available:', e.message);\n}\n\n// Extract syllabus learning objectives from MCP-Standards\nlet syllabusLOs = [];\ntry {\n  const syllabusResp = $('📚 MCP: Get Chapter LOs').first().json;\n  if (syllabusResp.body?.content?.[0]?.text) {\n    const parsed = JSON.parse(syllabusResp.body.content[0].text);\n    syllabusLOs = parsed.results || [];\n  }\n} catch (e) {\n  console.log('Syllabus LOs not available:', e.message);\n}\n\nreturn {\n  json: {\n    book_id: chapterLoop.book_id,\n    current_chapter: chapterLoop.current_chapter,\n    current_chapter_index: chapterLoop.current_chapter_index,\n    chapter_research: chapterResearch,\n    syllabus_learning_objectives: syllabusLOs,\n    blueprint: chapterLoop.blueprint,\n    target_audience: chapterLoop.target_audience,\n    revision_count: 0\n  }\n};"
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge-mcp-results",
+      "name": "🔀 Merge MCP Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-23000, 9372]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge-with-chapter",
+      "name": "🔀 Add Chapter Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-22850, 9372]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reset revision counter for this chapter\nconst staticData = $getWorkflowStaticData('global');\nstaticData.revision_count = 0;\n\n// Get all input items - merged from: MCP Research, MCP Syllabus, Chapter Loop\nconst allItems = $input.all();\n\n// Find chapter data, research results, and syllabus LOs from merged inputs\nlet chapterResearch = [];\nlet syllabusLOs = [];\nlet chapterData = null;\n\nfor (const item of allItems) {\n  const json = item.json;\n  \n  // Check if this is chapter data from the loop (has current_chapter)\n  if (json.current_chapter && json.blueprint) {\n    chapterData = json;\n    continue;\n  }\n  \n  // Check if this is an MCP HTTP response (has body.content structure)\n  if (json.body?.content?.[0]?.text) {\n    try {\n      const parsed = JSON.parse(json.body.content[0].text);\n      \n      // Check for research results (has results_count or query field)\n      if (parsed.query !== undefined || parsed.results_count !== undefined) {\n        chapterResearch = parsed.results || [];\n      }\n      // Check for syllabus section data (has results array with matchType)\n      else if (parsed.results && parsed.count !== undefined) {\n        syllabusLOs = parsed.results || [];\n      }\n      // Check for syllabus section data (has section or learning_objectives)\n      else if (parsed.section || parsed.found || parsed.learning_objectives) {\n        syllabusLOs = parsed.learning_objectives || parsed.results || [];\n        if (parsed.section?.topics) {\n          for (const topic of parsed.section.topics) {\n            if (topic.learning_objectives) {\n              syllabusLOs = syllabusLOs.concat(topic.learning_objectives);\n            }\n          }\n        }\n      }\n    } catch (e) {\n      console.log('Failed to parse MCP response:', e.message);\n    }\n  }\n}\n\n// Verify we have chapter data\nif (!chapterData) {\n  throw new Error('Chapter data not found in merged inputs. Check workflow connections.');\n}\n\nreturn {\n  json: {\n    book_id: chapterData.book_id,\n    current_chapter: chapterData.current_chapter,\n    current_chapter_index: chapterData.current_chapter_index,\n    chapter_research: chapterResearch,\n    syllabus_learning_objectives: syllabusLOs,\n    blueprint: chapterData.blueprint,\n    target_audience: chapterData.target_audience,\n    revision_count: 0\n  }\n};"
       },
       "id": "6dd4a74f-3927-428d-b578-d64c7129a8dc",
       "name": "💾 Merge Chapter Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-22928, 9372]
+      "position": [-22700, 9372]
     },
     {
       "parameters": {
@@ -743,7 +765,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Mark chapter as stored and continue to loop\nconst prevData = $('📊 Parse ISO Editor Result').first().json;\n\n// Try to get ingestion result\nlet ingestionResult = null;\ntry {\n  const ingestResp = $('💾 MCP: Store in Knowledge Base').first().json;\n  if (ingestResp.body?.content?.[0]?.text) {\n    ingestionResult = JSON.parse(ingestResp.body.content[0].text);\n  }\n} catch (e) {\n  console.log('Ingestion result not available:', e.message);\n}\n\nreturn {\n  json: {\n    ...prevData,\n    stored_in_kb: !!ingestionResult,\n    kb_document_id: ingestionResult?.document_id || null\n  }\n};"
+        "jsCode": "// Mark chapter as stored and SAVE to workflow static data\nconst prevData = $('📊 Parse ISO Editor Result').first().json;\n\n// Try to get ingestion result\nlet ingestionResult = null;\ntry {\n  const ingestResp = $('💾 MCP: Store in Knowledge Base').first().json;\n  if (ingestResp.body?.content?.[0]?.text) {\n    ingestionResult = JSON.parse(ingestResp.body.content[0].text);\n  }\n} catch (e) {\n  console.log('Ingestion result not available:', e.message);\n}\n\n// Store processed chapter in workflow static data\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.processed_chapters) {\n  staticData.processed_chapters = [];\n}\n\n// Add this chapter to the accumulated list\nstaticData.processed_chapters.push({\n  chapter_number: prevData.current_chapter?.number || prevData.current_chapter_index + 1,\n  title: prevData.current_chapter?.title || 'Untitled',\n  content: prevData.draft_content || '',\n  exam_questions: prevData.exam_questions || [],\n  score: prevData.editor_score || 0,\n  iso_compliant: prevData.iso_compliant || false,\n  kb_document_id: ingestionResult?.document_id || null,\n  blueprint: prevData.blueprint,\n  book_id: prevData.book_id\n});\n\nreturn {\n  json: {\n    ...prevData,\n    stored_in_kb: !!ingestionResult,\n    kb_document_id: ingestionResult?.document_id || null\n  }\n};"
       },
       "id": "finalize-chapter",
       "name": "✅ Finalize Chapter",
@@ -753,7 +775,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Collect all completed chapters\nconst chapters = $input.all().map(item => ({\n  chapter_number: item.json.current_chapter.number,\n  title: item.json.current_chapter.title,\n  content: item.json.draft_content,\n  exam_questions: item.json.exam_questions || [],\n  score: item.json.editor_score,\n  iso_compliant: item.json.iso_compliant,\n  kb_document_id: item.json.kb_document_id\n}));\n\n// Sort by chapter number\nchapters.sort((a, b) => a.chapter_number - b.chapter_number);\n\n// Create final book markdown\nconst blueprint = $input.first().json.blueprint;\nlet bookMarkdown = '# ' + blueprint.title + '\\n\\n';\nbookMarkdown += '*' + (blueprint.subtitle || '') + '*\\n\\n';\n\nif (blueprint.iso_alignment) {\n  bookMarkdown += '**ISO 17024 Domain:** ' + blueprint.iso_alignment.domain_id + '\\n\\n';\n}\n\nbookMarkdown += '---\\n\\n';\n\nchapters.forEach(ch => {\n  bookMarkdown += ch.content + '\\n\\n---\\n\\n';\n});\n\n// Collect all exam questions\nconst allQuestions = chapters.flatMap(ch => \n  (ch.exam_questions || []).map(q => ({\n    ...q,\n    chapter: ch.chapter_number\n  }))\n);\n\nreturn {\n  json: {\n    book_id: $input.first().json.book_id,\n    title: blueprint.title,\n    iso_alignment: blueprint.iso_alignment,\n    final_markdown: bookMarkdown,\n    exam_questions: allQuestions,\n    chapter_scores: chapters.map(ch => ({ \n      chapter: ch.chapter_number, \n      score: ch.score,\n      iso_compliant: ch.iso_compliant \n    })),\n    average_score: chapters.reduce((sum, ch) => sum + ch.score, 0) / chapters.length,\n    kb_document_ids: chapters.map(ch => ch.kb_document_id).filter(Boolean),\n    completed_at: new Date().toISOString()\n  }\n};"
+        "jsCode": "// Retrieve processed chapters from workflow static data\nconst staticData = $getWorkflowStaticData('global');\nconst chapters = staticData.processed_chapters || [];\n\n// Get blueprint from the first processed chapter or from input\nlet blueprint = chapters[0]?.blueprint || $input.first()?.json?.blueprint || { title: 'Unknown Book', subtitle: '' };\nlet book_id = chapters[0]?.book_id || $input.first()?.json?.book_id || 'unknown';\n\n// Sort by chapter number\nchapters.sort((a, b) => (a.chapter_number || 0) - (b.chapter_number || 0));\n\n// Create final book markdown\nlet bookMarkdown = '# ' + blueprint.title + '\\n\\n';\nbookMarkdown += '*' + (blueprint.subtitle || '') + '*\\n\\n';\n\nif (blueprint.iso_alignment) {\n  bookMarkdown += '**ISO 17024 Domain:** ' + blueprint.iso_alignment.domain_id + '\\n\\n';\n}\n\nbookMarkdown += '---\\n\\n';\n\nchapters.forEach(ch => {\n  bookMarkdown += (ch.content || '') + '\\n\\n---\\n\\n';\n});\n\n// Collect all exam questions\nconst allQuestions = chapters.flatMap(ch => \n  (ch.exam_questions || []).map(q => ({\n    ...q,\n    chapter: ch.chapter_number\n  }))\n);\n\n// Calculate average score\nconst validScores = chapters.filter(ch => typeof ch.score === 'number');\nconst averageScore = validScores.length > 0 \n  ? validScores.reduce((sum, ch) => sum + ch.score, 0) / validScores.length \n  : 0;\n\n// Clear processed chapters for next run\nstaticData.processed_chapters = [];\n\nreturn {\n  json: {\n    book_id: book_id,\n    title: blueprint.title,\n    iso_alignment: blueprint.iso_alignment,\n    final_markdown: bookMarkdown,\n    exam_questions: allQuestions,\n    chapter_scores: chapters.map(ch => ({ \n      chapter: ch.chapter_number, \n      score: ch.score || 0,\n      iso_compliant: ch.iso_compliant || false\n    })),\n    average_score: averageScore,\n    kb_document_ids: chapters.map(ch => ch.kb_document_id).filter(Boolean),\n    completed_at: new Date().toISOString()\n  }\n};"
       },
       "id": "d752e40f-10fb-4402-aa99-7cd9848fa5d0",
       "name": "📚 Compile Book",
@@ -871,14 +893,21 @@
         [{ "node": "📚 Compile Book", "type": "main", "index": 0 }],
         [
           { "node": "🔍 MCP: Chapter Research", "type": "main", "index": 0 },
-          { "node": "📚 MCP: Get Chapter LOs", "type": "main", "index": 0 }
+          { "node": "📚 MCP: Get Chapter LOs", "type": "main", "index": 0 },
+          { "node": "🔀 Add Chapter Data", "type": "main", "index": 1 }
         ]
       ]
     },
     "🔍 MCP: Chapter Research": {
-      "main": [[{ "node": "💾 Merge Chapter Context", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "🔀 Merge MCP Results", "type": "main", "index": 0 }]]
     },
     "📚 MCP: Get Chapter LOs": {
+      "main": [[{ "node": "🔀 Merge MCP Results", "type": "main", "index": 1 }]]
+    },
+    "🔀 Merge MCP Results": {
+      "main": [[{ "node": "🔀 Add Chapter Data", "type": "main", "index": 0 }]]
+    },
+    "🔀 Add Chapter Data": {
       "main": [[{ "node": "💾 Merge Chapter Context", "type": "main", "index": 0 }]]
     },
     "💾 Merge Chapter Context": {
