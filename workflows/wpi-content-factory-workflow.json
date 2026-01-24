@@ -3,7 +3,6 @@
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "={{$json[\"method\"]}}",
         "path": "wpi-book-generator",
         "responseMode": "responseNode",
         "options": {}
@@ -59,9 +58,9 @@
           "conditions": [
             {
               "id": "is-post",
-              "leftValue": "={{ $('📥 Book Request').first().json.method }}",
-              "rightValue": "POST",
-              "operator": { "type": "string", "operation": "equals" }
+              "leftValue": "={{ $('📥 Book Request').first().json.body?.syllabus }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
             }
           ],
           "combinator": "and"
