@@ -243,7 +243,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Clear any stale data from previous runs\nconst staticData = $getWorkflowStaticData('global');\nstaticData.processed_chapters = [];\nstaticData.revision_count = 0;\nstaticData.code_retry_count = 0;\n\n// Get current state\nconst state = $('📋 Parse Blueprint').first().json;\nconst chapters = state.blueprint.chapters;\n\n// Return chapters as array for loop\nreturn chapters.map((chapter, index) => ({\n  json: {\n    ...state,\n    current_chapter: chapter,\n    current_chapter_index: index\n  }\n}));"
+        "jsCode": "// Get current state\nconst state = $('📋 Parse Blueprint').first().json;\nconst chapters = state.blueprint.chapters;\n\n// Clear chapter accumulator via HTTP (mcp-standards service)\n// This ensures no stale data from previous runs\nconst bookId = state.book_id;\ntry {\n  // Note: This is a sync placeholder - the actual clear happens via HTTP node before this\n  console.log('Preparing chapters for book:', bookId, 'Total chapters:', chapters.length);\n} catch (e) {\n  console.log('Warning: Could not log book info:', e.message);\n}\n\n// Return chapters as array for loop\nreturn chapters.map((chapter, index) => ({\n  json: {\n    ...state,\n    current_chapter: chapter,\n    current_chapter_index: index,\n    total_chapters: chapters.length\n  }\n}));"
       },
       "id": "4af29a1a-34cb-4979-be57-b5f214885477",
       "name": "📑 Prepare Chapters",
@@ -775,7 +775,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Get all processed chapters from the loop's done output\n// splitInBatches v3 outputs items that were returned to input 0 via its done output (output 0)\nconst inputItems = $input.all();\n\n// Debug: Log raw input\nconsole.log('=== COMPILE BOOK DEBUG ===' );\nconsole.log('Total input items:', inputItems.length);\n\nif (inputItems.length === 0) {\n  console.log('ERROR: No items received from loop!');\n  return {\n    json: {\n      book_id: 'error',\n      title: 'ERROR: No chapters received',\n      error: 'The Chapter Loop did not return any processed chapters',\n      final_markdown: '# ERROR\\n\\nNo chapters were processed.',\n      exam_questions: [],\n      chapter_scores: [],\n      average_score: 0,\n      total_chapters: 0,\n      completed_at: new Date().toISOString()\n    }\n  };\n}\n\n// Log first item structure for debugging\nconsole.log('First item keys:', Object.keys(inputItems[0].json));\nconsole.log('First item data:', JSON.stringify(inputItems[0].json).substring(0, 500));\n\nlet chapters = inputItems.map(item => item.json);\n\n// Check if we received processed chapters (with 'content' field) or original items (with 'current_chapter')\nconst hasProcessedFormat = chapters.some(ch => ch.content !== undefined || ch.chapter_number !== undefined);\nconst hasOriginalFormat = chapters.some(ch => ch.current_chapter !== undefined);\n\nconsole.log('Has processed format:', hasProcessedFormat);\nconsole.log('Has original format:', hasOriginalFormat);\n\n// If we only have original format, try to extract what we can\nlet finalChapters;\nif (hasProcessedFormat) {\n  // We have processed chapters from Finalize Chapter\n  finalChapters = chapters.filter(ch => ch.content || ch.chapter_number !== undefined);\n  console.log('Using processed chapters:', finalChapters.length);\n} else if (hasOriginalFormat) {\n  // We only have original items - this means the loop didn't properly accumulate processed items\n  console.log('WARNING: Only original items received. Loop accumulation may have failed.');\n  // Try to extract basic info from original format\n  finalChapters = chapters.map((ch, i) => ({\n    chapter_number: ch.current_chapter?.number || ch.current_chapter_index + 1 || i + 1,\n    title: ch.current_chapter?.title || 'Chapter ' + (i + 1),\n    content: ch.draft_content || '',\n    exam_questions: ch.exam_questions || [],\n    score: ch.editor_score || 0,\n    iso_compliant: ch.iso_compliant || false,\n    blueprint: ch.blueprint,\n    book_id: ch.book_id\n  }));\n} else {\n  // Unknown format\n  console.log('WARNING: Unknown data format received');\n  finalChapters = chapters;\n}\n\nconsole.log('Final chapters to compile:', finalChapters.length);\n\n// Get blueprint from the first chapter\nconst blueprint = finalChapters[0]?.blueprint || chapters[0]?.blueprint || { title: 'Unknown Book', subtitle: '' };\nconst book_id = finalChapters[0]?.book_id || chapters[0]?.book_id || 'unknown';\n\n// Sort by chapter number\nfinalChapters.sort((a, b) => (a.chapter_number || a.current_chapter_index || 0) - (b.chapter_number || b.current_chapter_index || 0));\n\n// Create final book markdown\nlet bookMarkdown = '# ' + blueprint.title + '\\n\\n';\nbookMarkdown += '*' + (blueprint.subtitle || '') + '*\\n\\n';\n\nif (blueprint.iso_alignment) {\n  bookMarkdown += '**ISO 17024 Domain:** ' + blueprint.iso_alignment.domain_id + '\\n\\n';\n}\n\nbookMarkdown += '---\\n\\n';\n\nfinalChapters.forEach((ch, i) => {\n  const chapterContent = ch.content || ch.draft_content || '';\n  console.log('Chapter', i + 1, 'content length:', chapterContent.length, 'score:', ch.score);\n  if (chapterContent) {\n    bookMarkdown += chapterContent + '\\n\\n---\\n\\n';\n  }\n});\n\n// Collect all exam questions\nconst allQuestions = finalChapters.flatMap(ch => \n  (ch.exam_questions || []).map(q => ({\n    ...q,\n    chapter: ch.chapter_number || ch.current_chapter_index\n  }))\n);\n\n// Calculate average score\nconst validScores = finalChapters.filter(ch => typeof ch.score === 'number' && ch.score > 0);\nconst averageScore = validScores.length > 0 \n  ? validScores.reduce((sum, ch) => sum + ch.score, 0) / validScores.length \n  : 0;\n\nconsole.log('Average score:', averageScore, 'from', validScores.length, 'chapters with scores');\nconsole.log('Total exam questions:', allQuestions.length);\nconsole.log('=== END DEBUG ===');\n\nreturn {\n  json: {\n    book_id: book_id,\n    title: blueprint.title,\n    iso_alignment: blueprint.iso_alignment,\n    final_markdown: bookMarkdown,\n    exam_questions: allQuestions,\n    chapter_scores: finalChapters.map(ch => ({ \n      chapter: ch.chapter_number || ch.current_chapter_index || 0, \n      score: ch.score || 0,\n      iso_compliant: ch.iso_compliant || false,\n      passed_quality: ch.passed_quality || false\n    })),\n    average_score: averageScore,\n    kb_document_ids: finalChapters.map(ch => ch.kb_document_id).filter(Boolean),\n    total_chapters: finalChapters.length,\n    completed_at: new Date().toISOString(),\n    debug_info: {\n      input_count: inputItems.length,\n      had_processed_format: hasProcessedFormat,\n      had_original_format: hasOriginalFormat,\n      final_chapter_count: finalChapters.length,\n      valid_score_count: validScores.length\n    }\n  }\n};"
+        "jsCode": "// Get chapters from the accumulator service (mcp-standards)\n// The splitInBatches done output only provides original items, not processed ones\n// So we retrieve the accumulated chapters from the HTTP response\n\nconsole.log('=== COMPILE BOOK DEBUG ===');\n\n// Get the accumulated chapters from the HTTP request\nlet finalChapters = [];\nlet book_id = 'unknown';\nlet blueprint = { title: 'Unknown Book', subtitle: '' };\n\ntry {\n  const accumulatorResponse = $('📥 Get Accumulated Chapters').first().json;\n  console.log('Accumulator response:', JSON.stringify(accumulatorResponse).substring(0, 500));\n  \n  if (accumulatorResponse.chapters && Array.isArray(accumulatorResponse.chapters)) {\n    finalChapters = accumulatorResponse.chapters;\n    book_id = accumulatorResponse.book_id || 'unknown';\n    console.log('Retrieved', finalChapters.length, 'chapters from accumulator');\n  }\n  \n  // Get blueprint from first chapter\n  if (finalChapters.length > 0 && finalChapters[0].blueprint) {\n    blueprint = finalChapters[0].blueprint;\n  }\n} catch (e) {\n  console.log('Could not get chapters from accumulator:', e.message);\n  \n  // Fallback: try to get from loop output (may have original items)\n  const inputItems = $input.all();\n  console.log('Fallback: got', inputItems.length, 'items from loop');\n  \n  if (inputItems.length > 0) {\n    const firstItem = inputItems[0].json;\n    book_id = firstItem.book_id || 'unknown';\n    blueprint = firstItem.blueprint || blueprint;\n    \n    // Try to extract chapter data from original format\n    finalChapters = inputItems.map((item, i) => {\n      const ch = item.json;\n      return {\n        chapter_number: ch.chapter_number || ch.current_chapter?.number || i + 1,\n        title: ch.title || ch.current_chapter?.title || 'Chapter ' + (i + 1),\n        content: ch.content || ch.draft_content || '',\n        exam_questions: ch.exam_questions || [],\n        score: ch.score || ch.editor_score || 0,\n        iso_compliant: ch.iso_compliant || false,\n        passed_quality: ch.passed_quality || ch.editor_approved || false,\n        kb_document_id: ch.kb_document_id || null\n      };\n    });\n  }\n}\n\nconsole.log('Final chapters to compile:', finalChapters.length);\n\nif (finalChapters.length === 0) {\n  console.log('ERROR: No chapters available!');\n  return {\n    json: {\n      book_id: book_id,\n      title: 'ERROR: No chapters',\n      error: 'No chapters were accumulated',\n      final_markdown: '# ERROR\\n\\nNo chapters were processed.',\n      exam_questions: [],\n      chapter_scores: [],\n      average_score: 0,\n      total_chapters: 0,\n      completed_at: new Date().toISOString()\n    }\n  };\n}\n\n// Sort by chapter number\nfinalChapters.sort((a, b) => (a.chapter_number || 0) - (b.chapter_number || 0));\n\n// Create final book markdown\nlet bookMarkdown = '# ' + blueprint.title + '\\n\\n';\nbookMarkdown += '*' + (blueprint.subtitle || '') + '*\\n\\n';\n\nif (blueprint.iso_alignment) {\n  bookMarkdown += '**ISO 17024 Domain:** ' + blueprint.iso_alignment.domain_id + '\\n\\n';\n}\n\nbookMarkdown += '---\\n\\n';\n\nfinalChapters.forEach((ch, i) => {\n  const chapterContent = ch.content || '';\n  console.log('Chapter', ch.chapter_number || i + 1, 'content length:', chapterContent.length, 'score:', ch.score);\n  if (chapterContent) {\n    bookMarkdown += chapterContent + '\\n\\n---\\n\\n';\n  }\n});\n\n// Collect all exam questions\nconst allQuestions = finalChapters.flatMap(ch => \n  (ch.exam_questions || []).map(q => ({\n    ...q,\n    chapter: ch.chapter_number\n  }))\n);\n\n// Calculate average score\nconst validScores = finalChapters.filter(ch => typeof ch.score === 'number' && ch.score > 0);\nconst averageScore = validScores.length > 0 \n  ? validScores.reduce((sum, ch) => sum + ch.score, 0) / validScores.length \n  : 0;\n\nconsole.log('Average score:', averageScore, 'from', validScores.length, 'chapters with scores');\nconsole.log('Total exam questions:', allQuestions.length);\nconsole.log('=== END DEBUG ===');\n\nreturn {\n  json: {\n    book_id: book_id,\n    title: blueprint.title,\n    iso_alignment: blueprint.iso_alignment,\n    final_markdown: bookMarkdown,\n    exam_questions: allQuestions,\n    chapter_scores: finalChapters.map(ch => ({ \n      chapter: ch.chapter_number || 0, \n      score: ch.score || 0,\n      iso_compliant: ch.iso_compliant || false,\n      passed_quality: ch.passed_quality || false\n    })),\n    average_score: averageScore,\n    kb_document_ids: finalChapters.map(ch => ch.kb_document_id).filter(Boolean),\n    total_chapters: finalChapters.length,\n    completed_at: new Date().toISOString()\n  }\n};"
       },
       "id": "d752e40f-10fb-4402-aa99-7cd9848fa5d0",
       "name": "📚 Compile Book",
@@ -836,6 +836,92 @@
     },
     {
       "parameters": {
+        "method": "DELETE",
+        "url": "=http://mcp-standards:3002/chapters/{{ $json.book_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "clear-chapters-accumulator",
+      "name": "🗑️ Clear Chapter Accumulator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-23824, 9824],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Auth Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://mcp-standards:3002/chapters/{{ $json.book_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "store-chapter-accumulator",
+      "name": "📦 Store Chapter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-20240, 9272],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Auth Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://mcp-standards:3002/chapters/{{ $input.first().json.book_id || $input.first().json.current_chapter?.book_id || 'unknown' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-accumulated-chapters",
+      "name": "📥 Get Accumulated Chapters",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-23376, 9656],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Auth Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": []
+        },
+        "options": {}
+      },
+      "id": "merge-files-for-email",
+      "name": "🔀 Merge Files",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-22704, 9560]
+    },
+    {
+      "parameters": {
         "content": "## WPI AI Content Factory - MCP Integrated\n\n### MCP Server Integration\n- **mcp-standards** (Port 3002): Syllabus, ISO 17024, Master Prompt\n- **mcp-research** (Port 3003): Qdrant Vector DB (RAG)\n- **mcp-coder** (Port 3004): Code Validation (ESLint ES6+)\n\n### Workflow Übersicht\n1. **📥 Input**: Product Definition + Syllabus Domain\n2. **📚 MCP**: Get Syllabus & Search KB\n3. **🏗️ Architect**: Erstellt ISO-aligned Blueprint\n4. **⏸️ Human Approval**: Experte prüft Blueprint\n5. **🔁 Chapter Loop**: Für jedes Kapitel:\n   - 🔍 MCP Research: RAG_CONTENT holen\n   - 📚 MCP Standards: Learning Objectives holen\n   - ✍️ **WPI Technical Architect (v4.4)**: Kapitel generieren\n   - 💻 WPI Coder Agent: Code generieren\n   - 🔬 MCP Coder: ESLint validation\n   - 🔄 WPI Coder Self-Correction (max 2)\n   - 📋 MCP ISO Check: Compliance prüfen\n   - 🔍 **WPI ISO Editor**: Quality Gate (90pts)\n   - 💾 MCP Ingest: In KB speichern\n6. **📚 Output**: Fertiges Buch + Exam Questions\n\n### WPI Technical Architect (v4.4)\n**Editorial Rules:**\n- 3,000-3,500 words per chapter\n- Workload: 40 words = 1 min (round to 10)\n- Zero-to-Hero flow for each LO\n- Anti-Circular definitions\n- PROHIBITED: Du, Sie, Wir\n- HTML output with CSS classes\n\n**Bloom Levels (K1-K6):**\n- K1: Remember, K2: Understand\n- K3: Apply, K4: Analyze\n- K5: Evaluate, K6: Create\n\n### WPI ISO Editor (Quality Gate)\n**Scoring (0-100):** >= 90 to approve\n- LO Completeness: 30 pts\n- Clarity & Tone: 25 pts (-5 per Du/Sie)\n- Code Quality: 20 pts\n- Didactic Structure: 15 pts\n- Exercises: 10 pts\n\n### MCP Tools (mcp-standards)\n- get_syllabus_section, get_all_domains\n- validate_iso_compliance\n- get_editorial_guide, get_chapter_template\n- **get_masterprompt** (v4.4)",
         "height": 720,
         "width": 450
@@ -881,16 +967,19 @@
     },
     "🔀 Approved?": {
       "main": [
-        [{ "node": "📑 Prepare Chapters", "type": "main", "index": 0 }],
+        [{ "node": "🗑️ Clear Chapter Accumulator", "type": "main", "index": 0 }],
         [{ "node": "🏗️ Architect Agent", "type": "main", "index": 0 }]
       ]
+    },
+    "🗑️ Clear Chapter Accumulator": {
+      "main": [[{ "node": "📑 Prepare Chapters", "type": "main", "index": 0 }]]
     },
     "📑 Prepare Chapters": {
       "main": [[{ "node": "🔁 Chapter Loop", "type": "main", "index": 0 }]]
     },
     "🔁 Chapter Loop": {
       "main": [
-        [{ "node": "📚 Compile Book", "type": "main", "index": 0 }],
+        [{ "node": "📥 Get Accumulated Chapters", "type": "main", "index": 0 }],
         [
           { "node": "🔍 MCP: Chapter Research", "type": "main", "index": 0 },
           { "node": "📚 MCP: Get Chapter LOs", "type": "main", "index": 0 },
@@ -980,7 +1069,13 @@
       "main": [[{ "node": "✅ Finalize Chapter", "type": "main", "index": 0 }]]
     },
     "✅ Finalize Chapter": {
+      "main": [[{ "node": "📦 Store Chapter", "type": "main", "index": 0 }]]
+    },
+    "📦 Store Chapter": {
       "main": [[{ "node": "🔁 Chapter Loop", "type": "main", "index": 0 }]]
+    },
+    "📥 Get Accumulated Chapters": {
+      "main": [[{ "node": "📚 Compile Book", "type": "main", "index": 0 }]]
     },
     "🔀 Max Revisions?": {
       "main": [
@@ -995,9 +1090,12 @@
       ]]
     },
     "📄 Convert Markdown": {
-      "main": [[{ "node": "📧 Notify Completion", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "🔀 Merge Files", "type": "main", "index": 0 }]]
     },
     "📄 Convert Questions": {
+      "main": [[{ "node": "🔀 Merge Files", "type": "main", "index": 1 }]]
+    },
+    "🔀 Merge Files": {
       "main": [[{ "node": "📧 Notify Completion", "type": "main", "index": 0 }]]
     }
   },

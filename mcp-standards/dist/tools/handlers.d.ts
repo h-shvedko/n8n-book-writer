@@ -33,4 +33,17 @@ export declare function handleExportSyllabus(args: unknown): ToolResult;
  * Handle get_iso_requirements tool call
  */
 export declare function handleGetIsoRequirements(args: unknown): ToolResult;
+/**
+ * Handle get_editorial_guide tool call
+ */
+export declare function handleGetEditorialGuide(): ToolResult;
+/**
+ * Handle get_chapter_template tool call
+ */
+export declare function handleGetChapterTemplate(): ToolResult;
+/**
+ * Handle get_masterprompt tool call
+ * Returns the Master Prompt v4.4 for WPI Chapter Generation (WPI Technical Architect)
+ */
+export declare function handleGetMasterPrompt(): ToolResult;
 //# sourceMappingURL=handlers.d.ts.map

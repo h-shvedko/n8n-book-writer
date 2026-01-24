@@ -146,5 +146,29 @@ exports.TOOL_DEFINITIONS = [
             },
         },
     },
+    {
+        name: 'get_editorial_guide',
+        description: 'Returns the WPI Editorial Guide (Styleguide 2.9) containing tone of voice, structure templates, and content quality guidelines for technical authoring.',
+        inputSchema: {
+            type: 'object',
+            properties: {},
+        },
+    },
+    {
+        name: 'get_chapter_template',
+        description: 'Returns the "One-Shot" chapter template (Kapitel 1 example) demonstrating ideal structure, tone, code examples, and ISO alignment. Use this as a reference when generating new chapters.',
+        inputSchema: {
+            type: 'object',
+            properties: {},
+        },
+    },
+    {
+        name: 'get_masterprompt',
+        description: 'Returns the Master Prompt v4.4 (WPI Course Generator) - the comprehensive system prompt for the WPI Technical Architect role. Contains all rules for chapter generation: target audience, source priorities, editorial rules (3000-3500 words, workload calculation), Bloom levels K1-K6, HTML output structure, Zero-to-Hero flow, and Anti-Circular definitions.',
+        inputSchema: {
+            type: 'object',
+            properties: {},
+        },
+    },
 ];
 //# sourceMappingURL=schemas.js.map

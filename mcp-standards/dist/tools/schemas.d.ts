@@ -155,6 +155,20 @@ export declare const TOOL_DEFINITIONS: ({
         };
         required: string[];
     };
+} | {
+    name: string;
+    description: string;
+    inputSchema: {
+        type: string;
+        properties: {
+            domain_id?: undefined;
+            output_format?: undefined;
+            content?: undefined;
+            keyword?: undefined;
+            syllabus_json?: undefined;
+        };
+        required?: undefined;
+    };
 })[];
 export type GetSyllabusSectionInput = z.infer<typeof GetSyllabusSectionInputSchema>;
 export type ValidateIsoComplianceInput = z.infer<typeof ValidateIsoComplianceInputSchema>;

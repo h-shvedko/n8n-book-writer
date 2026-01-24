@@ -137,6 +137,71 @@ app.post('/syllabus', authMiddleware, (req: Request, res: Response) => {
   }
 });
 
+// Chapter accumulator for workflow loops
+// In-memory storage for processed chapters (per book_id)
+const chapterAccumulator: Map<string, Array<Record<string, unknown>>> = new Map();
+
+// Store a processed chapter
+app.post('/chapters/:bookId', authMiddleware, (req: Request, res: Response) => {
+  try {
+    const { bookId } = req.params;
+    const chapter = req.body;
+
+    if (!chapterAccumulator.has(bookId)) {
+      chapterAccumulator.set(bookId, []);
+    }
+
+    chapterAccumulator.get(bookId)!.push(chapter);
+    console.log(`Stored chapter ${chapter.chapter_number || '?'} for book ${bookId}. Total: ${chapterAccumulator.get(bookId)!.length}`);
+
+    res.json({
+      success: true,
+      chapter_count: chapterAccumulator.get(bookId)!.length,
+      chapter_number: chapter.chapter_number
+    });
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : 'Failed to store chapter',
+    });
+  }
+});
+
+// Get all chapters for a book
+app.get('/chapters/:bookId', authMiddleware, (req: Request, res: Response) => {
+  try {
+    const { bookId } = req.params;
+    const chapters = chapterAccumulator.get(bookId) || [];
+
+    console.log(`Retrieved ${chapters.length} chapters for book ${bookId}`);
+
+    res.json({
+      book_id: bookId,
+      chapters: chapters,
+      count: chapters.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to get chapters',
+    });
+  }
+});
+
+// Clear chapters for a book (call at start of workflow)
+app.delete('/chapters/:bookId', authMiddleware, (req: Request, res: Response) => {
+  try {
+    const { bookId } = req.params;
+    chapterAccumulator.delete(bookId);
+
+    console.log(`Cleared chapters for book ${bookId}`);
+
+    res.json({ success: true, message: `Cleared chapters for ${bookId}` });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Failed to clear chapters',
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`mcp-standards server running on port ${PORT}`);

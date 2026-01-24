@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.handleGetSyllabusSection = handleGetSyllabusSection;
 exports.handleValidateIsoCompliance = handleValidateIsoCompliance;
@@ -7,9 +40,14 @@ exports.handleGetAllDomains = handleGetAllDomains;
 exports.handleLoadSyllabus = handleLoadSyllabus;
 exports.handleExportSyllabus = handleExportSyllabus;
 exports.handleGetIsoRequirements = handleGetIsoRequirements;
+exports.handleGetEditorialGuide = handleGetEditorialGuide;
+exports.handleGetChapterTemplate = handleGetChapterTemplate;
+exports.handleGetMasterPrompt = handleGetMasterPrompt;
 const syllabus_service_1 = require("../services/syllabus-service");
 const compliance_service_1 = require("../services/compliance-service");
 const schemas_1 = require("./schemas");
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 /**
  * Handle get_syllabus_section tool call
  */
@@ -234,6 +272,106 @@ function handleGetIsoRequirements(args) {
             content: [{
                     type: 'text',
                     text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                }],
+            isError: true,
+        };
+    }
+}
+/**
+ * Handle get_editorial_guide tool call
+ */
+function handleGetEditorialGuide() {
+    try {
+        const editorialGuidePath = path.join(process.cwd(), 'data', 'editorial_guide.md');
+        if (!fs.existsSync(editorialGuidePath)) {
+            return {
+                content: [{
+                        type: 'text',
+                        text: 'Editorial guide not found. Please ensure editorial_guide.md exists in /app/data directory.',
+                    }],
+                isError: true,
+            };
+        }
+        const content = fs.readFileSync(editorialGuidePath, 'utf-8');
+        return {
+            content: [{
+                    type: 'text',
+                    text: content,
+                }],
+        };
+    }
+    catch (error) {
+        return {
+            content: [{
+                    type: 'text',
+                    text: `Error reading editorial guide: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                }],
+            isError: true,
+        };
+    }
+}
+/**
+ * Handle get_chapter_template tool call
+ */
+function handleGetChapterTemplate() {
+    try {
+        const templatePath = path.join(process.cwd(), 'data', 'kapitel1.md');
+        if (!fs.existsSync(templatePath)) {
+            return {
+                content: [{
+                        type: 'text',
+                        text: 'Chapter template not found. Please ensure kapitel1.md exists in /app/data directory.',
+                    }],
+                isError: true,
+            };
+        }
+        const content = fs.readFileSync(templatePath, 'utf-8');
+        return {
+            content: [{
+                    type: 'text',
+                    text: content,
+                }],
+        };
+    }
+    catch (error) {
+        return {
+            content: [{
+                    type: 'text',
+                    text: `Error reading chapter template: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                }],
+            isError: true,
+        };
+    }
+}
+/**
+ * Handle get_masterprompt tool call
+ * Returns the Master Prompt v4.4 for WPI Chapter Generation (WPI Technical Architect)
+ */
+function handleGetMasterPrompt() {
+    try {
+        const masterPromptPath = path.join(process.cwd(), 'data', 'masterprompt-chapter-generation.md');
+        if (!fs.existsSync(masterPromptPath)) {
+            return {
+                content: [{
+                        type: 'text',
+                        text: 'Master prompt not found. Please ensure masterprompt-chapter-generation.md exists in /app/data directory.',
+                    }],
+                isError: true,
+            };
+        }
+        const content = fs.readFileSync(masterPromptPath, 'utf-8');
+        return {
+            content: [{
+                    type: 'text',
+                    text: content,
+                }],
+        };
+    }
+    catch (error) {
+        return {
+            content: [{
+                    type: 'text',
+                    text: `Error reading master prompt: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 }],
             isError: true,
         };

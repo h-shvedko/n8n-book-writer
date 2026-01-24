@@ -135,7 +135,7 @@ class SyllabusService {
             // Search learning objectives
             for (const lo of topic.learningObjectives) {
                 if (lo.description.toLowerCase().includes(searchTerm) ||
-                    (lo.keywords && lo.keywords.some(k => k.toLowerCase().includes(searchTerm)))) {
+                    (lo.keywords && lo.keywords.some((k) => k.toLowerCase().includes(searchTerm)))) {
                     results.push({
                         domainId: domain.id,
                         domainName: domain.name,
