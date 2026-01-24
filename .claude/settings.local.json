@@ -24,7 +24,13 @@
       "Bash(docker cp:*)",
       "Bash(npm install:*)",
       "Bash(docker compose build:*)",
-      "Bash(python -m json.tool:*)"
+      "Bash(python -m json.tool:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nWPI Technical Architect v4.4 and ISO Editor integration\n\n- Added get_masterprompt MCP tool to mcp-standards for Master Prompt v4.4\n- Updated workflow with WPI Technical Architect \\(v4.4\\) chapter generation\n- Added WPI ISO Editor with 90-point quality gate scoring system\n- Created prompts/writer_agent.md and prompts/iso_editor_agent.md documentation\n- Added masterprompt-chapter-generation.md to mcp-standards/data\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(node -e:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix workflow merge nodes and chapter data accumulation\n\n- Added two chained Merge nodes to properly wait for MCP results:\n  - 🔀 Merge MCP Results: waits for Chapter Research + Chapter LOs\n  - 🔀 Add Chapter Data: waits for MCP results + Chapter Loop data\n- Fixed chapter data accumulation using workflow static data:\n  - 📑 Prepare Chapters: clears staticData.processed_chapters at start\n  - ✅ Finalize Chapter: stores each processed chapter to static data\n  - 📚 Compile Book: reads from static data instead of loop output\n- This fixes the empty email notification issue \\(scores, questions, etc.\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(npm run build:*)",
+      "Bash(python:*)"
     ]
   }
 }
