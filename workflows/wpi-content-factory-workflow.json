@@ -1,18 +1,19 @@
 {
-  "name": "WPI AI Content Factory - Syllabus Driven",
+  "name": "WPI AI Content Factory - Syllabus Driven (Full)",
   "nodes": [
     {
       "parameters": {
+        "httpMethod": "={{$json[\"method\"]}}",
         "path": "wpi-book-generator",
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "form-webhook",
+      "id": "webhook-trigger",
       "name": "📥 Book Request",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-1600, 400],
-      "webhookId": "wpi-book-generator"
+      "position": [-26000, 9624],
+      "webhookId": "wpi-book-gen-001"
     },
     {
       "parameters": {
@@ -26,23 +27,22 @@
       "name": "📋 Fetch Syllabuses",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-1376, 400],
+      "position": [-25776, 9624],
       "credentials": {
         "httpHeaderAuth": {
           "id": "mcp-auth",
           "name": "MCP Auth Token"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={{ (function() {\n  const syllabuses = $json.syllabuses || [];\n  const syllabusOptions = syllabuses.map(s => \n    '<option value=\"' + s.id + '\">' + s.name + ' (' + s.domain_count + ' Domains)</option>'\n  ).join('');\n  \n  return '<!DOCTYPE html><html><head><title>WPI Book Generator</title><style>' +\n    'body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }' +\n    'h1 { color: #2563eb; }' +\n    'form { background: #f3f4f6; padding: 30px; border-radius: 8px; }' +\n    'label { display: block; margin-bottom: 5px; font-weight: bold; }' +\n    'select { width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 16px; }' +\n    'button { background: #2563eb; color: white; padding: 12px 24px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }' +\n    'button:hover { background: #1d4ed8; }' +\n    '</style></head><body>' +\n    '<h1>WPI Book Generator</h1>' +\n    '<form method=\"POST\">' +\n    '<label for=\"syllabus\">Syllabus:</label>' +\n    '<select name=\"syllabus\" id=\"syllabus\" required>' +\n    '<option value=\"\">-- Select Syllabus --</option>' +\n    syllabusOptions +\n    '</select>' +\n    '<label for=\"target_audience\">Target Audience:</label>' +\n    '<select name=\"target_audience\" id=\"target_audience\" required>' +\n    '<option value=\"\">-- Select Audience --</option>' +\n    '<option value=\"Absolute Beginners\">Absolute Beginners</option>' +\n    '<option value=\"Junior Developers\">Junior Developers</option>' +\n    '<option value=\"Mid-Level Professionals\">Mid-Level Professionals</option>' +\n    '<option value=\"Senior Experts\">Senior Experts</option>' +\n    '</select>' +\n    '<button type=\"submit\">Generate Book</button>' +\n    '</form></body></html>';\n})() }}",
+        "responseBody": "={{ (function() {\n  const syllabuses = $json.syllabuses || [];\n  const syllabusOptions = syllabuses.length > 0\n    ? syllabuses.map(s => '<option value=\"' + s.id + '\">' + s.name + ' (v' + s.version + ') - ' + s.domain_count + ' Domains</option>').join('')\n    : '<option value=\"\">Kein Syllabus geladen</option>';\n  \n  return '<!DOCTYPE html><html><head><title>WPI Book Generator</title>' +\n    '<meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">' +\n    '<style>' +\n    'body { font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen, Ubuntu, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; padding: 20px; box-sizing: border-box; }' +\n    '.container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 500px; width: 100%; }' +\n    'h1 { color: #333; margin-bottom: 10px; font-size: 28px; }' +\n    '.subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }' +\n    'label { display: block; margin-bottom: 8px; font-weight: 600; color: #444; }' +\n    'select { width: 100%; padding: 14px; margin-bottom: 24px; border: 2px solid #e1e5eb; border-radius: 10px; font-size: 16px; background: white; transition: border-color 0.2s; }' +\n    'select:focus { outline: none; border-color: #667eea; }' +\n    'button { width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }' +\n    'button:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); }' +\n    '.info { background: #f0f4ff; padding: 15px; border-radius: 10px; margin-bottom: 24px; font-size: 13px; color: #555; }' +\n    '</style></head><body>' +\n    '<div class=\"container\">' +\n    '<h1>WPI Book Generator</h1>' +\n    '<p class=\"subtitle\">AI-gestützte Erstellung von Fachbüchern basierend auf Syllabus-Domains</p>' +\n    '<div class=\"info\">Jede Domain des Syllabus wird zu einem Kapitel. Alle AI-Agenten (Architect, Writer, Coder, ISO Editor) sind aktiv.</div>' +\n    '<form method=\"POST\">' +\n    '<label for=\"syllabus\">Syllabus auswählen:</label>' +\n    '<select name=\"syllabus\" id=\"syllabus\" required>' + syllabusOptions + '</select>' +\n    '<label for=\"target_audience\">Zielgruppe:</label>' +\n    '<select name=\"target_audience\" id=\"target_audience\" required>' +\n    '<option value=\"Absolute Beginners\">Absolute Beginners</option>' +\n    '<option value=\"Junior Developers\">Junior Developers</option>' +\n    '<option value=\"Mid-Level Professionals\" selected>Mid-Level Professionals</option>' +\n    '<option value=\"Senior Experts\">Senior Experts</option>' +\n    '</select>' +\n    '<button type=\"submit\">Buch generieren starten</button>' +\n    '</form></div></body></html>';\n})() }}",
         "options": {
           "responseHeaders": {
-            "entries": [
-              { "name": "Content-Type", "value": "text/html" }
-            ]
+            "entries": [{ "name": "Content-Type", "value": "text/html; charset=utf-8" }]
           }
         }
       },
@@ -50,7 +50,7 @@
       "name": "📄 Show Form",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [-1152, 300]
+      "position": [-25552, 9524]
     },
     {
       "parameters": {
@@ -59,30 +59,20 @@
           "conditions": [
             {
               "id": "is-post",
-              "leftValue": "={{ $('📥 Book Request').first().json.headers['content-type'] }}",
-              "rightValue": "application/x-www-form-urlencoded",
-              "operator": { "type": "string", "operation": "contains" }
+              "leftValue": "={{ $('📥 Book Request').first().json.method }}",
+              "rightValue": "POST",
+              "operator": { "type": "string", "operation": "equals" }
             }
           ],
           "combinator": "and"
         },
         "options": {}
       },
-      "id": "check-form-submit",
+      "id": "check-method",
       "name": "🔀 Form Submitted?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [-1152, 500]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Parse form data\nconst body = $('📥 Book Request').first().json.body;\nconst syllabus_id = body.syllabus;\nconst target_audience = body.target_audience;\nconst book_id = 'book-' + Date.now();\n\nconsole.log('Starting book generation:', syllabus_id, target_audience);\n\nreturn {\n  json: {\n    book_id: book_id,\n    syllabus_id: syllabus_id,\n    target_audience: target_audience,\n    started_at: new Date().toISOString()\n  }\n};"
-      },
-      "id": "parse-form",
-      "name": "🔧 Parse Form Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [-928, 500]
+      "position": [-25552, 9724]
     },
     {
       "parameters": {
@@ -96,7 +86,7 @@
       "name": "📚 Fetch Syllabus Domains",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-704, 500],
+      "position": [-25328, 9724],
       "credentials": {
         "httpHeaderAuth": {
           "id": "mcp-auth",
@@ -106,17 +96,36 @@
     },
     {
       "parameters": {
-        "method": "DELETE",
-        "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Parse Form Data').first().json.book_id }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "mode": "raw",
+        "jsonOutput": "={{ (function() {\n  const webhook = $('📥 Book Request').first().json;\n  const domains = $json;\n  const syllabusId = webhook.body?.syllabus || domains.syllabus_id || 'unknown';\n  const targetAudience = webhook.body?.target_audience || 'Mid-Level Professionals';\n  \n  return {\n    book_id: 'book-' + syllabusId + '-' + Date.now(),\n    syllabus_id: syllabusId,\n    syllabus_name: domains.syllabus_name || 'Unknown Syllabus',\n    target_audience: targetAudience,\n    total_chapters: domains.total_chapters || 0,\n    chapters: domains.chapters || [],\n    status: 'initialized',\n    created_at: new Date().toISOString()\n  };\n})() }}",
         "options": {}
       },
-      "id": "clear-accumulator",
-      "name": "🗑️ Clear Accumulator",
+      "id": "init-book",
+      "name": "🔧 Initialize BookState",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-25104, 9724]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-standards:3002/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'get_syllabus_section',\n  arguments: {\n    domain_id: $json.chapters[0]?.domain_id || 'D1',\n    output_format: 'json'\n  }\n}) }}",
+        "options": { "response": { "response": { "fullResponse": true } } }
+      },
+      "id": "mcp-get-syllabus",
+      "name": "📚 MCP: Get Syllabus Section",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-480, 500],
+      "position": [-24880, 9524],
       "credentials": {
         "httpHeaderAuth": {
           "id": "mcp-auth",
@@ -124,42 +133,6 @@
         }
       },
       "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Get syllabus domains and prepare as chapters\nconst formData = $('🔧 Parse Form Data').first().json;\nconst domainsResponse = $('📚 Fetch Syllabus Domains').first().json;\n\nconst chapters = domainsResponse.chapters || [];\nconst syllabus_name = domainsResponse.syllabus_name || 'Unknown Syllabus';\n\nconsole.log('Preparing', chapters.length, 'chapters from syllabus:', syllabus_name);\n\n// Return chapters as array for loop processing\nreturn chapters.map((chapter, index) => ({\n  json: {\n    book_id: formData.book_id,\n    syllabus_id: formData.syllabus_id,\n    syllabus_name: syllabus_name,\n    target_audience: formData.target_audience,\n    total_chapters: chapters.length,\n    current_chapter_index: index,\n    chapter: chapter\n  }\n}));"
-      },
-      "id": "prepare-chapters",
-      "name": "📑 Prepare Chapters",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [-256, 500]
-    },
-    {
-      "parameters": {
-        "respondWith": "text",
-        "responseBody": "=<!DOCTYPE html><html><head><title>Book Generation Started</title><style>body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; } h1 { color: #22c55e; } p { color: #6b7280; }</style></head><body><h1>Book Generation Started!</h1><p>Your book is being generated. You will receive an email for each chapter as it is completed.</p><p><strong>Book ID:</strong> {{ $('🔧 Parse Form Data').first().json.book_id }}</p><p><strong>Total Chapters:</strong> {{ $('📚 Fetch Syllabus Domains').first().json.total_chapters }}</p></body></html>",
-        "options": {
-          "responseHeaders": {
-            "entries": [
-              { "name": "Content-Type", "value": "text/html" }
-            ]
-          }
-        }
-      },
-      "id": "respond-started",
-      "name": "📄 Respond: Started",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [-256, 300]
-    },
-    {
-      "parameters": { "options": {} },
-      "id": "chapter-loop",
-      "name": "🔁 Chapter Loop",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
-      "position": [-32, 500]
     },
     {
       "parameters": {
@@ -169,22 +142,18 @@
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
-          ]
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  name: 'hybrid_search',\n  arguments: {\n    query: $json.chapter.title + ' ' + $json.chapter.description,\n    filter_metadata: {\n      domain_id: $json.chapter.domain_id\n    },\n    limit: 5,\n    output_format: 'json'\n  }\n}) }}",
-        "options": {
-          "response": { "response": { "fullResponse": true } }
-        }
+        "jsonBody": "={{ JSON.stringify({\n  name: 'hybrid_search',\n  arguments: {\n    query: $('🔧 Initialize BookState').first().json.syllabus_name + ' ' + $('🔧 Initialize BookState').first().json.chapters.map(function(c) { return c.title; }).join(' '),\n    limit: 10,\n    output_format: 'json'\n  }\n}) }}",
+        "options": { "response": { "response": { "fullResponse": true } } }
       },
-      "id": "chapter-research",
-      "name": "🔍 MCP: Chapter Research",
+      "id": "mcp-research-context",
+      "name": "🔍 MCP: Search Knowledge Base",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [192, 500],
+      "position": [-24880, 9724],
       "credentials": {
         "httpHeaderAuth": {
           "id": "mcp-auth",
@@ -195,13 +164,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Merge chapter data with research results\nconst chapterData = $('🔁 Chapter Loop').first().json;\n\n// Parse research results\nlet researchContext = [];\ntry {\n  const researchResp = $('🔍 MCP: Chapter Research').first().json;\n  if (researchResp.body?.content?.[0]?.text) {\n    const parsed = JSON.parse(researchResp.body.content[0].text);\n    researchContext = parsed.results || [];\n  }\n} catch (e) {\n  console.log('Research not available:', e.message);\n}\n\nreturn {\n  json: {\n    ...chapterData,\n    research_context: researchContext\n  }\n};"
+        "jsCode": "// Combine syllabus and research context\nconst bookState = $('🔧 Initialize BookState').first().json;\n\n// Get syllabus section (from MCP-Standards)\nlet syllabusContext = null;\ntry {\n  const syllabusResponse = $('📚 MCP: Get Syllabus Section').first().json;\n  if (syllabusResponse.body && !syllabusResponse.body.error) {\n    const content = syllabusResponse.body.content?.[0]?.text;\n    syllabusContext = content ? JSON.parse(content) : null;\n  }\n} catch (e) {\n  console.log('Syllabus fetch failed, continuing without:', e.message);\n}\n\n// Get research context (from MCP-Research / Qdrant)\nlet researchContext = [];\ntry {\n  const researchResponse = $('🔍 MCP: Search Knowledge Base').first().json;\n  if (researchResponse.body && !researchResponse.body.error) {\n    const content = researchResponse.body.content?.[0]?.text;\n    const parsed = content ? JSON.parse(content) : null;\n    researchContext = parsed?.results || [];\n  }\n} catch (e) {\n  console.log('Research fetch failed, continuing without:', e.message);\n}\n\nreturn {\n  json: {\n    ...bookState,\n    syllabus_context: syllabusContext,\n    research_context: researchContext,\n    has_syllabus: !!syllabusContext,\n    has_research: researchContext.length > 0\n  }\n};"
       },
-      "id": "merge-research",
-      "name": "💾 Merge Research",
+      "id": "merge-context",
+      "name": "🔀 Merge MCP Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [416, 500]
+      "position": [-24656, 9624]
     },
     {
       "parameters": {
@@ -211,20 +180,18 @@
         "nodeCredentialType": "openAiApi",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
-          ]
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.5,\n  max_tokens: 8000,\n  messages: [\n    {\n      role: 'system',\n      content: '# WPI STUDY GUIDE CHAPTER GENERATOR\\n\\n## OUTPUT FORMAT: MARKDOWN (NOT HTML!)\\n\\nYou generate study guide chapters in **German** using **Markdown** format.\\n\\n## STRUCTURE\\n\\n```markdown\\n# Kapitel [NUMBER]: [TITLE]\\n\\n**Workload:** ca. [MINUTES] Minuten\\n\\n## Lernziele\\n\\n- LO1: [Description]\\n- LO2: [Description]\\n\\n## Das Szenario\\n\\n[A realistic business/technical problem as hook - do not solve yet]\\n\\n## [Main Topic Section]\\n\\n### Definition: [Term]\\n\\n> [Clear definition without circular references]\\n\\n### Wie funktioniert es?\\n\\n[Technical explanation with code examples]\\n\\n```javascript\\n// Code example\\n```\\n\\n### Best Practices\\n\\n- Point 1\\n- Point 2\\n\\n### Haeufige Fehler\\n\\n**Fehler:** [Description]\\n**Loesung:** [How to fix]\\n\\n## Szenario-Loesung\\n\\n[Now solve the scenario from the beginning]\\n\\n## Key Takeaways\\n\\n1. [Takeaway 1]\\n2. [Takeaway 2]\\n3. [Takeaway 3]\\n\\n## Pruefungsfragen\\n\\n### Frage 1\\n[Question text]\\n\\nA) Option A\\nB) Option B\\nC) Option C\\nD) Option D\\n\\n**Antwort:** [Letter]\\n**Erklaerung:** [Why this is correct]\\n\\n---\\n```\\n\\n## RULES\\n\\n1. **Length:** 2500-3500 words\\n2. **Workload:** Calculate as words/40, round to 10 minutes\\n3. **Language:** German, professional-instructive tone\\n4. **NO personal address:** Never use Du, Sie, or Wir - use passive voice or imperatives\\n5. **Code blocks:** Use proper markdown with language tags\\n6. **Bloom Levels:** Match depth to the learning objective level\\n7. **Exam Questions:** Generate 5-7 multiple choice questions at the end'\n    },\n    {\n      role: 'user',\n      content: '## GENERATE CHAPTER\\n\\n**Chapter Number:** ' + ($json.chapter.chapter_number) + '\\n**Title:** ' + $json.chapter.title + '\\n**Description:** ' + $json.chapter.description + '\\n\\n### Learning Objectives:\\n' + ($json.chapter.learning_objectives || []).map(function(lo) { return '- ' + lo.id + ' (' + lo.bloomLevel + '): ' + lo.description; }).join('\\n') + '\\n\\n### Topics to Cover:\\n' + ($json.chapter.topics || []).map(function(t) { return '- ' + t.title + ': ' + t.description; }).join('\\n') + '\\n\\n### Target Audience: ' + $json.target_audience + '\\n\\n' + ($json.research_context.length > 0 ? '### Research Context:\\n' + $json.research_context.slice(0, 3).map(function(r) { return '---\\n' + (r.text || '').substring(0, 400) + '...'; }).join('\\n') : '') + '\\n\\n---\\n\\n**WICHTIG:** Output in MARKDOWN format, NOT HTML!\\n**Generate the chapter now.**'\n    }\n  ]\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.3,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: 'Du bist \"The Architect\" - ein erfahrener Didaktik-Experte für technische Fachbücher.\\n\\nDeine Aufgabe:\\n1. Analysiere die Syllabus-Domains (Kapitel sind bereits vordefiniert!)\\n2. Nutze den Kontext aus der Knowledge Base\\n3. Erstelle für jede Domain detaillierte Lernziele und Sections\\n4. Definiere klare Lernziele für jedes Kapitel (ISO 17024 konform)\\n\\nWICHTIG: Die Kapitelstruktur ist bereits vorgegeben durch die Syllabus-Domains!\\nDu sollst NUR die Details ausarbeiten, nicht die Struktur ändern.\\n\\nRegeln:\\n- Jedes Kapitel sollte 10-15 Seiten umfassen\\n- Beginne mit Grundlagen, steigere die Komplexität\\n- Jedes Kapitel endet mit einer praktischen Übung\\n- Berücksichtige die Zielgruppe bei der Tiefe\\n- Lernziele müssen messbar und überprüfbar sein\\n\\nOutput-Format: JSON\\n```json\\n{\\n  \"title\": \"Buchtitel (aus Syllabus-Name)\",\\n  \"subtitle\": \"Untertitel\",\\n  \"iso_alignment\": {\\n    \"syllabus_id\": \"ID\",\\n    \"covered_domains\": [\"D1\", \"D2\"]\\n  },\\n  \"chapters\": [\\n    {\\n      \"number\": 1,\\n      \"domain_id\": \"D1\",\\n      \"title\": \"Titel aus Domain\",\\n      \"learning_goals\": [\"Lernziel 1 (Bloom: K2)\", \"Lernziel 2 (Bloom: K3)\"],\\n      \"syllabus_mapping\": [\"LO-001\", \"LO-002\"],\\n      \"sections\": [\"Section 1\", \"Section 2\"],\\n      \"estimated_pages\": 12,\\n      \"practical_exercise\": \"Beschreibung der Übung\"\\n    }\\n  ]\\n}\\n```'\n    },\n    {\n      role: 'user',\n      content: 'Erstelle das Inhaltsverzeichnis basierend auf den vorgegebenen Syllabus-Domains:\\n\\n**Syllabus:** ' + $json.syllabus_name + ' (ID: ' + $json.syllabus_id + ')\\n**Zielgruppe:** ' + $json.target_audience + '\\n**Anzahl Kapitel (vorgegeben):** ' + $json.total_chapters + '\\n\\n**VORDEFINIERTE KAPITEL (Syllabus-Domains):**\\n' + $json.chapters.map(function(ch) { return 'Kapitel ' + ch.chapter_number + ': ' + ch.title + '\\n  - Domain ID: ' + ch.domain_id + '\\n  - Beschreibung: ' + (ch.description || 'N/A') + '\\n  - Topics: ' + (ch.topics || []).map(function(t) { return t.title; }).join(', ') + '\\n  - Learning Objectives: ' + (ch.learning_objectives || []).length + ' Stück'; }).join('\\n\\n') + '\\n\\n' + ($json.has_syllabus ? '**Syllabus-Kontext:**\\n' + JSON.stringify($json.syllabus_context, null, 2) : '') + '\\n\\n' + ($json.has_research ? '**Relevanter Kontext aus Knowledge Base:**\\n' + $json.research_context.slice(0, 5).map(function(r) { return '- ' + (r.text || '').substring(0, 200) + '...'; }).join('\\n') : '') + '\\n\\nWICHTIG: Behalte die Domain-Struktur bei! Füge nur Lernziele, Sections und Übungen hinzu.\\n\\nAntworte NUR mit dem JSON, keine Erklärungen.'\n    }\n  ]\n}) }}",
         "options": {}
       },
-      "id": "writer-agent",
-      "name": "✍️ WPI Writer Agent",
+      "id": "f272ee78-9d36-44c8-a2bb-22904535e1c0",
+      "name": "🏗️ Architect Agent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [640, 500],
+      "position": [-24432, 9624],
       "credentials": {
         "openAiApi": {
           "id": "Oh3Rnj32fETJUF9U",
@@ -234,28 +201,532 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse writer response and extract chapter + questions\nconst prevData = $('💾 Merge Research').first().json;\nconst response = $input.first().json.choices[0].message.content;\n\n// Extract exam questions section\nlet chapterContent = response;\nlet examQuestions = [];\n\n// Try to extract questions from the markdown\nconst questionsMatch = response.match(/##\\s*Pruefungsfragen[\\s\\S]*$/i) || response.match(/##\\s*Prüfungsfragen[\\s\\S]*$/i);\nif (questionsMatch) {\n  const questionsSection = questionsMatch[0];\n  // Parse individual questions\n  const questionBlocks = questionsSection.split(/###\\s*Frage\\s*\\d+/i).slice(1);\n  examQuestions = questionBlocks.map((block, i) => {\n    const lines = block.trim().split('\\n').filter(l => l.trim());\n    return {\n      question_number: i + 1,\n      text: lines[0] || '',\n      raw_content: block.trim()\n    };\n  });\n}\n\n// Calculate word count and workload\nconst wordCount = response.split(/\\s+/).length;\nconst workloadMinutes = Math.ceil(wordCount / 40 / 10) * 10;\n\nreturn {\n  json: {\n    book_id: prevData.book_id,\n    syllabus_name: prevData.syllabus_name,\n    target_audience: prevData.target_audience,\n    total_chapters: prevData.total_chapters,\n    current_chapter_index: prevData.current_chapter_index,\n    chapter_number: prevData.chapter.chapter_number,\n    chapter_title: prevData.chapter.title,\n    chapter_domain_id: prevData.chapter.domain_id,\n    chapter_content_md: response,\n    exam_questions: examQuestions,\n    exam_questions_count: examQuestions.length,\n    word_count: wordCount,\n    workload_minutes: workloadMinutes\n  }\n};"
+        "jsCode": "// Parse the AI response and extract JSON\nconst response = $input.first().json.choices[0].message.content;\n\n// Try to extract JSON from the response\nlet blueprint;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  blueprint = JSON.parse(jsonStr.trim());\n} catch (e) {\n  throw new Error('Failed to parse blueprint JSON: ' + e.message);\n}\n\n// Get the previous state\nconst prevState = $('🔀 Merge MCP Context').first().json;\n\n// Merge blueprint chapters with original domain data\nconst mergedChapters = blueprint.chapters.map((bpCh, index) => {\n  const originalCh = prevState.chapters[index] || {};\n  return {\n    ...bpCh,\n    number: bpCh.number || index + 1,\n    domain_id: originalCh.domain_id || bpCh.domain_id,\n    original_learning_objectives: originalCh.learning_objectives || [],\n    topics: originalCh.topics || bpCh.topics || [],\n    weight: originalCh.weight,\n    prerequisites: originalCh.prerequisites || []\n  };\n});\n\nblueprint.chapters = mergedChapters;\n\nreturn {\n  json: {\n    ...prevState,\n    blueprint: blueprint,\n    status: 'blueprint_ready'\n  }\n};"
       },
-      "id": "parse-chapter",
-      "name": "📝 Parse Chapter",
+      "id": "920c8203-04b1-45a4-ba03-7a72eedf321f",
+      "name": "📋 Parse Blueprint",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [864, 500]
+      "position": [-24208, 9624]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://mcp-standards:3002/chapters/{{ $json.book_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "clear-chapters-accumulator",
+      "name": "🗑️ Clear Chapter Accumulator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-23984, 9624],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Auth Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get current state\nconst state = $('📋 Parse Blueprint').first().json;\nconst chapters = state.blueprint.chapters;\nconst bookId = state.book_id;\n\nconsole.log('Preparing chapters for book:', bookId, 'Total chapters:', chapters.length);\n\n// Return chapters as array for loop\nreturn chapters.map((chapter, index) => ({\n  json: {\n    ...state,\n    current_chapter: chapter,\n    current_chapter_index: index,\n    total_chapters: chapters.length\n  }\n}));"
+      },
+      "id": "4af29a1a-34cb-4979-be57-b5f214885477",
+      "name": "📑 Prepare Chapters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-23760, 9624]
+    },
+    {
+      "parameters": { "options": {} },
+      "id": "aa2b4285-c69f-4d12-93d3-b317a3b5203d",
+      "name": "🔁 Chapter Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [-23536, 9624]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-research:3003/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'hybrid_search',\n  arguments: {\n    query: $json.current_chapter.title + ' ' + ($json.current_chapter.learning_goals || []).join(' '),\n    filter_metadata: {\n      domain_id: $json.current_chapter.domain_id || undefined\n    },\n    limit: 5,\n    output_format: 'json'\n  }\n}) }}",
+        "options": { "response": { "response": { "fullResponse": true } } }
+      },
+      "id": "mcp-chapter-research",
+      "name": "🔍 MCP: Chapter Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-23312, 9072],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Auth Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-standards:3002/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'get_syllabus_section',\n  arguments: {\n    domain_id: $('🔁 Chapter Loop').first().json.current_chapter.domain_id || 'D1',\n    output_format: 'json'\n  }\n}) }}",
+        "options": { "response": { "response": { "fullResponse": true } } }
+      },
+      "id": "mcp-chapter-syllabus",
+      "name": "📚 MCP: Get Chapter LOs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-23312, 9272],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Auth Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge-mcp-results",
+      "name": "🔀 Merge MCP Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-23160, 9172]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge-with-chapter",
+      "name": "🔀 Add Chapter Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-23010, 9172]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reset revision counter for this chapter\nconst staticData = $getWorkflowStaticData('global');\nstaticData.revision_count = 0;\n\n// Get all input items - merged from: MCP Research, MCP Syllabus, Chapter Loop\nconst allItems = $input.all();\n\n// Find chapter data, research results, and syllabus LOs from merged inputs\nlet chapterResearch = [];\nlet syllabusLOs = [];\nlet chapterData = null;\n\nfor (const item of allItems) {\n  const json = item.json;\n  \n  // Check if this is chapter data from the loop (has current_chapter)\n  if (json.current_chapter && json.blueprint) {\n    chapterData = json;\n    continue;\n  }\n  \n  // Check if this is an MCP HTTP response (has body.content structure)\n  if (json.body?.content?.[0]?.text) {\n    try {\n      const parsed = JSON.parse(json.body.content[0].text);\n      \n      // Check for research results (has results_count or query field)\n      if (parsed.query !== undefined || parsed.results_count !== undefined) {\n        chapterResearch = parsed.results || [];\n      }\n      // Check for syllabus section data\n      else if (parsed.results && parsed.count !== undefined) {\n        syllabusLOs = parsed.results || [];\n      }\n      else if (parsed.section || parsed.found || parsed.learning_objectives) {\n        syllabusLOs = parsed.learning_objectives || parsed.results || [];\n        if (parsed.section?.topics) {\n          for (const topic of parsed.section.topics) {\n            if (topic.learning_objectives) {\n              syllabusLOs = syllabusLOs.concat(topic.learning_objectives);\n            }\n          }\n        }\n      }\n    } catch (e) {\n      console.log('Failed to parse MCP response:', e.message);\n    }\n  }\n}\n\n// Verify we have chapter data\nif (!chapterData) {\n  throw new Error('Chapter data not found in merged inputs. Check workflow connections.');\n}\n\n// Merge original LOs from domain with fetched LOs\nconst allLOs = [...(chapterData.current_chapter.original_learning_objectives || []), ...syllabusLOs];\n\nreturn {\n  json: {\n    book_id: chapterData.book_id,\n    current_chapter: chapterData.current_chapter,\n    current_chapter_index: chapterData.current_chapter_index,\n    chapter_research: chapterResearch,\n    syllabus_learning_objectives: allLOs,\n    blueprint: chapterData.blueprint,\n    target_audience: chapterData.target_audience,\n    revision_count: 0\n  }\n};"
+      },
+      "id": "6dd4a74f-3927-428d-b578-d64c7129a8dc",
+      "name": "💾 Merge Chapter Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-22860, 9172]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.5,\n  max_tokens: 8000,\n  messages: [\n    {\n      role: 'system',\n      content: '# SYSTEM PROMPT: WPI STUDY GUIDE CHAPTER GENERATOR (v4.4 - MARKDOWN OUTPUT)\\n\\n## 1. ROLE & OBJECTIVE\\n\\nYou are the **\"WPI Technical Architect\"**, an expert educational content creator for high-level IT certifications (ISO 17024 standard).\\n\\nYour task is to generate a **Study Guide Chapter** in German using **MARKDOWN FORMAT** (NOT HTML!).\\n\\n### TARGET AUDIENCE PROFILE (The \"WPI Candidate\")\\n- **Persona:** Career-focused professionals (EQF Level 5/6). Time-constrained and highly motivated.\\n- **Goal:** Passing a rigorous exam and solving real-world architectural problems.\\n- **Mindset:** They hate \"fluff\" and marketing buzzwords. They value precision, density, and \"mechanic-first\" explanations.\\n\\n**CRITICAL:** Prioritize **DEPTH** over breadth. This is a study guide for professionals, not a blog post.\\n\\n## 2. STRICT EDITORIAL RULES (Editorial Guide V3.0)\\n\\n### A. The \"Deep Dive\" Mandate & Workload Calculation\\n- **Target Length:** Generate **3,000 to 3,500 words** of core content\\n- **Workload Calculation:** 40 Words = 1 Minute, round up to next 10 minutes\\n\\n### B. The \"Anti-Circular\" Definition Rule\\n- FORBIDDEN: Defining complex terms using other complex terms\\n- REQUIRED: Explain using simple analogies first\\n\\n### C. Tone & Style\\n- **Voice:** \"Professional-Instructive\". Neutral, factual.\\n- **PROHIBITED:** \"Du\", \"Sie\", \"Wir\" (Personal address). Use Passive or Imperative.\\n- **Acronyms:** First-Mention Rule (Write out fully on first use)\\n\\n### D. Bloom Level Interpretation (Apply Strictly)\\n- **(K1) Remember:** Define terms. Simple Recall.\\n- **(K2) Understand:** Explain concepts. Zero-to-Hero.\\n- **(K3) Apply:** Use scenarios. Show usage.\\n- **(K4) Analyze:** Diagnose errors. Debugging.\\n- **(K5) Evaluate:** Strategic comparison (Pros/Cons).\\n- **(K6) Create:** Design architectures. Coding.\\n\\n## 3. MARKDOWN OUTPUT STRUCTURE\\n\\n**IMPORTANT: Output MARKDOWN, NOT HTML!**\\n\\n```markdown\\n# TEIL [PART]: [TITLE]\\n\\n## Kapitel [NUMBER]: [CHAPTER_TITLE]\\n\\n**⏱️ Workload:** ca. [MINUTES] Minuten\\n\\n*Syllabus-ID: [DOMAIN_ID]*\\n\\n---\\n\\n### Lernziele\\n\\n- LO-1: [Learning Objective 1]\\n- LO-2: [Learning Objective 2]\\n\\n---\\n\\n### Das Szenario\\n\\n> [Realistic business problem / technical failure as blockquote]\\n> [Build a \"Cliffhanger\" - do not solve yet]\\n\\n---\\n\\n### [Topic 1 Title]\\n\\n**📖 Definition: [Term]**\\n\\n[Explanation...]\\n\\n#### [Subtopic]\\n\\n[Content with code blocks using triple backticks]\\n\\n```javascript\\n// Code example with language tag\\nconst example = \"code\";\\n```\\n\\n> **💡 Best Practice:** [Industry standard tip]\\n\\n> **⚠️ Pitfall:** [Common mistake with consequences]\\n\\n> **🚀 Pro-Tip:** [Advanced efficiency hack]\\n\\n---\\n\\n### Fallstudie: Lösung\\n\\n[Explicitly resolve the scenario from above]\\n\\n---\\n\\n### Key Takeaways\\n\\n1. [Takeaway 1]\\n2. [Takeaway 2]\\n3. [Takeaway 3]\\n\\n---\\n\\n### Wissenscheck\\n\\n**Frage 1:** [Question text]\\n\\n> **Antwort:** [Answer]\\n\\n**Frage 2:** [Question text]\\n\\n> **Antwort:** [Answer]\\n\\n[Continue for 5-6 questions]\\n\\n---\\n\\n### Transfer-Übung\\n\\n[Practical exercise or code challenge]\\n```\\n\\n## 4. CODE-HANDLING\\n\\nWhen code examples are needed, insert a placeholder:\\n<<CODE_REQUEST: [Description of what the code should do]>>\\n\\nThe Coder Agent will replace these with validated ES6+ code.\\n\\n**GENERATE CHAPTER IN MARKDOWN NOW.**'\n    },\n    {\n      role: 'user',\n      content: '## INPUT DATA FOR CHAPTER GENERATION\\n\\n**CURRENT CHAPTER:** ' + $json.current_chapter.number + ' of ' + $json.blueprint.chapters.length + '\\n**DOMAIN ID:** ' + $json.current_chapter.domain_id + '\\n**CHAPTER TITLE:** ' + $json.current_chapter.title + '\\n\\n### LEARNING GOALS (from Architect):\\n' + ($json.current_chapter.learning_goals || []).map(function(g, i) { return '- LO-' + (i+1) + ': ' + g; }).join('\\n') + '\\n\\n**Sections to cover:**\\n' + ($json.current_chapter.sections || []).map(function(s) { return '- ' + s; }).join('\\n') + '\\n\\n' + ($json.syllabus_learning_objectives.length > 0 ? '### ISO 17024 SYLLABUS LEARNING OBJECTIVES:\\n' + $json.syllabus_learning_objectives.slice(0, 10).map(function(lo) { return '- ' + (lo.id || lo.content?.id || '') + ': ' + (lo.description || lo.content?.description || JSON.stringify(lo).substring(0, 100)); }).join('\\n') : '') + '\\n\\n' + ($json.chapter_research.length > 0 ? '### RAG_CONTENT (Internal Knowledge Base):\\n' + $json.chapter_research.slice(0, 5).map(function(r) { return '---\\n' + (r.text || '').substring(0, 500) + '...'; }).join('\\n') : '') + '\\n\\n### TARGET AUDIENCE: ' + $json.target_audience + '\\n\\n### PRACTICAL EXERCISE: ' + ($json.current_chapter.practical_exercise || 'Create a relevant hands-on exercise') + '\\n\\n---\\n\\n**EXECUTION INSTRUCTIONS:**\\n1. Generate 3,000-3,500 words of content IN MARKDOWN FORMAT\\n2. Calculate workload: words/40, round to next 10 minutes\\n3. Use proper Markdown syntax (headers, code blocks, blockquotes)\\n4. Follow Zero-to-Hero flow for each LO\\n5. Insert <<CODE_REQUEST: ...>> for code examples\\n6. Include all mandatory sections (Scenario, Content, Case Study, Takeaways, Quiz)\\n\\n**GENERATE THE CHAPTER IN MARKDOWN NOW.**'\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "id": "c578cadc-be8b-481e-8a79-3c7c9b7556a5",
+      "name": "✍️ WPI Technical Architect",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-22636, 9172],
+      "credentials": {
+        "openAiApi": {
+          "id": "Oh3Rnj32fETJUF9U",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const draft = $input.first().json.choices[0].message.content;\n\n// Get base data from Merge Chapter Context\nlet prevData = $('💾 Merge Chapter Context').first().json;\n\n// Get revision count from workflow static data\nconst staticData = $getWorkflowStaticData('global');\nlet revision_count = staticData.revision_count || 0;\n\n// Extract CODE_REQUEST placeholders\nconst codeRequests = [];\nconst regex = /<<CODE_REQUEST:\\s*(.+?)>>/g;\nlet match;\n\nwhile ((match = regex.exec(draft)) !== null) {\n  codeRequests.push({\n    placeholder: match[0],\n    description: match[1].trim()\n  });\n}\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: draft,\n    code_requests: codeRequests,\n    has_code_requests: codeRequests.length > 0,\n    revision_count: revision_count\n  }\n};"
+      },
+      "id": "32ae110c-52a2-47c5-8cc1-3ffb2f9bd2c2",
+      "name": "📝 Extract Code Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-22412, 9172]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "has-code",
+              "leftValue": "={{ $json.has_code_requests }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f176007b-48f7-40b9-b01f-e6fefa8ebeca",
+      "name": "🔀 Code Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-22188, 9172]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.2,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent,\" a Senior Full-Stack Engineer and technical author. Your goal is to generate high-quality, production-ready code examples for the WPI Syllabus Guide.\\n\\n## Core Responsibilities\\n1. **Follow the Tangibility Mandate:** For every technical topic, you MUST provide a complete, syntaktisch correct code block.\\n2. **Technical Standards:** Use modern syntax (ES6+ for JavaScript, HTML5, CSS3) and handle common edge cases.\\n3. **WPI Tone of Voice:** Use a \"Professional-Instructive\" voice. Avoid \"Du\" or \"Sie\" in technical instructions.\\n4. **Zero Fluff:** Provide maximum competence with no filler words.\\n\\n## Code Validation Requirements\\nYour code will be automatically validated by the MCP Coder service after generation:\\n- JavaScript/TypeScript: ESLint ES6+ strict validation\\n- HTML: Structure and accessibility validation\\n- CSS: Syntax validation\\n\\n## Best Practices\\n1. Use const/let, never var\\n2. Use arrow functions and template literals\\n3. Handle errors gracefully\\n4. Include edge case handling\\n5. Add meaningful comments (German)\\n6. Keep examples practical and production-ready\\n\\n## Output Format\\nFür jede Code-Anfrage, antworte mit:\\n\\n### [Beschreibung]\\n```[sprache]\\n// Vollständiger, lauffähiger Code\\n```\\n**Mechanik:** Kurze Erklärung wie es funktioniert.\\n**Impact:** Warum ist dieser Ansatz wichtig?'\n    },\n    {\n      role: 'user',\n      content: 'Erstelle Code-Beispiele für folgende Anfragen:\\n\\n' + $json.code_requests.map(function(cr, i) { return (i+1) + '. ' + cr.description; }).join('\\n') + '\\n\\n**Kontext:** Kapitel \"' + $json.current_chapter.title + '\" aus dem Buch \"' + $json.blueprint.title + '\"\\n**Zielgruppe:** ' + $json.target_audience + '\\n\\n**WICHTIG:** Der Code wird automatisch validiert. Achte besonders auf:\\n- ES6+ Syntax (const/let, arrow functions, template literals)\\n- Keine ungenutzten Variablen\\n- Syntaktische Korrektheit\\n- Edge Case Handling'\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "id": "c47042a5-8ea8-45ff-b6aa-f0e3e727b8f5",
+      "name": "💻 WPI Coder Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-21964, 9072],
+      "credentials": {
+        "openAiApi": {
+          "id": "Oh3Rnj32fETJUF9U",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevData = $('📝 Extract Code Requests').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Extract code blocks for validation\nconst codeBlocks = codeResponse.match(/```([\\w]*)\\n([\\s\\S]*?)```/g) || [];\nconst extractedCode = codeBlocks.map(block => {\n  const match = block.match(/```([\\w]*)\\n([\\s\\S]*?)```/);\n  return {\n    language: match[1] || 'javascript',\n    code: match[2].trim()\n  };\n});\n\n// Replace placeholders with actual code\nlet finalDraft = prevData.draft_content;\nprevData.code_requests.forEach((req, index) => {\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(req.placeholder, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    extracted_code: extractedCode,\n    raw_code_response: codeResponse,\n    code_validated: false\n  }\n};"
+      },
+      "id": "b68cb994-843a-45bb-aa7d-fa0e5fa2362e",
+      "name": "🔗 Merge Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-21740, 9072]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-coder:3004/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function() {\n  const codeItems = $json.extracted_code || [];\n  if (codeItems.length === 0) {\n    return JSON.stringify({ name: 'validate_code_snippet', arguments: { code: '// no code', language: 'javascript' }});\n  }\n  const firstCode = codeItems[0];\n  const langMap = { 'js': 'javascript', 'ts': 'typescript', 'jsx': 'javascript', 'tsx': 'typescript' };\n  const lang = langMap[firstCode.language] || firstCode.language || 'javascript';\n  return JSON.stringify({\n    name: 'validate_code_snippet',\n    arguments: {\n      code: firstCode.code,\n      language: ['javascript', 'typescript', 'html', 'css', 'json'].includes(lang) ? lang : 'javascript',\n      strict_mode: true,\n      check_best_practices: false\n    }\n  });\n})() }}",
+        "options": { "response": { "response": { "fullResponse": true } } }
+      },
+      "id": "mcp-validate-code",
+      "name": "🔬 MCP: Validate Code",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-21516, 8972],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Auth Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevData = $('🔗 Merge Code').first().json;\n\n// Parse validation result from MCP-Coder\nlet validationResult = { valid: true, errors: [], suggestions: [] };\ntry {\n  const valResp = $('🔬 MCP: Validate Code').first().json;\n  if (valResp.body?.content?.[0]?.text) {\n    validationResult = JSON.parse(valResp.body.content[0].text);\n  }\n} catch (e) {\n  console.log('Code validation not available:', e.message);\n}\n\n// Get static data for retry count\nconst staticData = $getWorkflowStaticData('global');\nstaticData.code_retry_count = staticData.code_retry_count || 0;\n\nreturn {\n  json: {\n    ...prevData,\n    code_validation: validationResult,\n    code_validated: validationResult.valid,\n    code_errors: validationResult.errors || [],\n    code_suggestions: validationResult.suggestions || [],\n    code_retry_count: staticData.code_retry_count\n  }\n};"
+      },
+      "id": "parse-code-validation",
+      "name": "📊 Parse Code Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-21292, 8972]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "code-valid",
+              "leftValue": "={{ $json.code_validated }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "code-valid-check",
+      "name": "🔀 Code Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-21068, 8972]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "code-retry-limit",
+              "leftValue": "={{ $json.code_retry_count }}",
+              "rightValue": 2,
+              "operator": { "type": "number", "operation": "lt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "code-retry-check",
+      "name": "🔀 Code Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-20844, 8872]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.1,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent\" performing SELF-CORRECTION based on validation errors.\\n\\n## Your Task\\nThe code you previously generated failed validation. You MUST fix ALL errors reported by the validator.\\n\\n## Correction Strategy\\n1. Fix syntax errors first (blocking issues)\\n2. Apply ES6+ best practices (const/let, arrow functions, template literals)\\n3. Remove unused variables\\n4. Ensure all edge cases are handled\\n5. Maintain code readability and comments\\n\\n## Output Format\\nReturn the CORRECTED code in the same structure as before (with ```language blocks and descriptions).\\nDo NOT explain what you fixed - just provide the corrected code.'\n    },\n    {\n      role: 'user',\n      content: '**Validation Failed - Self-Correction Required**\\n\\n**Original Code:**\\n' + $json.raw_code_response + '\\n\\n**Validation Errors:**\\n' + JSON.stringify($json.code_errors, null, 2) + '\\n\\n**Suggestions:**\\n' + ($json.code_suggestions || []).join('\\n') + '\\n\\n**Retry Count:** ' + ($json.code_retry_count + 1) + ' / 2\\n\\nFix ALL errors and return the corrected code in the same format (```language blocks).'\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "id": "coder-self-correct",
+      "name": "🔄 WPI Coder Self-Correct",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-20620, 8772],
+      "credentials": {
+        "openAiApi": {
+          "id": "Oh3Rnj32fETJUF9U",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Increment retry counter and merge corrected code\nconst staticData = $getWorkflowStaticData('global');\nstaticData.code_retry_count = (staticData.code_retry_count || 0) + 1;\n\nconst prevData = $('📊 Parse Code Validation').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Extract code blocks for validation\nconst codeBlocks = codeResponse.match(/```([\\w]*)\\n([\\s\\S]*?)```/g) || [];\nconst extractedCode = codeBlocks.map(block => {\n  const match = block.match(/```([\\w]*)\\n([\\s\\S]*?)```/);\n  return {\n    language: match[1] || 'javascript',\n    code: match[2].trim()\n  };\n});\n\n// Re-merge into draft\nlet finalDraft = prevData.draft_content;\nconst originalCodeBlocks = prevData.draft_content.match(/```[\\s\\S]*?```/g) || [];\noriginalCodeBlocks.forEach((oldBlock, index) => {\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(oldBlock, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    extracted_code: extractedCode,\n    raw_code_response: codeResponse,\n    code_validated: false,\n    code_retry_count: staticData.code_retry_count\n  }\n};"
+      },
+      "id": "merge-corrected-code",
+      "name": "🔗 Merge Corrected Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-20396, 8772]
+    },
+    {
+      "parameters": {},
+      "id": "skip-code-validation",
+      "name": "⏭️ Skip Validation",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [-20844, 9072]
+    },
+    {
+      "parameters": {},
+      "id": "7427463e-4e04-4e0d-a3cc-9819b9b34891",
+      "name": "⏭️ Skip Code",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [-21740, 9272]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-standards:3002/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function() {\n  var draft = '';\n  try {\n    draft = $('🔗 Merge Code').first().json.draft_content;\n  } catch (e) {\n    try {\n      draft = $('⏭️ Skip Code').first().json.draft_content || $('📝 Extract Code Requests').first().json.draft_content;\n    } catch (e2) {\n      draft = $('📝 Extract Code Requests').first().json.draft_content;\n    }\n  }\n  return JSON.stringify({\n    name: 'validate_iso_compliance',\n    arguments: {\n      content: draft.substring(0, 10000),\n      output_format: 'json'\n    }\n  });\n})() }}",
+        "options": { "response": { "response": { "fullResponse": true } } }
+      },
+      "id": "mcp-iso-validate",
+      "name": "📋 MCP: ISO Compliance Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-21516, 9172],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Auth Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function() {\n  var draft = '';\n  var prevData = {};\n  try {\n    prevData = $('🔗 Merge Code').first().json;\n    draft = prevData.draft_content;\n  } catch (e) {\n    try {\n      prevData = $('⏭️ Skip Code').first().json || $('📝 Extract Code Requests').first().json;\n      draft = prevData.draft_content || $('📝 Extract Code Requests').first().json.draft_content;\n    } catch (e2) {\n      prevData = $('📝 Extract Code Requests').first().json;\n      draft = prevData.draft_content;\n    }\n  }\n  var isoCompliance = null;\n  try {\n    var isoResp = $('📋 MCP: ISO Compliance Check').first().json;\n    if (isoResp.body && isoResp.body.content && isoResp.body.content[0] && isoResp.body.content[0].text) {\n      isoCompliance = JSON.parse(isoResp.body.content[0].text);\n    }\n  } catch (e) {}\n  return JSON.stringify({\n    model: 'gpt-4o',\n    temperature: 0.2,\n    max_tokens: 4000,\n    messages: [\n      {\n        role: 'system',\n        content: '## Your Identity\\nYou are the \"WPI ISO Editor,\" a meticulous quality assurance expert specialized in the ISO 17024 standard and technical didactics. Your role is to audit content generated by the Writer and Coder agents to ensure it is \"Exam-Ready\" and free of \"Fluff.\"\\n\\n## Core Audit Criteria\\n\\n### 1. Syllabus & Bloom Compliance\\n- **Coverage:** Verify that every Learning Objective (LO) from the provided Syllabus Domain is addressed\\n- **Bloom Level:** Ensure depth matches target taxonomy (K4 must describe diagnostic paths, not just definitions)\\n- **Fact Check:** Cross-reference technical claims against Source of Truth documents\\n\\n### 2. WPI Tone & Quality Standard\\n- **Neutrality:** Confirm neutral, factual tone\\n- **Address (CRITICAL):** STRICTLY ENFORCE removal of \"Du\" or \"Sie\" in technical instructions. Use passive voice or direct imperatives only.\\n  - DEDUCT -5 pts per Du/Sie violation\\n- **Structure:** Max 5-6 line paragraphs, bold key terms, zero filler words\\n- **Acronyms:** First-Mention Rule - all acronyms must be defined on first use (-2 pts per violation)\\n\\n### 3. Tangibility Mandate\\n- **Code-First:** Every technical topic MUST have syntactically correct code block\\n- **No Placeholders:** No \"// TODO\" or incomplete code\\n- **Calculations:** Show complete calculation paths for metrics\\n\\n## Scoring System (0-100)\\n- LO Completeness: 30 pts (All learning goals covered with Bloom-level depth?)\\n- Clarity & Tone: 25 pts (Zero fluff, correct voice? -5 per Du/Sie, -2 per undefined acronym)\\n- Code Quality: 20 pts (Tangible, commented examples? No placeholders?)\\n- Didactic Structure: 15 pts (Scenario -> Logic -> Takeaways included?)\\n- Exercises: 10 pts (Meaningful Check Your Knowledge + Scenario Drills?)\\n\\n## APPROVAL THRESHOLD\\n- **APPROVED (approved: true):** Score >= 90\\n- **REJECTED (approved: false):** Score < 90 - provide specific required_changes\\n\\n## Output Format (JSON ONLY - no markdown)\\n{\\n  \"score\": number,\\n  \"approved\": boolean,\\n  \"iso_compliant\": boolean,\\n  \"audit_log\": {\\n    \"satisfied_LOs\": [\"K1.1.1\"],\\n    \"missing_LOs\": [],\\n    \"tone_violations\": [],\\n    \"undefined_acronyms\": [],\\n    \"code_blocks_count\": number,\\n    \"code_validation_passed\": boolean\\n  },\\n  \"scoring_breakdown\": {\\n    \"lo_completeness\": number,\\n    \"clarity_and_tone\": number,\\n    \"code_quality\": number,\\n    \"didactic_structure\": number,\\n    \"exercises\": number\\n  },\\n  \"feedback\": {\\n    \"strengths\": [],\\n    \"required_changes\": []\\n  },\\n  \"exam_questions\": [{\\n    \"question\": \"string\",\\n    \"options\": [\"A)\", \"B)\", \"C)\", \"D)\"],\\n    \"correct\": \"char\",\\n    \"bloom_level\": \"string\",\\n    \"learning_objective\": \"string\",\\n    \"explanation\": \"string\"\\n  }]\\n}'\n      },\n      {\n        role: 'user',\n        content: '## AUDIT REQUEST\\n\\n**Chapter ' + (prevData.current_chapter ? prevData.current_chapter.number : '?') + ':** ' + (prevData.current_chapter ? prevData.current_chapter.title : 'Unknown') + '\\n\\n### Target Learning Objectives:\\n' + (prevData.current_chapter && prevData.current_chapter.learning_goals ? prevData.current_chapter.learning_goals.map(function(g, i) { return (i+1) + '. ' + g; }).join('\\n') : 'Not specified') + '\\n\\n### ISO 17024 Compliance Tool Result:\\n' + (isoCompliance ? JSON.stringify(isoCompliance, null, 2) : 'Tool result unavailable - perform manual compliance check') + '\\n\\n### Chapter Content to Audit (MARKDOWN FORMAT):\\n\\n' + draft.substring(0, 12000) + '\\n\\n---\\n**AUDIT INSTRUCTIONS:**\\n1. Check each LO for coverage and Bloom-level depth\\n2. Scan for Du/Sie violations (CRITICAL: -5 pts each)\\n3. Count code blocks, verify no placeholders\\n4. Check structure (intro -> concepts -> practice -> summary)\\n5. Verify exercises are meaningful\\n6. Calculate score using 5 criteria (max 100)\\n7. Generate 5-8 exam questions covering different LOs (IN MARKDOWN FORMAT)\\n8. Return ONLY valid JSON (no markdown code blocks)'\n      }\n    ]\n  });\n})() }}",
+        "options": {}
+      },
+      "id": "0ca5b509-c8f8-41d4-9dde-4044a3cc90ff",
+      "name": "🔍 WPI ISO Editor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-21292, 9172],
+      "credentials": {
+        "openAiApi": {
+          "id": "Oh3Rnj32fETJUF9U",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json.choices[0].message.content;\n\n// Get previous data\nlet prevData;\ntry {\n  prevData = $('🔗 Merge Code').first().json;\n} catch (e1) {\n  try {\n    prevData = $('⏭️ Skip Code').first().json;\n  } catch (e2) {\n    prevData = $('📝 Extract Code Requests').first().json;\n  }\n}\n\n// Parse WPI ISO Editor response\nlet editorResult;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  editorResult = JSON.parse(jsonStr.trim());\n} catch (e) {\n  editorResult = {\n    score: 0,\n    approved: false,\n    iso_compliant: false,\n    audit_log: { satisfied_LOs: [], missing_LOs: [], tone_violations: [], undefined_acronyms: [], code_blocks_count: 0, code_validation_passed: false },\n    scoring_breakdown: { lo_completeness: 0, clarity_and_tone: 0, code_quality: 0, didactic_structure: 0, exercises: 0 },\n    feedback: { strengths: [], required_changes: ['Failed to parse ISO Editor response: ' + e.message] },\n    exam_questions: []\n  };\n}\n\n// APPROVAL THRESHOLD: >= 90 points\nconst APPROVAL_THRESHOLD = 90;\nconst score = editorResult.score || 0;\nconst isApproved = score >= APPROVAL_THRESHOLD;\neditorResult.approved = isApproved;\n\n// Increment revision count\nconst staticData = $getWorkflowStaticData('global');\nstaticData.revision_count = (staticData.revision_count || 0) + 1;\nconst revision_count = staticData.revision_count;\n\nreturn {\n  json: {\n    ...prevData,\n    editor_score: score,\n    editor_approved: isApproved,\n    approval_threshold: APPROVAL_THRESHOLD,\n    iso_compliant: editorResult.iso_compliant || false,\n    audit_log: editorResult.audit_log || {},\n    scoring_breakdown: editorResult.scoring_breakdown || {},\n    editor_feedback: editorResult.feedback || { strengths: [], required_changes: [] },\n    exam_questions: editorResult.exam_questions || [],\n    revision_count: revision_count\n  }\n};"
+      },
+      "id": "e531fb59-53d7-4489-9ffc-f208d0799c69",
+      "name": "📊 Parse ISO Editor Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-21068, 9172]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "approved",
+              "leftValue": "={{ $json.editor_approved }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "02549a35-4ceb-493e-b7c6-7cea5a9d1f1e",
+      "name": "🔀 Quality OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-20844, 9172]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "max-revisions",
+              "leftValue": "={{ $json.revision_count }}",
+              "rightValue": 3,
+              "operator": { "type": "number", "operation": "lt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d41052a3-38a0-42b0-8dd9-614b09a9a87f",
+      "name": "🔀 Max Revisions?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-20620, 9384]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-research:3003/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'ingest_and_embed',\n  arguments: {\n    text: $json.draft_content,\n    metadata: {\n      source: 'wpi-content-factory',\n      title: $json.blueprint.title + ' - Kapitel ' + $json.current_chapter.number,\n      document_type: 'book_chapter',\n      domain_id: $json.current_chapter.domain_id || null,\n      tags: ['generated', 'book-chapter', $json.book_id],\n      language: 'de'\n    },\n    output_format: 'json'\n  }\n}) }}",
+        "options": { "response": { "response": { "fullResponse": true } } }
+      },
+      "id": "mcp-ingest-chapter",
+      "name": "💾 MCP: Store in Knowledge Base",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-20620, 9072],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "mcp-auth",
+          "name": "MCP Auth Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mark chapter as stored and output complete chapter data\nlet prevData;\ntry {\n  prevData = $('📊 Parse ISO Editor Result').first().json;\n} catch (e) {\n  prevData = $input.first().json;\n}\n\n// Try to get ingestion result\nlet ingestionResult = null;\ntry {\n  const ingestResp = $('💾 MCP: Store in Knowledge Base').first().json;\n  if (ingestResp.body?.content?.[0]?.text) {\n    ingestionResult = JSON.parse(ingestResp.body.content[0].text);\n  }\n} catch (e) {\n  console.log('Ingestion result not available:', e.message);\n}\n\nconst chapterNumber = prevData.current_chapter?.number || (prevData.current_chapter_index !== undefined ? prevData.current_chapter_index + 1 : 1);\n\n// Format exam questions as Markdown\nconst examQuestionsMarkdown = (prevData.exam_questions || []).map((q, i) => {\n  return '**Frage ' + (i + 1) + ':** ' + q.question + '\\n\\n' +\n    (q.options || []).join('\\n') + '\\n\\n' +\n    '> **Antwort:** ' + (q.correct || 'N/A') + '\\n> *' + (q.explanation || '') + '*';\n}).join('\\n\\n---\\n\\n');\n\nconsole.log('Finalizing chapter', chapterNumber, 'score:', prevData.editor_score || 0);\n\nreturn {\n  json: {\n    chapter_number: chapterNumber,\n    title: prevData.current_chapter?.title || 'Untitled',\n    content: prevData.draft_content || '',\n    exam_questions: prevData.exam_questions || [],\n    exam_questions_markdown: examQuestionsMarkdown,\n    score: prevData.editor_score || 0,\n    iso_compliant: prevData.iso_compliant || false,\n    approval_threshold: prevData.approval_threshold || 90,\n    passed_quality: prevData.editor_approved || false,\n    stored_in_kb: !!ingestionResult,\n    kb_document_id: ingestionResult?.document_id || null,\n    blueprint: prevData.blueprint,\n    book_id: prevData.book_id,\n    current_chapter_index: prevData.current_chapter_index,\n    target_audience: prevData.target_audience\n  }\n};"
+      },
+      "id": "finalize-chapter",
+      "name": "✅ Finalize Chapter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-20396, 9072]
     },
     {
       "parameters": {
         "fromEmail": "content-factory@wpi.org",
         "toEmail": "hennadii.shvedko@gmail.com",
-        "subject": "=Kapitel {{ $json.chapter_number }}/{{ $json.total_chapters }}: {{ $json.chapter_title }}",
-        "emailType": "text",
-        "message": "=# Kapitel {{ $json.chapter_number }}: {{ $json.chapter_title }}\n\n**Buch:** {{ $json.syllabus_name }}\n**Zielgruppe:** {{ $json.target_audience }}\n**Woerter:** {{ $json.word_count }}\n**Workload:** ca. {{ $json.workload_minutes }} Minuten\n**Pruefungsfragen:** {{ $json.exam_questions_count }}\n\n---\n\n{{ $json.chapter_content_md }}",
+        "subject": "=📖 Kapitel {{ $json.chapter_number }}: {{ $json.title }} (Score: {{ $json.score }}/100)",
+        "html": "=<h1>Kapitel {{ $json.chapter_number }} fertiggestellt</h1>\n<p><strong>Titel:</strong> {{ $json.title }}</p>\n<p><strong>Buch:</strong> {{ $json.blueprint.title }}</p>\n<p><strong>Zielgruppe:</strong> {{ $json.target_audience }}</p>\n<p><strong>Quality Score:</strong> {{ $json.score }}/100 {{ $json.passed_quality ? '✅ Approved' : '⚠️ Below threshold' }}</p>\n<p><strong>ISO 17024:</strong> {{ $json.iso_compliant ? '✅ Compliant' : '⚠️ Check required' }}</p>\n<p><strong>In KB gespeichert:</strong> {{ $json.stored_in_kb ? 'Ja' : 'Nein' }}</p>\n\n<hr>\n\n<h2>Kapitel-Inhalt (Markdown)</h2>\n<pre style=\"white-space: pre-wrap; font-family: monospace; background: #f5f5f5; padding: 15px; border-radius: 5px; max-height: 600px; overflow: auto;\">{{ $json.content }}</pre>\n\n<hr>\n\n<h2>Prüfungsfragen (Markdown)</h2>\n<pre style=\"white-space: pre-wrap; font-family: monospace; background: #f0f8ff; padding: 15px; border-radius: 5px;\">{{ $json.exam_questions_markdown || 'Keine Fragen generiert' }}</pre>",
         "options": {}
       },
       "id": "send-chapter-email",
       "name": "📧 Send Chapter Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [1088, 500],
+      "position": [-20172, 9072],
       "credentials": {
         "smtp": {
           "id": "OjlJbmPfeYsQ6qw1",
@@ -271,20 +742,18 @@
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [
-            { "name": "Content-Type", "value": "application/json" }
-          ]
+          "parameters": [{ "name": "Content-Type", "value": "application/json" }]
         },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
-      "id": "store-chapter",
+      "id": "store-chapter-accumulator",
       "name": "📦 Store Chapter",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1312, 500],
+      "position": [-19948, 9072],
       "credentials": {
         "httpHeaderAuth": {
           "id": "mcp-auth",
@@ -296,64 +765,91 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://mcp-standards:3002/chapters/{{ $input.first().json.book_id }}",
+        "url": "=http://mcp-standards:3002/chapters/{{ $input.first().json.book_id || 'unknown' }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
       },
-      "id": "get-all-chapters",
-      "name": "📥 Get All Chapters",
+      "id": "get-accumulated-chapters",
+      "name": "📥 Get Accumulated Chapters",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-32, 700],
+      "position": [-23312, 9456],
       "credentials": {
         "httpHeaderAuth": {
           "id": "mcp-auth",
           "name": "MCP Auth Token"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
-        "jsCode": "// Compile all chapters into final book\nconst response = $input.first().json;\nconst chapters = response.chapters || [];\n\nif (chapters.length === 0) {\n  return {\n    json: {\n      error: 'No chapters found',\n      book_id: response.book_id\n    }\n  };\n}\n\n// Get book metadata from first chapter\nconst firstChapter = chapters[0];\nconst syllabus_name = firstChapter.syllabus_name || 'Unknown';\nconst target_audience = firstChapter.target_audience || 'Unknown';\nconst book_id = firstChapter.book_id || response.book_id;\n\n// Sort chapters by number\nchapters.sort((a, b) => (a.chapter_number || 0) - (b.chapter_number || 0));\n\n// Build full book markdown\nlet bookContent = '# ' + syllabus_name + '\\n\\n';\nbookContent += '**Zielgruppe:** ' + target_audience + '\\n\\n';\nbookContent += '**Generiert am:** ' + new Date().toLocaleDateString('de-DE') + '\\n\\n';\nbookContent += '---\\n\\n';\n\n// Table of contents\nbookContent += '## Inhaltsverzeichnis\\n\\n';\nchapters.forEach(ch => {\n  bookContent += (ch.chapter_number || '?') + '. ' + (ch.chapter_title || 'Untitled') + '\\n';\n});\nbookContent += '\\n---\\n\\n';\n\n// Add all chapters\nchapters.forEach(ch => {\n  bookContent += (ch.chapter_content_md || '') + '\\n\\n---\\n\\n';\n});\n\n// Compile all exam questions\nbookContent += '# Pruefungsfragen - Gesamtuebersicht\\n\\n';\nchapters.forEach(ch => {\n  if (ch.exam_questions && ch.exam_questions.length > 0) {\n    bookContent += '## Kapitel ' + ch.chapter_number + ': ' + ch.chapter_title + '\\n\\n';\n    ch.exam_questions.forEach(q => {\n      bookContent += q.raw_content + '\\n\\n';\n    });\n  }\n});\n\n// Statistics\nconst totalWords = chapters.reduce((sum, ch) => sum + (ch.word_count || 0), 0);\nconst totalQuestions = chapters.reduce((sum, ch) => sum + (ch.exam_questions_count || 0), 0);\nconst totalWorkload = chapters.reduce((sum, ch) => sum + (ch.workload_minutes || 0), 0);\n\nreturn {\n  json: {\n    book_id: book_id,\n    title: syllabus_name,\n    target_audience: target_audience,\n    book_content_md: bookContent,\n    total_chapters: chapters.length,\n    total_words: totalWords,\n    total_questions: totalQuestions,\n    total_workload_minutes: totalWorkload,\n    completed_at: new Date().toISOString()\n  }\n};"
+        "jsCode": "// Get chapters from the accumulator service\nconsole.log('=== COMPILE BOOK DEBUG ===');\n\nlet finalChapters = [];\nlet book_id = 'unknown';\nlet blueprint = { title: 'Unknown Book', subtitle: '' };\n\ntry {\n  const accumulatorResponse = $('📥 Get Accumulated Chapters').first().json;\n  console.log('Accumulator response chapters:', accumulatorResponse.chapters?.length || 0);\n  \n  if (accumulatorResponse.chapters && Array.isArray(accumulatorResponse.chapters)) {\n    finalChapters = accumulatorResponse.chapters;\n    book_id = accumulatorResponse.book_id || 'unknown';\n  }\n  \n  if (finalChapters.length > 0 && finalChapters[0].blueprint) {\n    blueprint = finalChapters[0].blueprint;\n  }\n} catch (e) {\n  console.log('Could not get chapters from accumulator:', e.message);\n}\n\nconsole.log('Final chapters to compile:', finalChapters.length);\n\nif (finalChapters.length === 0) {\n  return {\n    json: {\n      book_id: book_id,\n      title: 'ERROR: No chapters',\n      error: 'No chapters were accumulated',\n      final_markdown: '# ERROR\\n\\nNo chapters were processed.',\n      exam_questions: [],\n      chapter_scores: [],\n      average_score: 0,\n      total_chapters: 0,\n      completed_at: new Date().toISOString()\n    }\n  };\n}\n\n// Sort by chapter number\nfinalChapters.sort((a, b) => (a.chapter_number || 0) - (b.chapter_number || 0));\n\n// Create final book markdown\nlet bookMarkdown = '# ' + blueprint.title + '\\n\\n';\nbookMarkdown += '*' + (blueprint.subtitle || '') + '*\\n\\n';\n\nif (blueprint.iso_alignment) {\n  bookMarkdown += '**ISO 17024 Syllabus:** ' + (blueprint.iso_alignment.syllabus_id || blueprint.iso_alignment.domain_id) + '\\n\\n';\n}\n\nbookMarkdown += '---\\n\\n## Inhaltsverzeichnis\\n\\n';\nfinalChapters.forEach((ch, i) => {\n  bookMarkdown += (i + 1) + '. ' + (ch.title || 'Kapitel ' + (i + 1)) + '\\n';\n});\nbookMarkdown += '\\n---\\n\\n';\n\nfinalChapters.forEach((ch, i) => {\n  const chapterContent = ch.content || '';\n  console.log('Chapter', ch.chapter_number || i + 1, 'content length:', chapterContent.length);\n  if (chapterContent) {\n    bookMarkdown += chapterContent + '\\n\\n---\\n\\n';\n  }\n});\n\n// Collect all exam questions as Markdown\nlet allQuestionsMarkdown = '# Prüfungsfragen\\n\\n';\nfinalChapters.forEach((ch) => {\n  if (ch.exam_questions_markdown) {\n    allQuestionsMarkdown += '## Kapitel ' + ch.chapter_number + ': ' + ch.title + '\\n\\n';\n    allQuestionsMarkdown += ch.exam_questions_markdown + '\\n\\n---\\n\\n';\n  }\n});\n\n// Calculate average score\nconst validScores = finalChapters.filter(ch => typeof ch.score === 'number' && ch.score > 0);\nconst averageScore = validScores.length > 0 \n  ? validScores.reduce((sum, ch) => sum + ch.score, 0) / validScores.length \n  : 0;\n\nconsole.log('Average score:', averageScore);\nconsole.log('=== END DEBUG ===');\n\nreturn {\n  json: {\n    book_id: book_id,\n    title: blueprint.title,\n    iso_alignment: blueprint.iso_alignment,\n    final_markdown: bookMarkdown,\n    exam_questions_markdown: allQuestionsMarkdown,\n    chapter_scores: finalChapters.map(ch => ({ \n      chapter: ch.chapter_number || 0, \n      title: ch.title,\n      score: ch.score || 0,\n      iso_compliant: ch.iso_compliant || false,\n      passed_quality: ch.passed_quality || false\n    })),\n    average_score: averageScore,\n    kb_document_ids: finalChapters.map(ch => ch.kb_document_id).filter(Boolean),\n    total_chapters: finalChapters.length,\n    completed_at: new Date().toISOString()\n  }\n};"
       },
-      "id": "compile-book",
+      "id": "d752e40f-10fb-4402-aa99-7cd9848fa5d0",
       "name": "📚 Compile Book",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [192, 700]
+      "position": [-23088, 9456]
     },
     {
       "parameters": {
         "operation": "toText",
-        "sourceProperty": "book_content_md",
+        "sourceProperty": "final_markdown",
         "options": {
-          "fileName": "={{ $json.title.replace(/[^a-zA-Z0-9]/g, '_') }}.md",
+          "fileName": "={{ $json.book_id }}-book.md",
           "mimeType": "text/markdown"
         }
       },
-      "id": "convert-book",
-      "name": "📄 Convert to MD File",
+      "id": "9caa16f8-d383-4b33-92f1-fb931b57619e",
+      "name": "📄 Convert Book MD",
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
-      "position": [416, 700]
+      "position": [-22864, 9264]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "exam_questions_markdown",
+        "options": {
+          "fileName": "={{ $json.book_id }}-questions.md",
+          "mimeType": "text/markdown"
+        }
+      },
+      "id": "c90499fb-3c61-45b7-98b1-fa22117ecf1d",
+      "name": "📄 Convert Questions MD",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [-22864, 9456]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": { "values": [] },
+        "options": {}
+      },
+      "id": "merge-files-for-email",
+      "name": "🔀 Merge Files",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [-22640, 9360]
     },
     {
       "parameters": {
         "fromEmail": "content-factory@wpi.org",
         "toEmail": "hennadii.shvedko@gmail.com",
-        "subject": "=Buch fertig: {{ $json.title }}",
-        "emailType": "text",
-        "message": "=# Buch fertiggestellt!\n\n**{{ $json.title }}**\n\n---\n\n## Statistiken\n\n- **Kapitel:** {{ $json.total_chapters }}\n- **Woerter gesamt:** {{ $json.total_words }}\n- **Pruefungsfragen:** {{ $json.total_questions }}\n- **Workload gesamt:** ca. {{ $json.total_workload_minutes }} Minuten\n\n---\n\nDas vollstaendige Buch ist als Markdown-Datei angehaengt.\n\n**Book ID:** {{ $json.book_id }}\n**Fertiggestellt:** {{ $json.completed_at }}",
+        "subject": "=✅ Buch fertig: {{ $json.title }} (Ø Score: {{ Math.round($json.average_score) }}/100)",
+        "html": "=<h1>📚 Buch fertiggestellt!</h1>\n<p><strong>{{ $json.title }}</strong></p>\n{{ $json.iso_alignment ? '<p><strong>ISO 17024 Syllabus:</strong> ' + ($json.iso_alignment.syllabus_id || $json.iso_alignment.domain_id) + '</p>' : '' }}\n<p>Durchschnittlicher Quality Score: <strong>{{ Math.round($json.average_score) }}/100</strong></p>\n<p>In Knowledge Base gespeichert: <strong>{{ $json.kb_document_ids.length }} Kapitel</strong></p>\n<p>Gesamte Kapitel: <strong>{{ $json.total_chapters }}</strong></p>\n\n<h3>Chapter Scores:</h3>\n<table border=\"1\" cellpadding=\"8\" cellspacing=\"0\" style=\"border-collapse: collapse;\">\n<tr><th>Kapitel</th><th>Titel</th><th>Score</th><th>Status</th></tr>\n{{ $json.chapter_scores.map(cs => '<tr><td>' + cs.chapter + '</td><td>' + cs.title + '</td><td>' + cs.score + '/100</td><td>' + (cs.passed_quality ? '✅' : '⚠️') + '</td></tr>').join('') }}\n</table>\n\n<p style=\"margin-top: 20px;\"><strong>Die Markdown-Dateien sind als Anhang beigefügt:</strong></p>\n<ul>\n<li>📖 Vollständiges Buch (.md)</li>\n<li>❓ Prüfungsfragen (.md)</li>\n</ul>\n\n<p><small>Fertiggestellt: {{ $json.completed_at }}</small></p>",
         "options": {
           "attachments": "data"
         }
       },
-      "id": "final-email",
+      "id": "c90cab4a-da6a-4f34-aaeb-3f662625d37d",
       "name": "📧 Final Book Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [640, 700],
+      "position": [-22416, 9360],
       "credentials": {
         "smtp": {
           "id": "OjlJbmPfeYsQ6qw1",
@@ -363,15 +859,31 @@
     },
     {
       "parameters": {
-        "content": "## WPI AI Content Factory - Syllabus Driven\n\n### Flow\n1. **Form** - Select Syllabus + Target Audience\n2. **Fetch Domains** - Get all domains from syllabus\n3. **Chapter Loop** - For each domain:\n   - Research KB\n   - Generate chapter (Markdown)\n   - Email chapter\n   - Store chapter\n4. **Compile Book** - Combine all chapters\n5. **Final Email** - Send complete book\n\n### Output Format\n- Chapters: Markdown (not HTML)\n- Questions: Markdown (in chapter)\n- Final Book: Markdown file attachment",
-        "height": 380,
-        "width": 350
+        "respondWith": "text",
+        "responseBody": "=<h1>Buchgenerierung gestartet!</h1><p>Sie erhalten E-Mails für jedes fertiggestellte Kapitel und eine finale E-Mail mit dem vollständigen Buch.</p><p><strong>Buch ID:</strong> {{ $('🔧 Initialize BookState').first().json.book_id }}</p><p><strong>Syllabus:</strong> {{ $('🔧 Initialize BookState').first().json.syllabus_name }}</p><p><strong>Kapitel:</strong> {{ $('🔧 Initialize BookState').first().json.total_chapters }}</p>",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "Content-Type", "value": "text/html; charset=utf-8" }]
+          }
+        }
       },
-      "id": "info-note",
+      "id": "respond-started",
+      "name": "📄 Respond Started",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-24880, 9924]
+    },
+    {
+      "parameters": {
+        "content": "## WPI AI Content Factory - Syllabus Driven (Full)\n\n### ALL AI AGENTS ACTIVE:\n- 🏗️ **Architect Agent**: Creates blueprint from domains\n- ✍️ **WPI Technical Architect (v4.4)**: Generates chapters (MARKDOWN)\n- 💻 **WPI Coder Agent**: Generates code\n- 🔄 **WPI Coder Self-Correct**: Fixes validation errors\n- 🔍 **WPI ISO Editor**: Quality gate (90pts threshold)\n\n### ALL MCPs ACTIVE:\n- **mcp-standards** (3002): Syllabus, ISO, Domains\n- **mcp-research** (3003): RAG / Qdrant\n- **mcp-coder** (3004): Code Validation\n\n### CHANGES FROM ORIGINAL:\n1. ✅ Dynamic form with syllabus dropdown from MCP\n2. ✅ NO email approval (direct processing)\n3. ✅ Domains = Chapters (from /syllabus/domains)\n4. ✅ Markdown output (not HTML)\n5. ✅ Per-chapter email with MD content\n6. ✅ Final book email with MD attachments\n\n### Flow:\n1. 📥 Webhook → Show form (GET) / Process (POST)\n2. 📚 Fetch domains from MCP\n3. 🏗️ Architect enriches domain structure\n4. 🔁 Chapter Loop:\n   - 🔍 Research + Syllabus LOs\n   - ✍️ Writer (MD) → 💻 Coder → 🔬 Validate\n   - 🔍 ISO Editor → 90pt gate\n   - 📧 Chapter email (MD content)\n5. 📚 Compile → 📧 Final email (MD files)",
+        "height": 620,
+        "width": 400
+      },
+      "id": "b553be44-7c8d-4966-b847-7abd83ceef69",
       "name": "📝 Info",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-1824, 300]
+      "position": [-26240, 9304]
     }
   ],
   "pinData": {},
@@ -387,41 +899,133 @@
     },
     "🔀 Form Submitted?": {
       "main": [
-        [{ "node": "🔧 Parse Form Data", "type": "main", "index": 0 }],
+        [{ "node": "📚 Fetch Syllabus Domains", "type": "main", "index": 0 }],
         []
       ]
     },
-    "🔧 Parse Form Data": {
-      "main": [[{ "node": "📚 Fetch Syllabus Domains", "type": "main", "index": 0 }]]
-    },
     "📚 Fetch Syllabus Domains": {
-      "main": [[{ "node": "🗑️ Clear Accumulator", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "🔧 Initialize BookState", "type": "main", "index": 0 }]]
     },
-    "🗑️ Clear Accumulator": {
+    "🔧 Initialize BookState": {
       "main": [[
-        { "node": "📑 Prepare Chapters", "type": "main", "index": 0 },
-        { "node": "📄 Respond: Started", "type": "main", "index": 0 }
+        { "node": "📚 MCP: Get Syllabus Section", "type": "main", "index": 0 },
+        { "node": "🔍 MCP: Search Knowledge Base", "type": "main", "index": 0 },
+        { "node": "📄 Respond Started", "type": "main", "index": 0 }
       ]]
+    },
+    "📚 MCP: Get Syllabus Section": {
+      "main": [[{ "node": "🔀 Merge MCP Context", "type": "main", "index": 0 }]]
+    },
+    "🔍 MCP: Search Knowledge Base": {
+      "main": [[{ "node": "🔀 Merge MCP Context", "type": "main", "index": 0 }]]
+    },
+    "🔀 Merge MCP Context": {
+      "main": [[{ "node": "🏗️ Architect Agent", "type": "main", "index": 0 }]]
+    },
+    "🏗️ Architect Agent": {
+      "main": [[{ "node": "📋 Parse Blueprint", "type": "main", "index": 0 }]]
+    },
+    "📋 Parse Blueprint": {
+      "main": [[{ "node": "🗑️ Clear Chapter Accumulator", "type": "main", "index": 0 }]]
+    },
+    "🗑️ Clear Chapter Accumulator": {
+      "main": [[{ "node": "📑 Prepare Chapters", "type": "main", "index": 0 }]]
     },
     "📑 Prepare Chapters": {
       "main": [[{ "node": "🔁 Chapter Loop", "type": "main", "index": 0 }]]
     },
     "🔁 Chapter Loop": {
       "main": [
-        [{ "node": "📥 Get All Chapters", "type": "main", "index": 0 }],
-        [{ "node": "🔍 MCP: Chapter Research", "type": "main", "index": 0 }]
+        [{ "node": "📥 Get Accumulated Chapters", "type": "main", "index": 0 }],
+        [
+          { "node": "🔍 MCP: Chapter Research", "type": "main", "index": 0 },
+          { "node": "📚 MCP: Get Chapter LOs", "type": "main", "index": 0 },
+          { "node": "🔀 Add Chapter Data", "type": "main", "index": 1 }
+        ]
       ]
     },
     "🔍 MCP: Chapter Research": {
-      "main": [[{ "node": "💾 Merge Research", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "🔀 Merge MCP Results", "type": "main", "index": 0 }]]
     },
-    "💾 Merge Research": {
-      "main": [[{ "node": "✍️ WPI Writer Agent", "type": "main", "index": 0 }]]
+    "📚 MCP: Get Chapter LOs": {
+      "main": [[{ "node": "🔀 Merge MCP Results", "type": "main", "index": 1 }]]
     },
-    "✍️ WPI Writer Agent": {
-      "main": [[{ "node": "📝 Parse Chapter", "type": "main", "index": 0 }]]
+    "🔀 Merge MCP Results": {
+      "main": [[{ "node": "🔀 Add Chapter Data", "type": "main", "index": 0 }]]
     },
-    "📝 Parse Chapter": {
+    "🔀 Add Chapter Data": {
+      "main": [[{ "node": "💾 Merge Chapter Context", "type": "main", "index": 0 }]]
+    },
+    "💾 Merge Chapter Context": {
+      "main": [[{ "node": "✍️ WPI Technical Architect", "type": "main", "index": 0 }]]
+    },
+    "✍️ WPI Technical Architect": {
+      "main": [[{ "node": "📝 Extract Code Requests", "type": "main", "index": 0 }]]
+    },
+    "📝 Extract Code Requests": {
+      "main": [[{ "node": "🔀 Code Needed?", "type": "main", "index": 0 }]]
+    },
+    "🔀 Code Needed?": {
+      "main": [
+        [{ "node": "💻 WPI Coder Agent", "type": "main", "index": 0 }],
+        [{ "node": "⏭️ Skip Code", "type": "main", "index": 0 }]
+      ]
+    },
+    "💻 WPI Coder Agent": {
+      "main": [[{ "node": "🔗 Merge Code", "type": "main", "index": 0 }]]
+    },
+    "🔗 Merge Code": {
+      "main": [[{ "node": "🔬 MCP: Validate Code", "type": "main", "index": 0 }]]
+    },
+    "🔬 MCP: Validate Code": {
+      "main": [[{ "node": "📊 Parse Code Validation", "type": "main", "index": 0 }]]
+    },
+    "📊 Parse Code Validation": {
+      "main": [[{ "node": "🔀 Code Valid?", "type": "main", "index": 0 }]]
+    },
+    "🔀 Code Valid?": {
+      "main": [
+        [{ "node": "📋 MCP: ISO Compliance Check", "type": "main", "index": 0 }],
+        [{ "node": "🔀 Code Retry?", "type": "main", "index": 0 }]
+      ]
+    },
+    "🔀 Code Retry?": {
+      "main": [
+        [{ "node": "🔄 WPI Coder Self-Correct", "type": "main", "index": 0 }],
+        [{ "node": "⏭️ Skip Validation", "type": "main", "index": 0 }]
+      ]
+    },
+    "🔄 WPI Coder Self-Correct": {
+      "main": [[{ "node": "🔗 Merge Corrected Code", "type": "main", "index": 0 }]]
+    },
+    "🔗 Merge Corrected Code": {
+      "main": [[{ "node": "🔬 MCP: Validate Code", "type": "main", "index": 0 }]]
+    },
+    "⏭️ Skip Validation": {
+      "main": [[{ "node": "📋 MCP: ISO Compliance Check", "type": "main", "index": 0 }]]
+    },
+    "⏭️ Skip Code": {
+      "main": [[{ "node": "📋 MCP: ISO Compliance Check", "type": "main", "index": 0 }]]
+    },
+    "📋 MCP: ISO Compliance Check": {
+      "main": [[{ "node": "🔍 WPI ISO Editor", "type": "main", "index": 0 }]]
+    },
+    "🔍 WPI ISO Editor": {
+      "main": [[{ "node": "📊 Parse ISO Editor Result", "type": "main", "index": 0 }]]
+    },
+    "📊 Parse ISO Editor Result": {
+      "main": [[{ "node": "🔀 Quality OK?", "type": "main", "index": 0 }]]
+    },
+    "🔀 Quality OK?": {
+      "main": [
+        [{ "node": "💾 MCP: Store in Knowledge Base", "type": "main", "index": 0 }],
+        [{ "node": "🔀 Max Revisions?", "type": "main", "index": 0 }]
+      ]
+    },
+    "💾 MCP: Store in Knowledge Base": {
+      "main": [[{ "node": "✅ Finalize Chapter", "type": "main", "index": 0 }]]
+    },
+    "✅ Finalize Chapter": {
       "main": [[{ "node": "📧 Send Chapter Email", "type": "main", "index": 0 }]]
     },
     "📧 Send Chapter Email": {
@@ -430,28 +1034,48 @@
     "📦 Store Chapter": {
       "main": [[{ "node": "🔁 Chapter Loop", "type": "main", "index": 0 }]]
     },
-    "📥 Get All Chapters": {
+    "📥 Get Accumulated Chapters": {
       "main": [[{ "node": "📚 Compile Book", "type": "main", "index": 0 }]]
     },
-    "📚 Compile Book": {
-      "main": [[{ "node": "📄 Convert to MD File", "type": "main", "index": 0 }]]
+    "🔀 Max Revisions?": {
+      "main": [
+        [{ "node": "✍️ WPI Technical Architect", "type": "main", "index": 0 }],
+        [{ "node": "✅ Finalize Chapter", "type": "main", "index": 0 }]
+      ]
     },
-    "📄 Convert to MD File": {
+    "📚 Compile Book": {
+      "main": [[
+        { "node": "📄 Convert Book MD", "type": "main", "index": 0 },
+        { "node": "📄 Convert Questions MD", "type": "main", "index": 0 }
+      ]]
+    },
+    "📄 Convert Book MD": {
+      "main": [[{ "node": "🔀 Merge Files", "type": "main", "index": 0 }]]
+    },
+    "📄 Convert Questions MD": {
+      "main": [[{ "node": "🔀 Merge Files", "type": "main", "index": 1 }]]
+    },
+    "🔀 Merge Files": {
       "main": [[{ "node": "📧 Final Book Email", "type": "main", "index": 0 }]]
     }
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "availableInMCP": false
   },
-  "versionId": "syllabus-driven-v1",
+  "versionId": "syllabus-driven-full-v1",
   "meta": {
-    "templateCredsSetupCompleted": true
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b68c468f2753a5e21ae721b564973cd5aea893d803a833777daaeebe7bcdeb1b"
   },
   "id": "JyLMBG9nMV995HBw",
   "tags": [
-    { "id": "wpi", "name": "WPI" },
-    { "id": "ai", "name": "AI" },
-    { "id": "content-factory", "name": "Content Factory" }
+    { "id": "DYdRGNhTBTmphdcj", "name": "PoC" },
+    { "id": "RyqQ0gpkTnVL0fNU", "name": "AI" },
+    { "id": "VS8zmwloWJRDKGyi", "name": "Content Factory" },
+    { "id": "tEbTp0XPKIb0akiB", "name": "WPI" },
+    { "id": "mcp-integrated", "name": "MCP-Integrated" },
+    { "id": "syllabus-driven", "name": "Syllabus-Driven" }
   ]
 }
