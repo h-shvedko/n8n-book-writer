@@ -4,74 +4,45 @@
     {
       "parameters": {
         "path": "wpi-book-generator",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "webhook-trigger",
-      "name": "📥 Book Request",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [-26000, 9624],
-      "webhookId": "wpi-book-gen-001"
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "http://mcp-standards:3002/syllabuses",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "id": "fetch-syllabuses",
-      "name": "📋 Fetch Syllabuses",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [-25776, 9624],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "respondWith": "text",
-        "responseBody": "={{ (function() {\n  const syllabuses = $json.syllabuses || [];\n  const syllabusOptions = syllabuses.length > 0\n    ? syllabuses.map(s => '<option value=\"' + s.id + '\">' + s.name + ' (v' + s.version + ') - ' + s.domain_count + ' Domains</option>').join('')\n    : '<option value=\"\">Kein Syllabus geladen</option>';\n  \n  return '<!DOCTYPE html><html><head><title>WPI Book Generator</title>' +\n    '<meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">' +\n    '<style>' +\n    'body { font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Oxygen, Ubuntu, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; padding: 20px; box-sizing: border-box; }' +\n    '.container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 500px; width: 100%; }' +\n    'h1 { color: #333; margin-bottom: 10px; font-size: 28px; }' +\n    '.subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }' +\n    'label { display: block; margin-bottom: 8px; font-weight: 600; color: #444; }' +\n    'select { width: 100%; padding: 14px; margin-bottom: 24px; border: 2px solid #e1e5eb; border-radius: 10px; font-size: 16px; background: white; transition: border-color 0.2s; }' +\n    'select:focus { outline: none; border-color: #667eea; }' +\n    'button { width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }' +\n    'button:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); }' +\n    '.info { background: #f0f4ff; padding: 15px; border-radius: 10px; margin-bottom: 24px; font-size: 13px; color: #555; }' +\n    '</style></head><body>' +\n    '<div class=\"container\">' +\n    '<h1>WPI Book Generator</h1>' +\n    '<p class=\"subtitle\">AI-gestützte Erstellung von Fachbüchern basierend auf Syllabus-Domains</p>' +\n    '<div class=\"info\">Jede Domain des Syllabus wird zu einem Kapitel. Alle AI-Agenten (Architect, Writer, Coder, ISO Editor) sind aktiv.</div>' +\n    '<form method=\"POST\">' +\n    '<label for=\"syllabus\">Syllabus auswählen:</label>' +\n    '<select name=\"syllabus\" id=\"syllabus\" required>' + syllabusOptions + '</select>' +\n    '<label for=\"target_audience\">Zielgruppe:</label>' +\n    '<select name=\"target_audience\" id=\"target_audience\" required>' +\n    '<option value=\"Absolute Beginners\">Absolute Beginners</option>' +\n    '<option value=\"Junior Developers\">Junior Developers</option>' +\n    '<option value=\"Mid-Level Professionals\" selected>Mid-Level Professionals</option>' +\n    '<option value=\"Senior Experts\">Senior Experts</option>' +\n    '</select>' +\n    '<button type=\"submit\">Buch generieren starten</button>' +\n    '</form></div></body></html>';\n})() }}",
-        "options": {
-          "responseHeaders": {
-            "entries": [{ "name": "Content-Type", "value": "text/html; charset=utf-8" }]
-          }
-        }
-      },
-      "id": "show-form",
-      "name": "📄 Show Form",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [-25552, 9524]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-          "conditions": [
+        "formTitle": "WPI Book Generator",
+        "formDescription": "AI-gestützte Erstellung von Fachbüchern basierend auf Syllabus-Domains. Jede Domain wird zu einem Kapitel.",
+        "formFields": {
+          "values": [
             {
-              "id": "is-post",
-              "leftValue": "={{ $('📥 Book Request').first().json.body?.syllabus }}",
-              "rightValue": "",
-              "operator": { "type": "string", "operation": "notEmpty" }
+              "fieldLabel": "Syllabus",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  { "option": "WPI Web Development Professional (WPI-WEB-DEV-2025)" }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Target Audience",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  { "option": "Absolute Beginners" },
+                  { "option": "Junior Developers" },
+                  { "option": "Mid-Level Professionals" },
+                  { "option": "Senior Experts" }
+                ]
+              },
+              "requiredField": true
             }
-          ],
-          "combinator": "and"
+          ]
         },
-        "options": {}
+        "options": {
+          "formSubmittedText": "Buchgenerierung gestartet! Sie erhalten E-Mails für jedes Kapitel."
+        }
       },
-      "id": "check-method",
-      "name": "🔀 Form Submitted?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [-25552, 9724]
+      "id": "form-trigger",
+      "name": "📥 Book Request Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.1,
+      "position": [-25776, 9624],
+      "webhookId": "wpi-book-gen-form"
     },
     {
       "parameters": {
@@ -85,25 +56,25 @@
       "name": "📚 Fetch Syllabus Domains",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-25328, 9724],
+      "position": [-25552, 9624],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
+          "id": "Header Auth account",
+          "name": "Header Auth account"
         }
       }
     },
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={{ (function() {\n  const webhook = $('📥 Book Request').first().json;\n  const domains = $json;\n  const syllabusId = webhook.body?.syllabus || domains.syllabus_id || 'unknown';\n  const targetAudience = webhook.body?.target_audience || 'Mid-Level Professionals';\n  \n  return {\n    book_id: 'book-' + syllabusId + '-' + Date.now(),\n    syllabus_id: syllabusId,\n    syllabus_name: domains.syllabus_name || 'Unknown Syllabus',\n    target_audience: targetAudience,\n    total_chapters: domains.total_chapters || 0,\n    chapters: domains.chapters || [],\n    status: 'initialized',\n    created_at: new Date().toISOString()\n  };\n})() }}",
+        "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const domains = $json;\n  \n  // Parse syllabus ID from dropdown: 'Name (ID) - X Domains'\n  const syllabusSelection = formData['Syllabus'] || '';\n  const syllabusMatch = syllabusSelection.match(/\\(([^)]+)\\)/);\n  const syllabusId = syllabusMatch ? syllabusMatch[1] : domains.syllabus_id || 'default';\n  \n  const targetAudience = formData['Target Audience'] || 'Mid-Level Professionals';\n  \n  return {\n    book_id: 'book-' + syllabusId + '-' + Date.now(),\n    syllabus_id: syllabusId,\n    syllabus_name: domains.syllabus_name || 'Unknown Syllabus',\n    target_audience: targetAudience,\n    total_chapters: domains.total_chapters || 0,\n    chapters: domains.chapters || [],\n    status: 'initialized',\n    created_at: new Date().toISOString()\n  };\n})() }}",
         "options": {}
       },
       "id": "init-book",
       "name": "🔧 Initialize BookState",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [-25104, 9724]
+      "position": [-25328, 9624]
     },
     {
       "parameters": {
@@ -127,8 +98,8 @@
       "position": [-24880, 9524],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
+          "id": "Header Auth account",
+          "name": "Header Auth account"
         }
       },
       "onError": "continueRegularOutput"
@@ -155,8 +126,8 @@
       "position": [-24880, 9724],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
+          "id": "Header Auth account",
+          "name": "Header Auth account"
         }
       },
       "onError": "continueRegularOutput"
@@ -211,7 +182,7 @@
     {
       "parameters": {
         "method": "DELETE",
-        "url": "=http://mcp-standards:3002/chapters/{{ $json.book_id }}",
+        "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Initialize BookState').first().json.book_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
@@ -223,8 +194,8 @@
       "position": [-23984, 9624],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
+          "id": "Header Auth account",
+          "name": "Header Auth account"
         }
       },
       "onError": "continueRegularOutput"
@@ -269,8 +240,8 @@
       "position": [-23312, 9072],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
+          "id": "Header Auth account",
+          "name": "Header Auth account"
         }
       },
       "onError": "continueRegularOutput"
@@ -297,8 +268,8 @@
       "position": [-23312, 9272],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
+          "id": "Header Auth account",
+          "name": "Header Auth account"
         }
       },
       "onError": "continueRegularOutput"
@@ -453,8 +424,8 @@
       "position": [-21516, 8972],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
+          "id": "Header Auth account",
+          "name": "Header Auth account"
         }
       },
       "onError": "continueRegularOutput"
@@ -588,8 +559,8 @@
       "position": [-21516, 9172],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
+          "id": "Header Auth account",
+          "name": "Header Auth account"
         }
       },
       "onError": "continueRegularOutput"
@@ -687,7 +658,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  name: 'ingest_and_embed',\n  arguments: {\n    text: $json.draft_content,\n    metadata: {\n      source: 'wpi-content-factory',\n      title: $json.blueprint.title + ' - Kapitel ' + $json.current_chapter.number,\n      document_type: 'book_chapter',\n      domain_id: $json.current_chapter.domain_id || null,\n      tags: ['generated', 'book-chapter', $json.book_id],\n      language: 'de'\n    },\n    output_format: 'json'\n  }\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'ingest_and_embed',\n  arguments: {\n    text: $json.draft_content,\n    metadata: {\n      source: 'wpi-content-factory',\n      title: $json.blueprint.title + ' - Kapitel ' + $json.current_chapter.number,\n      document_type: 'book_chapter',\n      domain_id: $json.current_chapter.domain_id || null,\n      tags: ['generated', 'book-chapter', $('🔧 Initialize BookState').first().json.book_id],\n      language: 'de'\n    },\n    output_format: 'json'\n  }\n}) }}",
         "options": { "response": { "response": { "fullResponse": true } } }
       },
       "id": "mcp-ingest-chapter",
@@ -697,8 +668,8 @@
       "position": [-20620, 9072],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
+          "id": "Header Auth account",
+          "name": "Header Auth account"
         }
       },
       "onError": "continueRegularOutput"
@@ -736,7 +707,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://mcp-standards:3002/chapters/{{ $json.book_id }}",
+        "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Initialize BookState').first().json.book_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -755,8 +726,8 @@
       "position": [-19948, 9072],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
+          "id": "Header Auth account",
+          "name": "Header Auth account"
         }
       },
       "onError": "continueRegularOutput"
@@ -764,7 +735,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=http://mcp-standards:3002/chapters/{{ $input.first().json.book_id || 'unknown' }}",
+        "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Initialize BookState').first().json.book_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
@@ -776,8 +747,8 @@
       "position": [-23312, 9456],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "mcp-auth",
-          "name": "MCP Auth Token"
+          "id": "Header Auth account",
+          "name": "Header Auth account"
         }
       },
       "onError": "continueRegularOutput"
@@ -797,7 +768,7 @@
         "operation": "toText",
         "sourceProperty": "final_markdown",
         "options": {
-          "fileName": "={{ $json.book_id }}-book.md",
+          "fileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}-book.md",
           "mimeType": "text/markdown"
         }
       },
@@ -812,7 +783,7 @@
         "operation": "toText",
         "sourceProperty": "exam_questions_markdown",
         "options": {
-          "fileName": "={{ $json.book_id }}-questions.md",
+          "fileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}-questions.md",
           "mimeType": "text/markdown"
         }
       },
@@ -858,23 +829,7 @@
     },
     {
       "parameters": {
-        "respondWith": "text",
-        "responseBody": "=<h1>Buchgenerierung gestartet!</h1><p>Sie erhalten E-Mails für jedes fertiggestellte Kapitel und eine finale E-Mail mit dem vollständigen Buch.</p><p><strong>Buch ID:</strong> {{ $('🔧 Initialize BookState').first().json.book_id }}</p><p><strong>Syllabus:</strong> {{ $('🔧 Initialize BookState').first().json.syllabus_name }}</p><p><strong>Kapitel:</strong> {{ $('🔧 Initialize BookState').first().json.total_chapters }}</p>",
-        "options": {
-          "responseHeaders": {
-            "entries": [{ "name": "Content-Type", "value": "text/html; charset=utf-8" }]
-          }
-        }
-      },
-      "id": "respond-started",
-      "name": "📄 Respond Started",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [-24880, 9924]
-    },
-    {
-      "parameters": {
-        "content": "## WPI AI Content Factory - Syllabus Driven (Full)\n\n### ALL AI AGENTS ACTIVE:\n- 🏗️ **Architect Agent**: Creates blueprint from domains\n- ✍️ **WPI Technical Architect (v4.4)**: Generates chapters (MARKDOWN)\n- 💻 **WPI Coder Agent**: Generates code\n- 🔄 **WPI Coder Self-Correct**: Fixes validation errors\n- 🔍 **WPI ISO Editor**: Quality gate (90pts threshold)\n\n### ALL MCPs ACTIVE:\n- **mcp-standards** (3002): Syllabus, ISO, Domains\n- **mcp-research** (3003): RAG / Qdrant\n- **mcp-coder** (3004): Code Validation\n\n### CHANGES FROM ORIGINAL:\n1. ✅ Dynamic form with syllabus dropdown from MCP\n2. ✅ NO email approval (direct processing)\n3. ✅ Domains = Chapters (from /syllabus/domains)\n4. ✅ Markdown output (not HTML)\n5. ✅ Per-chapter email with MD content\n6. ✅ Final book email with MD attachments\n\n### Flow:\n1. 📥 Webhook → Show form (GET) / Process (POST)\n2. 📚 Fetch domains from MCP\n3. 🏗️ Architect enriches domain structure\n4. 🔁 Chapter Loop:\n   - 🔍 Research + Syllabus LOs\n   - ✍️ Writer (MD) → 💻 Coder → 🔬 Validate\n   - 🔍 ISO Editor → 90pt gate\n   - 📧 Chapter email (MD content)\n5. 📚 Compile → 📧 Final email (MD files)",
+        "content": "## WPI AI Content Factory - Syllabus Driven (Full)\n\n### ALL AI AGENTS ACTIVE:\n- 🏗️ **Architect Agent**: Creates blueprint from domains\n- ✍️ **WPI Technical Architect (v4.4)**: Generates chapters (MARKDOWN)\n- 💻 **WPI Coder Agent**: Generates code\n- 🔄 **WPI Coder Self-Correct**: Fixes validation errors\n- 🔍 **WPI ISO Editor**: Quality gate (90pts threshold)\n\n### ALL MCPs ACTIVE:\n- **mcp-standards** (3002): Syllabus, ISO, Domains\n- **mcp-research** (3003): RAG / Qdrant\n- **mcp-coder** (3004): Code Validation\n\n### CHANGES FROM ORIGINAL:\n1. ✅ Form Trigger with syllabus dropdown\n2. ✅ NO email approval (direct processing)\n3. ✅ Domains = Chapters (from /syllabus/domains)\n4. ✅ Markdown output (not HTML)\n5. ✅ Per-chapter email with MD content\n6. ✅ Final book email with MD attachments\n\n### Flow:\n1. 📥 Form Trigger → Shows form immediately on Execute\n2. 📚 Fetch domains from MCP\n3. 🔧 Initialize BookState with form data\n4. 🏗️ Architect enriches domain structure\n5. 🔁 Chapter Loop:\n   - 🔍 Research + Syllabus LOs\n   - ✍️ Writer (MD) → 💻 Coder → 🔬 Validate\n   - 🔍 ISO Editor → 90pt gate\n   - 📧 Chapter email (MD content)\n6. 📚 Compile → 📧 Final email (MD files)",
         "height": 620,
         "width": 400
       },
@@ -887,20 +842,8 @@
   ],
   "pinData": {},
   "connections": {
-    "📥 Book Request": {
-      "main": [[{ "node": "📋 Fetch Syllabuses", "type": "main", "index": 0 }]]
-    },
-    "📋 Fetch Syllabuses": {
-      "main": [[
-        { "node": "📄 Show Form", "type": "main", "index": 0 },
-        { "node": "🔀 Form Submitted?", "type": "main", "index": 0 }
-      ]]
-    },
-    "🔀 Form Submitted?": {
-      "main": [
-        [{ "node": "📚 Fetch Syllabus Domains", "type": "main", "index": 0 }],
-        []
-      ]
+    "📥 Book Request Form": {
+      "main": [[{ "node": "📚 Fetch Syllabus Domains", "type": "main", "index": 0 }]]
     },
     "📚 Fetch Syllabus Domains": {
       "main": [[{ "node": "🔧 Initialize BookState", "type": "main", "index": 0 }]]
@@ -908,8 +851,7 @@
     "🔧 Initialize BookState": {
       "main": [[
         { "node": "📚 MCP: Get Syllabus Section", "type": "main", "index": 0 },
-        { "node": "🔍 MCP: Search Knowledge Base", "type": "main", "index": 0 },
-        { "node": "📄 Respond Started", "type": "main", "index": 0 }
+        { "node": "🔍 MCP: Search Knowledge Base", "type": "main", "index": 0 }
       ]]
     },
     "📚 MCP: Get Syllabus Section": {
