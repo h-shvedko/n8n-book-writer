@@ -113,6 +113,32 @@ app.post('/call', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // Syllabus management endpoints (for admin dashboard)
+
+// List all available syllabuses (for form dropdown)
+app.get('/syllabuses', authMiddleware, (_req: Request, res: Response) => {
+  try {
+    const syllabus = syllabusService.getSyllabus();
+    if (!syllabus) {
+      res.json({ syllabuses: [] });
+      return;
+    }
+    // Return list of available syllabuses with basic info
+    res.json({
+      syllabuses: [
+        {
+          id: syllabus.id,
+          name: syllabus.name,
+          version: syllabus.version,
+          domain_count: syllabus.domains?.length || 0
+        }
+      ]
+    });
+  } catch {
+    res.status(500).json({ error: 'Failed to list syllabuses' });
+  }
+});
+
+// Get full syllabus with domains (for chapter generation)
 app.get('/syllabus', authMiddleware, (_req: Request, res: Response) => {
   try {
     const syllabus = syllabusService.getSyllabus();
@@ -123,6 +149,55 @@ app.get('/syllabus', authMiddleware, (_req: Request, res: Response) => {
     res.json(syllabus);
   } catch {
     res.status(500).json({ error: 'Failed to get syllabus' });
+  }
+});
+
+// Get syllabus domains as chapters (for workflow)
+app.get('/syllabus/domains', authMiddleware, (_req: Request, res: Response) => {
+  try {
+    const syllabus = syllabusService.getSyllabus();
+    if (!syllabus) {
+      res.status(404).json({ error: 'No syllabus loaded' });
+      return;
+    }
+
+    // Transform domains into chapter format
+    const chapters = (syllabus.domains || []).map((domain, index: number) => {
+      // Extract all learning objectives from all topics
+      const learningObjectives: Array<Record<string, unknown>> = [];
+      for (const topic of domain.topics || []) {
+        for (const lo of topic.learningObjectives || []) {
+          learningObjectives.push({
+            id: lo.id,
+            description: lo.description,
+            bloomLevel: lo.bloomLevel,
+            keywords: lo.keywords,
+            topic_id: topic.id,
+            topic_title: topic.title
+          });
+        }
+      }
+
+      return {
+        chapter_number: index + 1,
+        domain_id: domain.id,
+        title: domain.name,
+        description: domain.description,
+        weight: domain.weight,
+        topics: domain.topics || [],
+        learning_objectives: learningObjectives,
+        prerequisites: domain.prerequisites || []
+      };
+    });
+
+    res.json({
+      syllabus_id: syllabus.id,
+      syllabus_name: syllabus.name,
+      total_chapters: chapters.length,
+      chapters: chapters
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get syllabus domains' });
   }
 });
 
