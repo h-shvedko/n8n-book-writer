@@ -961,7 +961,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json) }}",
+        "jsonBody": "={{ JSON.stringify($('✅ Finalize Chapter').first().json) }}",
         "options": {}
       },
       "id": "991750f3-cce2-4106-b2cb-0b359239a2d0",
