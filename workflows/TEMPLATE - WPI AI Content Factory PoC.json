@@ -982,14 +982,31 @@
     },
     {
       "parameters": {
-        "operation": "limit",
-        "maxItems": 1,
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "all-chapters-done",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": "={{ $('📑 Prepare Chapters').first().json.total_chapters }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
         "options": {}
       },
-      "id": "limit-to-one-final",
-      "name": "🔢 Limit to One",
-      "type": "n8n-nodes-base.itemLists",
-      "typeVersion": 3.1,
+      "id": "check-all-chapters-done",
+      "name": "🔀 All Chapters Done?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
       "position": [
         -30400,
         7456
@@ -1239,7 +1256,7 @@
       "main": [
         [
           {
-            "node": "🔢 Limit to One",
+            "node": "🔀 All Chapters Done?",
             "type": "main",
             "index": 0
           }
@@ -1577,7 +1594,7 @@
         ]
       ]
     },
-    "🔢 Limit to One": {
+    "🔀 All Chapters Done?": {
       "main": [
         [
           {
@@ -1585,7 +1602,8 @@
             "type": "main",
             "index": 0
           }
-        ]
+        ],
+        []
       ]
     },
     "📥 Get Accumulated Chapters": {
