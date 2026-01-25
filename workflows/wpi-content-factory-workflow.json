@@ -795,8 +795,7 @@
     },
     {
       "parameters": {
-        "mode": "combine",
-        "mergeByFields": { "values": [] },
+        "mode": "append",
         "options": {}
       },
       "id": "merge-files-for-email",
