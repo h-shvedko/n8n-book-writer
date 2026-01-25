@@ -737,6 +737,17 @@
     },
     {
       "parameters": {
+        "maxItems": 1,
+        "options": {}
+      },
+      "id": "limit-to-one",
+      "name": "🔢 Limit to One",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3.1,
+      "position": [-23424, 9456]
+    },
+    {
+      "parameters": {
         "method": "GET",
         "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Initialize BookState').first().json.book_id }}",
         "authentication": "genericCredentialType",
@@ -747,7 +758,7 @@
       "name": "📥 Get Accumulated Chapters",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-23312, 9456],
+      "position": [-23200, 9456],
       "credentials": {
         "httpHeaderAuth": {
           "id": "xOk2J7CAxWG1jwph",
@@ -879,7 +890,7 @@
     },
     "🔁 Chapter Loop": {
       "main": [
-        [{ "node": "📥 Get Accumulated Chapters", "type": "main", "index": 0 }],
+        [{ "node": "🔢 Limit to One", "type": "main", "index": 0 }],
         [
           { "node": "🔍 MCP: Chapter Research", "type": "main", "index": 0 },
           { "node": "📚 MCP: Get Chapter LOs", "type": "main", "index": 0 },
@@ -976,6 +987,9 @@
     },
     "📦 Store Chapter": {
       "main": [[{ "node": "🔁 Chapter Loop", "type": "main", "index": 0 }]]
+    },
+    "🔢 Limit to One": {
+      "main": [[{ "node": "📥 Get Accumulated Chapters", "type": "main", "index": 0 }]]
     },
     "📥 Get Accumulated Chapters": {
       "main": [[{ "node": "📚 Compile Book", "type": "main", "index": 0 }]]
