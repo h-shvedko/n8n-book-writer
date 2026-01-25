@@ -271,9 +271,7 @@
     {
       "parameters": {
         "batchSize": 1,
-        "options": {
-          "reset": true
-        }
+        "options": {}
       },
       "id": "208774c0-85c7-4b7a-aabe-3788b075e815",
       "name": "🔁 Chapter Loop",
