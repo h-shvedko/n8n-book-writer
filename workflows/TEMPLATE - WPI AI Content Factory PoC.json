@@ -982,6 +982,21 @@
     },
     {
       "parameters": {
+        "operation": "limit",
+        "maxItems": 1,
+        "options": {}
+      },
+      "id": "limit-to-one-final",
+      "name": "🔢 Limit to One",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3.1,
+      "position": [
+        -30400,
+        7456
+      ]
+    },
+    {
+      "parameters": {
         "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Initialize BookState').first().json.book_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
@@ -992,7 +1007,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -30288,
+        -30176,
         7456
       ],
       "credentials": {
@@ -1224,7 +1239,7 @@
       "main": [
         [
           {
-            "node": "📥 Get Accumulated Chapters",
+            "node": "🔢 Limit to One",
             "type": "main",
             "index": 0
           }
@@ -1556,6 +1571,17 @@
         [
           {
             "node": "🔁 Chapter Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔢 Limit to One": {
+      "main": [
+        [
+          {
+            "node": "📥 Get Accumulated Chapters",
             "type": "main",
             "index": 0
           }
