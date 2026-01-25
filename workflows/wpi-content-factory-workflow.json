@@ -59,7 +59,7 @@
       "position": [-25552, 9624],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "Header Auth account",
+          "id": "xOk2J7CAxWG1jwph",
           "name": "Header Auth account"
         }
       }
@@ -98,7 +98,7 @@
       "position": [-24880, 9524],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "Header Auth account",
+          "id": "xOk2J7CAxWG1jwph",
           "name": "Header Auth account"
         }
       },
@@ -126,7 +126,7 @@
       "position": [-24880, 9724],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "Header Auth account",
+          "id": "xOk2J7CAxWG1jwph",
           "name": "Header Auth account"
         }
       },
@@ -164,7 +164,7 @@
       "position": [-24432, 9624],
       "credentials": {
         "openAiApi": {
-          "id": "Oh3Rnj32fETJUF9U",
+          "id": "5KnJ49CiBjEEjtWM",
           "name": "OpenAi account"
         }
       }
@@ -194,7 +194,7 @@
       "position": [-23984, 9624],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "Header Auth account",
+          "id": "xOk2J7CAxWG1jwph",
           "name": "Header Auth account"
         }
       },
@@ -211,7 +211,10 @@
       "position": [-23760, 9624]
     },
     {
-      "parameters": { "options": {} },
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
       "id": "aa2b4285-c69f-4d12-93d3-b317a3b5203d",
       "name": "🔁 Chapter Loop",
       "type": "n8n-nodes-base.splitInBatches",
@@ -240,7 +243,7 @@
       "position": [-23312, 9072],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "Header Auth account",
+          "id": "xOk2J7CAxWG1jwph",
           "name": "Header Auth account"
         }
       },
@@ -268,7 +271,7 @@
       "position": [-23312, 9272],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "Header Auth account",
+          "id": "xOk2J7CAxWG1jwph",
           "name": "Header Auth account"
         }
       },
@@ -328,7 +331,7 @@
       "position": [-22636, 9172],
       "credentials": {
         "openAiApi": {
-          "id": "Oh3Rnj32fETJUF9U",
+          "id": "5KnJ49CiBjEEjtWM",
           "name": "OpenAi account"
         }
       }
@@ -387,7 +390,7 @@
       "position": [-21964, 9072],
       "credentials": {
         "openAiApi": {
-          "id": "Oh3Rnj32fETJUF9U",
+          "id": "5KnJ49CiBjEEjtWM",
           "name": "OpenAi account"
         }
       }
@@ -424,7 +427,7 @@
       "position": [-21516, 8972],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "Header Auth account",
+          "id": "xOk2J7CAxWG1jwph",
           "name": "Header Auth account"
         }
       },
@@ -506,7 +509,7 @@
       "position": [-20620, 8772],
       "credentials": {
         "openAiApi": {
-          "id": "Oh3Rnj32fETJUF9U",
+          "id": "5KnJ49CiBjEEjtWM",
           "name": "OpenAi account"
         }
       }
@@ -559,7 +562,7 @@
       "position": [-21516, 9172],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "Header Auth account",
+          "id": "xOk2J7CAxWG1jwph",
           "name": "Header Auth account"
         }
       },
@@ -587,7 +590,7 @@
       "position": [-21292, 9172],
       "credentials": {
         "openAiApi": {
-          "id": "Oh3Rnj32fETJUF9U",
+          "id": "5KnJ49CiBjEEjtWM",
           "name": "OpenAi account"
         }
       }
@@ -668,7 +671,7 @@
       "position": [-20620, 9072],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "Header Auth account",
+          "id": "xOk2J7CAxWG1jwph",
           "name": "Header Auth account"
         }
       },
@@ -699,7 +702,7 @@
       "position": [-20172, 9072],
       "credentials": {
         "smtp": {
-          "id": "OjlJbmPfeYsQ6qw1",
+          "id": "ZydhFDFy3w045RlS",
           "name": "SMTP account"
         }
       }
@@ -726,7 +729,7 @@
       "position": [-19948, 9072],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "Header Auth account",
+          "id": "xOk2J7CAxWG1jwph",
           "name": "Header Auth account"
         }
       },
@@ -747,7 +750,7 @@
       "position": [-23312, 9456],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "Header Auth account",
+          "id": "xOk2J7CAxWG1jwph",
           "name": "Header Auth account"
         }
       },
@@ -821,7 +824,7 @@
       "position": [-22416, 9360],
       "credentials": {
         "smtp": {
-          "id": "OjlJbmPfeYsQ6qw1",
+          "id": "ZydhFDFy3w045RlS",
           "name": "SMTP account"
         }
       }
