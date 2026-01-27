@@ -1,19 +1,19 @@
-import { useState } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { KnowledgeIngestion } from './components/KnowledgeIngestion';
+import { VectorDBOverview } from './components/VectorDBOverview';
 import { WorkflowMonitor } from './components/WorkflowMonitor';
 import { SyllabusEditor } from './components/SyllabusEditor';
 
-type TabType = 'ingestion' | 'monitor' | 'syllabus';
-
 function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('monitor');
-
   return (
-    <Layout activeTab={activeTab} onTabChange={setActiveTab}>
-      {activeTab === 'ingestion' && <KnowledgeIngestion />}
-      {activeTab === 'monitor' && <WorkflowMonitor />}
-      {activeTab === 'syllabus' && <SyllabusEditor />}
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Navigate to="/monitor" replace />} />
+        <Route path="/monitor" element={<WorkflowMonitor />} />
+        <Route path="/vectordb" element={<VectorDBOverview />} />
+        <Route path="/ingestion" element={<Navigate to="/vectordb" replace />} />
+        <Route path="/syllabus" element={<SyllabusEditor />} />
+      </Routes>
     </Layout>
   );
 }

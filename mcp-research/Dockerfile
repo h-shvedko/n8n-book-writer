@@ -31,7 +31,10 @@ RUN npm ci --production
 # Copy built application
 COPY --from=builder /app/dist ./dist
 
-# Create non-root user
+# Create data directory for SQLite database
+RUN mkdir -p /app/data
+
+# Create non-root user and set ownership
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001 -G nodejs && \
     chown -R nodejs:nodejs /app

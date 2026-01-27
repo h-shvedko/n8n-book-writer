@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Activity,
   CheckCircle,
@@ -154,16 +154,25 @@ export function WorkflowMonitor() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Fetch executions
+  // Use ref to track current execution ID to avoid re-creating fetchExecutions on selection change
+  const currentExecutionIdRef = useRef<string | null>(null);
+
+  // Keep ref in sync with current execution
+  useEffect(() => {
+    currentExecutionIdRef.current = currentExecution?.id ?? null;
+  }, [currentExecution]);
+
+  // Fetch executions - does not depend on currentExecution to prevent jumping
   const fetchExecutions = useCallback(async () => {
     setIsRefreshing(true);
     try {
       const data = await n8nApi.getExecutions();
       setExecutions(data);
 
-      // Update current execution if it exists
-      if (currentExecution) {
-        const updated = data.find((e) => e.id === currentExecution.id);
+      // Update current execution if it exists (use ref to avoid dependency)
+      const currentId = currentExecutionIdRef.current;
+      if (currentId) {
+        const updated = data.find((e) => e.id === currentId);
         if (updated) {
           setCurrentExecution(updated);
         }
@@ -174,7 +183,7 @@ export function WorkflowMonitor() {
       console.error('Failed to fetch executions:', error);
     }
     setIsRefreshing(false);
-  }, [setExecutions, currentExecution, setCurrentExecution]);
+  }, [setExecutions, setCurrentExecution]);
 
   // Auto-refresh effect
   useEffect(() => {

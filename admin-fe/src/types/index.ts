@@ -92,6 +92,39 @@ export interface ServiceStatus {
   error?: string;
 }
 
+// Ingested file record from database
+export interface IngestedFileRecord {
+  id: number;
+  fileName: string;
+  title: string;
+  fileSize: number;
+  fileType: string;
+  chunksCreated: number;
+  chunksIngested: number;
+  chunksErrored: number;
+  domainId?: string;
+  topicId?: string;
+  category?: string;
+  language: string;
+  status: 'completed' | 'partial' | 'failed';
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Vector DB document
+export interface VectorDocument {
+  id: string;
+  text: string;
+  metadata: DocumentMetadata;
+  ingestedAt?: string;
+}
+
+// Source statistics
+export interface SourceStats {
+  source: string;
+  count: number;
+}
+
 // API response types
 export interface ApiResponse<T> {
   success: boolean;

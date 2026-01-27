@@ -1,17 +1,25 @@
-import { Syllabus, WorkflowExecution, ServiceStatus, DocumentMetadata } from '../types';
+import { Syllabus, WorkflowExecution, ServiceStatus, DocumentMetadata, IngestedFileRecord } from '../types';
 
 const N8N_API_BASE = import.meta.env.VITE_N8N_API_BASE || '/api/n8n';
 const MCP_RESEARCH_BASE = import.meta.env.VITE_MCP_RESEARCH_BASE || '/api/mcp-research';
 const MCP_STANDARDS_BASE = import.meta.env.VITE_MCP_STANDARDS_BASE || '/api/mcp-standards';
+const MCP_AUTH_TOKEN = import.meta.env.VITE_MCP_AUTH_TOKEN || '';
 
-// Helper function for API calls
+// Helper function for API calls with optional auth
 async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...options?.headers as Record<string, string>,
+  };
+
+  // Add auth token if available
+  if (MCP_AUTH_TOKEN) {
+    headers['Authorization'] = `Bearer ${MCP_AUTH_TOKEN}`;
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -106,12 +114,179 @@ export const researchApi = {
     };
   },
 
+  async ingestFile(
+    file: File,
+    metadata: DocumentMetadata,
+    onProgress?: (progress: number) => void
+  ): Promise<{
+    success: boolean;
+    fileName: string;
+    title: string;
+    chunksCreated: number;
+    chunksIngested: number;
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    if (metadata.domainId) formData.append('domainId', metadata.domainId);
+    if (metadata.topicId) formData.append('topicId', metadata.topicId);
+    if (metadata.tags?.length) formData.append('category', metadata.tags[0]);
+    formData.append('language', metadata.language || 'de');
+
+    // Use XMLHttpRequest for progress tracking
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          const progress = Math.round((event.loaded / event.total) * 50); // Upload is 0-50%
+          onProgress(progress);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            if (onProgress) onProgress(100);
+            resolve(response);
+          } catch {
+            reject(new Error('Invalid response format'));
+          }
+        } else {
+          try {
+            const error = JSON.parse(xhr.responseText);
+            reject(new Error(error.error || `HTTP ${xhr.status}`));
+          } catch {
+            reject(new Error(`HTTP ${xhr.status}`));
+          }
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.ontimeout = () => reject(new Error('Request timeout'));
+
+      xhr.open('POST', `${MCP_RESEARCH_BASE}/admin/ingest-file`);
+      if (MCP_AUTH_TOKEN) {
+        xhr.setRequestHeader('Authorization', `Bearer ${MCP_AUTH_TOKEN}`);
+      }
+      xhr.timeout = 600000; // 10 minute timeout for large files
+      xhr.send(formData);
+    });
+  },
+
   async search(query: string, limit = 10): Promise<any[]> {
     const response = await fetchApi<any>(`${MCP_RESEARCH_BASE}/search`, {
       method: 'POST',
       body: JSON.stringify({ query, limit }),
     });
     return response.results || [];
+  },
+
+  async getIngestedFiles(options: { limit?: number; offset?: number; category?: string; status?: string } = {}): Promise<{
+    files: IngestedFileRecord[];
+    total: number;
+  }> {
+    const params = new URLSearchParams();
+    if (options.limit) params.append('limit', options.limit.toString());
+    if (options.offset) params.append('offset', options.offset.toString());
+    if (options.category) params.append('category', options.category);
+    if (options.status) params.append('status', options.status);
+
+    const response = await fetchApi<any>(`${MCP_RESEARCH_BASE}/admin/ingested-files?${params.toString()}`);
+    return response;
+  },
+
+  async getIngestionStats(): Promise<{
+    totalFiles: number;
+    totalChunks: number;
+    byCategory: { category: string; count: number }[];
+    byStatus: { status: string; count: number }[];
+  }> {
+    return fetchApi<any>(`${MCP_RESEARCH_BASE}/admin/ingestion-stats`);
+  },
+
+  async deleteIngestedFile(id: number): Promise<void> {
+    await fetchApi<any>(`${MCP_RESEARCH_BASE}/admin/ingested-files/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Vector DB Document Management
+  async browseDocuments(options: {
+    limit?: number;
+    offset?: string | null;
+    source?: string;
+    documentType?: string;
+  } = {}): Promise<{
+    documents: Array<{
+      id: string;
+      text: string;
+      metadata: DocumentMetadata;
+      ingestedAt?: string;
+    }>;
+    nextOffset: string | null;
+    total: number;
+  }> {
+    const params = new URLSearchParams();
+    if (options.limit) params.append('limit', options.limit.toString());
+    if (options.offset) params.append('offset', options.offset);
+    if (options.source) params.append('source', options.source);
+    if (options.documentType) params.append('document_type', options.documentType);
+
+    const response = await fetchApi<any>(`${MCP_RESEARCH_BASE}/admin/documents?${params.toString()}`);
+    return {
+      documents: response.documents.map((doc: any) => ({
+        id: doc.id,
+        text: doc.text,
+        metadata: doc.metadata,
+        ingestedAt: doc.ingested_at,
+      })),
+      nextOffset: response.nextOffset,
+      total: response.total,
+    };
+  },
+
+  async getDocument(id: string): Promise<{
+    id: string;
+    text: string;
+    metadata: DocumentMetadata;
+    ingestedAt?: string;
+  } | null> {
+    try {
+      const response = await fetchApi<any>(`${MCP_RESEARCH_BASE}/admin/documents/${id}`);
+      return {
+        id: response.id,
+        text: response.text,
+        metadata: response.metadata,
+        ingestedAt: response.ingested_at,
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  async deleteDocument(id: string): Promise<boolean> {
+    try {
+      await fetchApi<any>(`${MCP_RESEARCH_BASE}/admin/documents/${id}`, {
+        method: 'DELETE',
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  async deleteDocumentsBySource(source: string): Promise<{ deletedCount: number }> {
+    const response = await fetchApi<any>(`${MCP_RESEARCH_BASE}/admin/documents/by-source/${encodeURIComponent(source)}`, {
+      method: 'DELETE',
+    });
+    return { deletedCount: response.deleted_count };
+  },
+
+  async getSourceStats(): Promise<Array<{ source: string; count: number }>> {
+    const response = await fetchApi<any>(`${MCP_RESEARCH_BASE}/admin/source-stats`);
+    return response.sources;
   },
 };
 

@@ -1,31 +1,28 @@
 import { ReactNode } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Upload,
+  Database,
   Activity,
   BookOpen,
   Settings,
 } from 'lucide-react';
 
-type TabType = 'ingestion' | 'monitor' | 'syllabus';
-
 interface LayoutProps {
   children: ReactNode;
-  activeTab: TabType;
-  onTabChange: (tab: TabType) => void;
 }
 
 interface NavItemProps {
   icon: ReactNode;
   label: string;
+  to: string;
   isActive: boolean;
-  onClick: () => void;
 }
 
-function NavItem({ icon, label, isActive, onClick }: NavItemProps) {
+function NavItem({ icon, label, to, isActive }: NavItemProps) {
   return (
-    <button
-      onClick={onClick}
+    <Link
+      to={to}
       className={`flex items-center gap-3 px-4 py-3 w-full text-left rounded-lg transition-colors ${
         isActive
           ? 'bg-primary-600 text-white'
@@ -34,11 +31,14 @@ function NavItem({ icon, label, isActive, onClick }: NavItemProps) {
     >
       {icon}
       <span className="font-medium">{label}</span>
-    </button>
+    </Link>
   );
 }
 
-export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
+export function Layout({ children }: LayoutProps) {
+  const location = useLocation();
+  const currentPath = location.pathname;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
       {/* Sidebar */}
@@ -61,20 +61,20 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
           <NavItem
             icon={<Activity className="w-5 h-5" />}
             label="Workflow Monitor"
-            isActive={activeTab === 'monitor'}
-            onClick={() => onTabChange('monitor')}
+            to="/monitor"
+            isActive={currentPath === '/monitor'}
           />
           <NavItem
-            icon={<Upload className="w-5 h-5" />}
-            label="Knowledge Ingestion"
-            isActive={activeTab === 'ingestion'}
-            onClick={() => onTabChange('ingestion')}
+            icon={<Database className="w-5 h-5" />}
+            label="Vector Database"
+            to="/vectordb"
+            isActive={currentPath === '/vectordb'}
           />
           <NavItem
             icon={<BookOpen className="w-5 h-5" />}
             label="Syllabus Editor"
-            isActive={activeTab === 'syllabus'}
-            onClick={() => onTabChange('syllabus')}
+            to="/syllabus"
+            isActive={currentPath === '/syllabus'}
           />
         </nav>
 

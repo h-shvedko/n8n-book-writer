@@ -123,8 +123,11 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY is required}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
       - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-1536}
+      - INGESTION_DB_PATH=/app/data/ingestion.db
     ports:
       - "${MCP_RESEARCH_PORT:-3003}:3003"
+    volumes:
+      - mcp_research_data:/app/data
     depends_on:
       qdrant:
         condition: service_healthy
@@ -218,8 +221,14 @@ services:
     build:
       context: ./admin-fe
       dockerfile: Dockerfile
+      args:
+        - VITE_MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN:-}
     container_name: wpi-admin-fe
     restart: unless-stopped
+    environment:
+      - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN:-}
+      - VITE_MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN:-}
+      - N8N_API_KEY=${N8N_API_KEY:-}
     ports:
       - "${ADMIN_FE_PORT:-3001}:3001"
     depends_on:
@@ -262,3 +271,6 @@ volumes:
   n8n_mcp_data:
     driver: local
     name: wpi-n8n-mcp-data
+  mcp_research_data:
+    driver: local
+    name: wpi-mcp-research-data

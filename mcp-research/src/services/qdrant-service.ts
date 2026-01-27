@@ -411,6 +411,193 @@ export class QdrantService {
       indexed_vectors_count: info.indexed_vectors_count || 0,
     };
   }
+
+  /**
+   * Browse/scroll documents with pagination
+   */
+  async browseDocuments(options: {
+    limit?: number;
+    offset?: string | null;
+    filter?: SearchFilter;
+  }): Promise<{
+    documents: Array<{
+      id: string;
+      text: string;
+      metadata: DocumentMetadata;
+      ingested_at?: string;
+    }>;
+    nextOffset: string | null;
+    total: number;
+  }> {
+    if (!this.isConnected) {
+      await this.initialize();
+    }
+
+    const { limit = 20, offset, filter } = options;
+    const filterConditions = this.buildFilterConditions(filter);
+
+    // Get total count
+    const stats = await this.getCollectionStats();
+    const total = stats.points_count;
+
+    // Scroll through documents
+    const result = await this.client.scroll(this.collectionName, {
+      limit,
+      offset: offset || undefined,
+      filter: filterConditions,
+      with_payload: true,
+      with_vector: false,
+    });
+
+    const documents = result.points.map(point => {
+      const payload = point.payload as Record<string, unknown>;
+      return {
+        id: String(point.id),
+        text: String(payload.text || ''),
+        metadata: this.extractMetadata(payload),
+        ingested_at: payload.ingested_at as string | undefined,
+      };
+    });
+
+    // Get next offset if there are more results
+    const nextOffset = result.next_page_offset ? String(result.next_page_offset) : null;
+
+    return {
+      documents,
+      nextOffset,
+      total,
+    };
+  }
+
+  /**
+   * Get a single document by ID
+   */
+  async getDocument(id: string): Promise<{
+    id: string;
+    text: string;
+    metadata: DocumentMetadata;
+    ingested_at?: string;
+  } | null> {
+    if (!this.isConnected) {
+      await this.initialize();
+    }
+
+    try {
+      const result = await this.client.retrieve(this.collectionName, {
+        ids: [id],
+        with_payload: true,
+        with_vector: false,
+      });
+
+      if (result.length === 0) {
+        return null;
+      }
+
+      const point = result[0];
+      const payload = point.payload as Record<string, unknown>;
+
+      return {
+        id: String(point.id),
+        text: String(payload.text || ''),
+        metadata: this.extractMetadata(payload),
+        ingested_at: payload.ingested_at as string | undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Delete a single document by ID
+   */
+  async deleteDocument(id: string): Promise<boolean> {
+    if (!this.isConnected) {
+      await this.initialize();
+    }
+
+    try {
+      await this.client.delete(this.collectionName, {
+        points: [id],
+        wait: true,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Delete all documents by source (file name)
+   */
+  async deleteBySource(source: string): Promise<number> {
+    if (!this.isConnected) {
+      await this.initialize();
+    }
+
+    // First count how many documents match
+    const scrollResult = await this.client.scroll(this.collectionName, {
+      filter: {
+        must: [{ key: 'source', match: { value: source } }],
+      },
+      limit: 10000,
+      with_payload: false,
+      with_vector: false,
+    });
+
+    const count = scrollResult.points.length;
+
+    if (count > 0) {
+      await this.client.delete(this.collectionName, {
+        filter: {
+          must: [{ key: 'source', match: { value: source } }],
+        },
+        wait: true,
+      });
+    }
+
+    return count;
+  }
+
+  /**
+   * Get unique sources (file names) with document counts
+   */
+  async getSourceStats(): Promise<Array<{ source: string; count: number }>> {
+    if (!this.isConnected) {
+      await this.initialize();
+    }
+
+    // Scroll through all documents and aggregate by source
+    const sourceMap = new Map<string, number>();
+    let offset: string | number | undefined = undefined;
+
+    do {
+      const result = await this.client.scroll(this.collectionName, {
+        limit: 1000,
+        offset,
+        with_payload: {
+          include: ['source'],
+        },
+        with_vector: false,
+      });
+
+      for (const point of result.points) {
+        const source = (point.payload as Record<string, unknown>).source as string || 'Unknown';
+        sourceMap.set(source, (sourceMap.get(source) || 0) + 1);
+      }
+
+      // Handle offset which can be string, number, or object
+      const nextOffset = result.next_page_offset;
+      if (typeof nextOffset === 'string' || typeof nextOffset === 'number') {
+        offset = nextOffset;
+      } else {
+        offset = undefined;
+      }
+    } while (offset);
+
+    return Array.from(sourceMap.entries())
+      .map(([source, count]) => ({ source, count }))
+      .sort((a, b) => b.count - a.count);
+  }
 }
 
 // Singleton instance

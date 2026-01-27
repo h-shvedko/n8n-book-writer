@@ -1,209 +1,265 @@
 #!/usr/bin/env tsx
 /**
- * HTML Ingestion Script for WPI Content Factory
+ * Semantic HTML Ingestion Script for WPI Content Factory
  *
- * Ingests HTML content, extracts text using jsdom, chunks it,
+ * Ingests HTML content using Mozilla Readability for semantic extraction,
+ * converts to Markdown for better LLM comprehension, chunks intelligently,
  * and stores in Qdrant vector database with OpenAI embeddings.
  *
  * Usage:
- *   npm run ingest-html <html-file-path>
+ *   npm run ingest-html <html-file-path> [options]
+ *
+ * Options:
+ *   --domain-id <id>      WPI domain ID (e.g., D1, D2)
+ *   --topic-id <id>       WPI topic ID (e.g., D1.1)
+ *   --category <cat>      Category (e.g., "Legacy Material", "SEO Foundations")
+ *   --language <lang>     Language code (default: de)
+ *   --chunk-size <n>      Chunk size in characters (default: 2000)
+ *   --chunk-overlap <n>   Chunk overlap in characters (default: 300)
  *
  * Example:
- *   npm run ingest-html ./data/rag-content-seo.html
+ *   npm run ingest-html ./assets/rag-content-seo.html --domain-id D1 --category "Legacy Material"
  */
 
-import { JSDOM } from 'jsdom';
 import * as fs from 'fs';
 import * as path from 'path';
+import { extractForRAG, extractSectionsFromHTML } from '../src/services/html-extractor';
 import { getQdrantService } from '../src/services/qdrant-service';
+import { createWpiTextSplitter, RecursiveCharacterTextSplitter } from '../src/services/text-splitter';
 
-// Configuration
-const CHUNK_SIZE = 500;
-const CHUNK_OVERLAP = 50;
-const COLLECTION_NAME = process.env.QDRANT_COLLECTION || 'wpi_legacy';
+// Load environment variables
+import 'dotenv/config';
 
-interface ChunkMetadata {
-  source: string;
-  chunk_index: number;
-  total_chunks: number;
-  document_type: string;
-  language: string;
-  ingested_at: string;
-  original_file: string;
+interface IngestionOptions {
+  filePath: string;
+  domainId?: string;
+  topicId?: string;
+  category?: string;
+  language?: string;
+  chunkSize?: number;
+  chunkOverlap?: number;
+  useSections?: boolean;  // Use parent-child sectioning
 }
 
 /**
- * Extract clean text from HTML using jsdom
+ * Parse CLI arguments
  */
-function extractTextFromHTML(htmlContent: string): string {
-  const dom = new JSDOM(htmlContent);
-  const { document } = dom.window;
+function parseArgs(): IngestionOptions {
+  const args = process.argv.slice(2);
 
-  // Remove script and style elements
-  const scripts = document.querySelectorAll('script, style');
-  scripts.forEach(el => el.remove());
+  if (args.length === 0) {
+    console.error('Error: No file path provided\n');
+    printUsage();
+    process.exit(1);
+  }
 
-  // Get text content
-  const text = document.body.textContent || '';
+  const options: IngestionOptions = {
+    filePath: args[0],
+    language: 'de',
+    chunkSize: 2000,
+    chunkOverlap: 300,
+    useSections: false,
+  };
 
-  // Clean up whitespace
-  return text
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n'); // Max 2 consecutive newlines
-}
+  for (let i = 1; i < args.length; i += 2) {
+    const flag = args[i];
+    const value = args[i + 1];
 
-/**
- * Split text into overlapping chunks
- */
-function chunkText(text: string, chunkSize: number, overlap: number): string[] {
-  const chunks: string[] = [];
-  let start = 0;
-
-  while (start < text.length) {
-    const end = Math.min(start + chunkSize, text.length);
-    const chunk = text.substring(start, end);
-
-    // Only add chunks with meaningful content (> 50 chars)
-    if (chunk.trim().length > 50) {
-      chunks.push(chunk.trim());
-    }
-
-    // Move start position, accounting for overlap
-    start = end - overlap;
-
-    // If we're at the end, break to avoid duplicate chunks
-    if (end === text.length) {
-      break;
+    switch (flag) {
+      case '--domain-id':
+        options.domainId = value;
+        break;
+      case '--topic-id':
+        options.topicId = value;
+        break;
+      case '--category':
+        options.category = value;
+        break;
+      case '--language':
+        options.language = value;
+        break;
+      case '--chunk-size':
+        options.chunkSize = parseInt(value, 10);
+        break;
+      case '--chunk-overlap':
+        options.chunkOverlap = parseInt(value, 10);
+        break;
+      case '--use-sections':
+        options.useSections = value === 'true';
+        i--; // No value needed for this flag
+        break;
     }
   }
 
-  return chunks;
+  return options;
+}
+
+function printUsage(): void {
+  console.log(`
+Semantic HTML Ingestion Script
+==============================
+
+Usage:
+  npm run ingest-html <html-file-path> [options]
+
+Options:
+  --domain-id <id>      WPI domain ID (e.g., D1, D2)
+  --topic-id <id>       WPI topic ID (e.g., D1.1)
+  --category <cat>      Category (e.g., "Legacy Material")
+  --language <lang>     Language code (default: de)
+  --chunk-size <n>      Chunk size in characters (default: 2000)
+  --chunk-overlap <n>   Chunk overlap in characters (default: 300)
+  --use-sections        Extract by HTML sections with parent-child links
+
+Examples:
+  npm run ingest-html ./assets/rag-content-seo.html
+  npm run ingest-html ./data/seo-guide.html --domain-id D1 --category "SEO Foundations"
+  npm run ingest-html ./data/technical-doc.html --use-sections --chunk-size 1500
+`);
 }
 
 /**
- * Main ingestion function
+ * Main ingestion function with semantic extraction
  */
-async function ingestHTML(filePath: string): Promise<void> {
-  console.log('🚀 Starting HTML ingestion...\n');
+async function ingestHTML(options: IngestionOptions): Promise<void> {
+  console.log('\n' + '='.repeat(60));
+  console.log('  Semantic HTML Ingestion for WPI Content Factory');
+  console.log('='.repeat(60) + '\n');
 
   // Validate file exists
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`File not found: ${filePath}`);
+  const absolutePath = path.resolve(options.filePath);
+  if (!fs.existsSync(absolutePath)) {
+    throw new Error(`File not found: ${absolutePath}`);
   }
 
-  const fileName = path.basename(filePath);
-  console.log(`📄 File: ${fileName}`);
+  const fileName = path.basename(absolutePath);
+  console.log(`File: ${fileName}`);
+  console.log(`Path: ${absolutePath}\n`);
 
   // Read HTML content
-  console.log('📖 Reading HTML file...');
-  const htmlContent = fs.readFileSync(filePath, 'utf-8');
+  console.log('[1/5] Reading HTML file...');
+  const htmlContent = fs.readFileSync(absolutePath, 'utf-8');
+  console.log(`      Read ${(htmlContent.length / 1024).toFixed(1)} KB\n`);
 
-  // Extract text
-  console.log('🔍 Extracting text from HTML...');
-  const text = extractTextFromHTML(htmlContent);
-  console.log(`✅ Extracted ${text.length} characters`);
+  // Extract content using semantic extraction
+  console.log('[2/5] Extracting content with Mozilla Readability...');
+  const extracted = extractForRAG(htmlContent);
+  console.log(`      Title: ${extracted.metadata.title}`);
+  console.log(`      Author: ${extracted.metadata.author || 'Unknown'}`);
+  console.log(`      Word count: ${extracted.metadata.wordCount}`);
+  console.log(`      Format: ${extracted.metadata.format}\n`);
 
-  // Chunk text
-  console.log(`\n📦 Chunking text (size: ${CHUNK_SIZE}, overlap: ${CHUNK_OVERLAP})...`);
-  const chunks = chunkText(text, CHUNK_SIZE, CHUNK_OVERLAP);
-  console.log(`✅ Created ${chunks.length} chunks`);
+  // Chunk the content
+  console.log(`[3/5] Chunking content (size: ${options.chunkSize}, overlap: ${options.chunkOverlap})...`);
 
-  // Get Qdrant service
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: options.chunkSize!,
+    chunkOverlap: options.chunkOverlap!,
+  });
+
+  const baseMetadata = {
+    source: fileName,
+    title: extracted.metadata.title,
+    author: extracted.metadata.author || undefined,
+    document_type: 'html',
+    domain_id: options.domainId,
+    topic_id: options.topicId,
+    tags: options.category ? [options.category] : [],
+    language: options.language || 'de',
+  };
+
+  const chunks = splitter.splitText(extracted.text, baseMetadata);
+  console.log(`      Created ${chunks.length} chunks\n`);
+
+  // Connect to Qdrant
+  console.log('[4/5] Connecting to Qdrant...');
   const qdrant = getQdrantService();
-
-  // Check Qdrant connection
-  console.log('\n🔌 Checking Qdrant connection...');
   const status = await qdrant.getStatus();
 
   if (status.status === 'unavailable') {
     throw new Error(`Qdrant unavailable: ${status.error}`);
   }
 
-  console.log(`✅ Connected to Qdrant`);
-  console.log(`   Collection: ${COLLECTION_NAME}`);
-  console.log(`   Existing documents: ${status.document_count}`);
+  console.log(`      Status: ${status.status.toUpperCase()}`);
+  console.log(`      Collection: ${process.env.QDRANT_COLLECTION || 'wpi_content'}`);
+  console.log(`      Existing documents: ${status.document_count}\n`);
 
   // Ingest chunks
-  console.log(`\n💾 Ingesting chunks into Qdrant...`);
+  console.log('[5/5] Ingesting into Qdrant with OpenAI embeddings...');
+  console.log(`      Model: ${process.env.EMBEDDING_MODEL || 'text-embedding-3-small'}\n`);
 
   let successCount = 0;
   let errorCount = 0;
+  const startTime = Date.now();
 
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
+  // Use batch ingestion for efficiency
+  const batchSize = 10;
+  for (let i = 0; i < chunks.length; i += batchSize) {
+    const batch = chunks.slice(i, Math.min(i + batchSize, chunks.length));
 
-    const metadata: ChunkMetadata = {
-      source: 'html-ingestion',
-      chunk_index: i,
-      total_chunks: chunks.length,
-      document_type: 'legacy-seo-content',
-      language: 'de',
-      ingested_at: new Date().toISOString(),
-      original_file: fileName,
-    };
+    for (const chunk of batch) {
+      try {
+        // Add category metadata
+        const metadata = {
+          ...chunk.metadata,
+          category: options.category || 'Legacy Material',
+        };
 
-    try {
-      await qdrant.ingestAndEmbed(chunk, metadata);
-      successCount++;
-
-      // Progress indicator
-      if ((i + 1) % 10 === 0 || i === chunks.length - 1) {
-        const progress = ((i + 1) / chunks.length * 100).toFixed(1);
-        console.log(`   Progress: ${i + 1}/${chunks.length} chunks (${progress}%)`);
+        await qdrant.ingestAndEmbed(chunk.text, metadata);
+        successCount++;
+      } catch (error) {
+        errorCount++;
+        console.error(`      Error on chunk ${i}: ${error}`);
       }
-    } catch (error) {
-      errorCount++;
-      console.error(`   ❌ Error ingesting chunk ${i}:`, error);
     }
+
+    // Progress indicator
+    const progress = ((Math.min(i + batchSize, chunks.length)) / chunks.length * 100).toFixed(1);
+    process.stdout.write(`\r      Progress: ${Math.min(i + batchSize, chunks.length)}/${chunks.length} chunks (${progress}%)`);
   }
 
-  // Final status
-  console.log('\n📊 Ingestion Summary:');
-  console.log(`   ✅ Success: ${successCount} chunks`);
-  console.log(`   ❌ Errors: ${errorCount} chunks`);
-  console.log(`   📈 Collection now has ~${status.document_count + successCount} documents`);
+  const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`\n      Completed in ${duration}s\n`);
 
-  // Final Qdrant status
+  // Final summary
+  console.log('=' .repeat(60));
+  console.log('  INGESTION SUMMARY');
+  console.log('='.repeat(60));
+  console.log(`  File:          ${fileName}`);
+  console.log(`  Format:        HTML -> Markdown`);
+  console.log(`  Chunks:        ${successCount} success, ${errorCount} errors`);
+  console.log(`  Category:      ${options.category || 'Legacy Material'}`);
+  console.log(`  Domain ID:     ${options.domainId || 'N/A'}`);
+  console.log(`  Topic ID:      ${options.topicId || 'N/A'}`);
+
+  // Get final status
   const finalStatus = await qdrant.getStatus();
-  console.log(`\n✨ Final collection status:`);
-  console.log(`   Documents: ${finalStatus.document_count}`);
-  console.log(`   Status: ${finalStatus.status.toUpperCase()}`);
+  console.log(`\n  Qdrant Status: ${finalStatus.status.toUpperCase()}`);
+  console.log(`  Total Docs:    ${finalStatus.document_count}`);
+  console.log('='.repeat(60) + '\n');
 
-  console.log('\n✅ Ingestion complete!');
+  if (errorCount > 0) {
+    console.log(`WARNING: ${errorCount} chunks failed to ingest\n`);
+  } else {
+    console.log('SUCCESS: All chunks ingested successfully!\n');
+  }
 }
 
 /**
  * CLI Entry Point
  */
 async function main() {
-  const args = process.argv.slice(2);
-
-  if (args.length === 0) {
-    console.error('❌ Error: No file path provided\n');
-    console.log('Usage:');
-    console.log('  npm run ingest-html <html-file-path>\n');
-    console.log('Example:');
-    console.log('  npm run ingest-html ./data/rag-content-seo.html');
-    process.exit(1);
-  }
-
-  const filePath = args[0];
-
   try {
-    await ingestHTML(filePath);
+    const options = parseArgs();
+    await ingestHTML(options);
     process.exit(0);
   } catch (error) {
-    console.error('\n❌ Fatal error:', error);
+    console.error('\nFATAL ERROR:', error);
     process.exit(1);
   }
 }
 
 // Run if executed directly
-if (require.main === module) {
-  main().catch(console.error);
-}
+main().catch(console.error);
 
-export { ingestHTML, extractTextFromHTML, chunkText };
+export { ingestHTML };
