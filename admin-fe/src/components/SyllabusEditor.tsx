@@ -49,27 +49,25 @@ function TreeNode({
   return (
     <div className="select-none">
       <div
-        className="flex items-center gap-2 py-2 px-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg group"
+        className="flex items-center gap-2 py-2 px-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg group cursor-pointer"
         style={{ paddingLeft: `${indent + 8}px` }}
+        onClick={onToggle}
       >
         {hasChildren ? (
-          <button
-            onClick={onToggle}
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-          >
+          <div className="p-1">
             {isExpanded ? (
               <ChevronDown className="w-4 h-4 text-gray-500" />
             ) : (
               <ChevronRight className="w-4 h-4 text-gray-500" />
             )}
-          </button>
+          </div>
         ) : (
           <span className="w-6" />
         )}
 
         <span className="flex-1 text-gray-900 dark:text-white font-medium">{label}</span>
 
-        <div className="hidden group-hover:flex items-center gap-1">
+        <div className="hidden group-hover:flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           {actions}
           {onAdd && (
             <button
@@ -171,7 +169,7 @@ interface TopicEditorProps {
 }
 
 function TopicEditor({ topic, onChange, onDelete, level }: TopicEditorProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true); // Auto-expand for easier editing
 
   const addObjective = () => {
     const newObjective: LearningObjective = {

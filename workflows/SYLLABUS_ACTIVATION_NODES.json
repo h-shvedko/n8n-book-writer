@@ -1,0 +1,102 @@
+{
+  "name": "Syllabus Activation Nodes - Insert These",
+  "description": "Add these two nodes between the form trigger and 'Fetch Syllabus Domains'",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const syllabusSelection = formData['Syllabus'] || '';\n  \n  // Parse syllabus ID from format: 'Name (syllabus-xxxxx)'\n  // Example: 'WPI Web Development (syllabus-1738051200123)'\n  const match = syllabusSelection.match(/\\(([^)]+)\\)/);\n  const syllabusId = match ? match[1] : null;\n  \n  if (!syllabusId) {\n    throw new Error('Invalid syllabus selection. Expected format: Name (syllabus-id)');\n  }\n  \n  return {\n    syllabus_id: syllabusId,\n    syllabus_name: syllabusSelection.split('(')[0].trim(),\n    target_audience: formData['Target Audience'] || 'Mid-Level Professionals'\n  };\n})() }}",
+        "options": {}
+      },
+      "id": "extract-syllabus-id-node",
+      "name": "🔍 Extract Syllabus ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -32400,
+        7264
+      ],
+      "notes": "Parses syllabus ID from the form dropdown selection"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://mcp-standards:3002/syllabuses/{{ $json.syllabus_id }}/activate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "activate-syllabus-node",
+      "name": "🔄 Activate Syllabus",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32350,
+        7264
+      ],
+      "notes": "Activates the selected syllabus in mcp-standards for MCP tools to use",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "📥 Book Request Form": {
+      "main": [
+        [
+          {
+            "node": "🔍 Extract Syllabus ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Extract Syllabus ID": {
+      "main": [
+        [
+          {
+            "node": "🔄 Activate Syllabus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Activate Syllabus": {
+      "main": [
+        [
+          {
+            "node": "📚 Fetch Syllabus Domains",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "instructions": [
+    "1. In n8n UI, open the 'WPI AI Content Factory' workflow",
+    "2. Click on the connection between '📥 Book Request Form' and '📚 Fetch Syllabus Domains'",
+    "3. Delete the direct connection",
+    "4. Add a new 'Set' node and name it '🔍 Extract Syllabus ID'",
+    "5. Configure it with the jsonOutput expression from above",
+    "6. Add a new 'HTTP Request' node and name it '🔄 Activate Syllabus'",
+    "7. Configure it with POST method and the URL from above",
+    "8. Connect: Form → Extract ID → Activate → Fetch Domains",
+    "9. Update the form dropdown options to use format: 'Name (syllabus-id)'",
+    "10. Test the workflow by submitting the form"
+  ],
+  "form_dropdown_format": {
+    "description": "Update the form dropdown to show syllabuses in this format",
+    "example_options": [
+      "WPI Web Development Professional (syllabus-1738051200123) - v1.0.0",
+      "ISO 17024 Certification Prep (syllabus-1738051300456) - v2.1.0",
+      "Advanced JavaScript Course (syllabus-1738051400789) - v1.5.0"
+    ],
+    "how_to_populate": "Fetch from GET /api/mcp-standards/syllabuses and format as: `${name} (${id}) - v${version}`"
+  }
+}
