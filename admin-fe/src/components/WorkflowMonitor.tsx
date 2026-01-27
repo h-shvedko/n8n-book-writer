@@ -195,28 +195,6 @@ export function WorkflowMonitor() {
     }
   }, [autoRefresh, fetchExecutions]);
 
-  // Mock data for demo when n8n is not connected
-  useEffect(() => {
-    if (executions.length === 0) {
-      const mockExecution: WorkflowExecution = {
-        id: 'demo-001',
-        workflowId: 'wf-001',
-        workflowName: 'WPI Content Factory',
-        status: 'running',
-        startedAt: new Date().toISOString(),
-        nodes: [
-          { id: 'architect', name: 'Architect', type: 'ai-agent', status: 'completed' },
-          { id: 'researcher', name: 'Researcher', type: 'ai-agent', status: 'running' },
-          { id: 'writer', name: 'Writer', type: 'ai-agent', status: 'idle' },
-          { id: 'editor', name: 'Editor', type: 'ai-agent', status: 'idle' },
-        ],
-        currentNode: 'researcher',
-      };
-      setExecutions([mockExecution]);
-      setCurrentExecution(mockExecution);
-    }
-  }, [executions.length, setExecutions, setCurrentExecution]);
-
   const runningCount = executions.filter((e) => e.status === 'running').length;
 
   return (

@@ -57,6 +57,46 @@
     },
     {
       "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const syllabusSelection = formData['Syllabus'] || '';\n  \n  // Parse syllabus ID from format: 'Name (syllabus-xxxxx)'\n  // Example: 'WPI Web Development (syllabus-1738051200123)'\n  const match = syllabusSelection.match(/\\(([^)]+)\\)/);\n  const syllabusId = match ? match[1] : null;\n  \n  if (!syllabusId) {\n    throw new Error('Invalid syllabus selection. Expected format: Name (syllabus-id)');\n  }\n  \n  return {\n    syllabus_id: syllabusId,\n    syllabus_name: syllabusSelection.split('(')[0].trim(),\n    target_audience: formData['Target Audience'] || 'Mid-Level Professionals'\n  };\n})() }}",
+        "options": {}
+      },
+      "id": "extract-syllabus-id-node",
+      "name": "🔍 Extract Syllabus ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -32400,
+        7264
+      ],
+      "notes": "Parses syllabus ID from the form dropdown selection"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://mcp-standards:3002/syllabuses/{{ $json.syllabus_id }}/activate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "activate-syllabus-node",
+      "name": "🔄 Activate Syllabus",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32350,
+        7264
+      ],
+      "notes": "Activates the selected syllabus in mcp-standards for MCP tools to use",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "url": "http://mcp-standards:3002/syllabus/domains",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
@@ -1139,6 +1179,28 @@
   "pinData": {},
   "connections": {
     "📥 Book Request Form": {
+      "main": [
+        [
+          {
+            "node": "🔍 Extract Syllabus ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Extract Syllabus ID": {
+      "main": [
+        [
+          {
+            "node": "🔄 Activate Syllabus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Activate Syllabus": {
       "main": [
         [
           {
