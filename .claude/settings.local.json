@@ -30,7 +30,8 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nFix workflow merge nodes and chapter data accumulation\n\n- Added two chained Merge nodes to properly wait for MCP results:\n  - 🔀 Merge MCP Results: waits for Chapter Research + Chapter LOs\n  - 🔀 Add Chapter Data: waits for MCP results + Chapter Loop data\n- Fixed chapter data accumulation using workflow static data:\n  - 📑 Prepare Chapters: clears staticData.processed_chapters at start\n  - ✅ Finalize Chapter: stores each processed chapter to static data\n  - 📚 Compile Book: reads from static data instead of loop output\n- This fixes the empty email notification issue \\(scores, questions, etc.\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit:*)",
       "Bash(npm run build:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(docker compose:*)"
     ]
   }
 }

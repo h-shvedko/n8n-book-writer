@@ -292,6 +292,86 @@ export const researchApi = {
 
 // MCP Standards API
 export const standardsApi = {
+  // List all syllabuses
+  async listSyllabuses(): Promise<Array<{
+    id: string;
+    name: string;
+    version: string;
+    certificationBody: string;
+    domainCount: number;
+    lastUpdated: string;
+    createdAt: string;
+  }>> {
+    try {
+      const response = await fetchApi<any>(`${MCP_STANDARDS_BASE}/syllabuses`);
+      return response.syllabuses || [];
+    } catch {
+      return [];
+    }
+  },
+
+  // Create a new syllabus
+  async createSyllabus(name: string, certificationBody: string): Promise<Syllabus | null> {
+    try {
+      const response = await fetchApi<Syllabus>(`${MCP_STANDARDS_BASE}/syllabuses`, {
+        method: 'POST',
+        body: JSON.stringify({ name, certificationBody }),
+      });
+      return response;
+    } catch {
+      return null;
+    }
+  },
+
+  // Duplicate a syllabus
+  async duplicateSyllabus(sourceId: string, newName: string): Promise<Syllabus | null> {
+    try {
+      const response = await fetchApi<Syllabus>(`${MCP_STANDARDS_BASE}/syllabuses/${sourceId}/duplicate`, {
+        method: 'POST',
+        body: JSON.stringify({ name: newName }),
+      });
+      return response;
+    } catch {
+      return null;
+    }
+  },
+
+  // Get a specific syllabus
+  async getSyllabusById(id: string): Promise<Syllabus | null> {
+    try {
+      const response = await fetchApi<Syllabus>(`${MCP_STANDARDS_BASE}/syllabuses/${id}`);
+      return response;
+    } catch {
+      return null;
+    }
+  },
+
+  // Update a syllabus
+  async updateSyllabus(id: string, syllabus: Syllabus): Promise<boolean> {
+    try {
+      await fetchApi(`${MCP_STANDARDS_BASE}/syllabuses/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(syllabus),
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  // Delete a syllabus
+  async deleteSyllabus(id: string): Promise<boolean> {
+    try {
+      await fetchApi(`${MCP_STANDARDS_BASE}/syllabuses/${id}`, {
+        method: 'DELETE',
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  // Legacy: Get current in-memory syllabus
   async getSyllabus(): Promise<Syllabus | null> {
     try {
       const response = await fetchApi<any>(`${MCP_STANDARDS_BASE}/syllabus`);
@@ -301,11 +381,11 @@ export const standardsApi = {
     }
   },
 
-  async updateSyllabus(syllabus: Syllabus): Promise<boolean> {
+  // Activate a syllabus for MCP tools
+  async activateSyllabus(id: string): Promise<boolean> {
     try {
-      await fetchApi(`${MCP_STANDARDS_BASE}/syllabus`, {
+      await fetchApi(`${MCP_STANDARDS_BASE}/syllabuses/${id}/activate`, {
         method: 'POST',
-        body: JSON.stringify(syllabus),
       });
       return true;
     } catch {

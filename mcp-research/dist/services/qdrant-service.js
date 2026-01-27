@@ -171,17 +171,20 @@ class QdrantService {
             with_payload: true,
         });
         // Keyword search (full-text search on 'text' field)
+        const keywordConditions = [
+            {
+                key: 'text',
+                match: {
+                    text: query,
+                },
+            },
+        ];
+        if (filterConditions?.must) {
+            keywordConditions.push(...filterConditions.must);
+        }
         const keywordResults = await this.client.scroll(this.collectionName, {
             filter: {
-                must: [
-                    ...(filterConditions?.must || []),
-                    {
-                        key: 'text',
-                        match: {
-                            text: query,
-                        },
-                    },
-                ],
+                must: keywordConditions,
             },
             limit: limit * 2,
             with_payload: true,
@@ -332,7 +335,6 @@ class QdrantService {
         const info = await this.client.getCollection(this.collectionName);
         return {
             points_count: info.points_count || 0,
-            vectors_count: info.vectors_count || 0,
             indexed_vectors_count: info.indexed_vectors_count || 0,
         };
     }

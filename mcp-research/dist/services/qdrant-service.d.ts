@@ -50,7 +50,6 @@ export declare class QdrantService {
      */
     getCollectionStats(): Promise<{
         points_count: number;
-        vectors_count: number;
         indexed_vectors_count: number;
     }>;
 }

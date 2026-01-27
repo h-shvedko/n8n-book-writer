@@ -85,10 +85,12 @@ services:
       - PORT=3002
       - AUTH_TOKEN=${MCP_AUTH_TOKEN:-}
       - DEFAULT_SYLLABUS_PATH=/app/data/default-syllabus.json
+      - SYLLABUS_DB_PATH=/app/data/syllabuses.db
     ports:
       - "${MCP_STANDARDS_PORT:-3002}:3002"
     volumes:
-      - ./mcp-standards/data:/app/data:ro
+      - mcp_standards_data:/app/data
+      - ./mcp-standards/data/default-syllabus.json:/app/data/default-syllabus.json:ro
     networks:
       - wpi-network
     healthcheck:
@@ -274,3 +276,6 @@ volumes:
   mcp_research_data:
     driver: local
     name: wpi-mcp-research-data
+  mcp_standards_data:
+    driver: local
+    name: wpi-mcp-standards-data

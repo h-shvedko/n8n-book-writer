@@ -15,6 +15,7 @@ import {
   handleGetMasterPrompt,
 } from './tools/handlers';
 import { syllabusService } from './services/syllabus-service';
+import { getSyllabusDb } from './services/syllabus-db';
 
 config();
 
@@ -114,40 +115,157 @@ app.post('/call', authMiddleware, async (req: Request, res: Response) => {
 
 // Syllabus management endpoints (for admin dashboard)
 
-// List all available syllabuses (for form dropdown)
+// List all available syllabuses (summary)
 app.get('/syllabuses', authMiddleware, (_req: Request, res: Response) => {
   try {
-    const syllabus = syllabusService.getSyllabus();
-    if (!syllabus) {
-      res.json({ syllabuses: [] });
-      return;
-    }
-    // Return list of available syllabuses with basic info
-    res.json({
-      syllabuses: [
-        {
-          id: syllabus.id,
-          name: syllabus.name,
-          version: syllabus.version,
-          domain_count: syllabus.domains?.length || 0
-        }
-      ]
-    });
-  } catch {
+    const db = getSyllabusDb();
+    const syllabuses = db.listSyllabuses();
+    res.json({ syllabuses });
+  } catch (error) {
+    console.error('Error listing syllabuses:', error);
     res.status(500).json({ error: 'Failed to list syllabuses' });
   }
 });
 
-// Get full syllabus with domains (for chapter generation)
+// Create a new syllabus
+app.post('/syllabuses', authMiddleware, (req: Request, res: Response) => {
+  try {
+    const { name, certificationBody } = req.body;
+    if (!name) {
+      res.status(400).json({ error: 'Name is required' });
+      return;
+    }
+
+    const db = getSyllabusDb();
+    const syllabus = db.createSyllabus(name, certificationBody || 'Unknown');
+
+    // Also load into in-memory service for MCP tools compatibility
+    syllabusService.loadSyllabus(syllabus);
+
+    res.json(syllabus);
+  } catch (error) {
+    console.error('Error creating syllabus:', error);
+    res.status(500).json({ error: 'Failed to create syllabus' });
+  }
+});
+
+// Duplicate a syllabus
+app.post('/syllabuses/:id/duplicate', authMiddleware, (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name) {
+      res.status(400).json({ error: 'Name for the duplicate is required' });
+      return;
+    }
+
+    const db = getSyllabusDb();
+    const duplicate = db.duplicateSyllabus(id, name);
+
+    if (!duplicate) {
+      res.status(404).json({ error: 'Source syllabus not found' });
+      return;
+    }
+
+    res.json(duplicate);
+  } catch (error) {
+    console.error('Error duplicating syllabus:', error);
+    res.status(500).json({ error: 'Failed to duplicate syllabus' });
+  }
+});
+
+// Get a specific syllabus by ID
+app.get('/syllabuses/:id', authMiddleware, (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const db = getSyllabusDb();
+    const syllabus = db.getSyllabus(id);
+
+    if (!syllabus) {
+      res.status(404).json({ error: 'Syllabus not found' });
+      return;
+    }
+
+    res.json(syllabus);
+  } catch (error) {
+    console.error('Error getting syllabus:', error);
+    res.status(500).json({ error: 'Failed to get syllabus' });
+  }
+});
+
+// Update a syllabus
+app.put('/syllabuses/:id', authMiddleware, (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const syllabus = req.body;
+
+    if (syllabus.id !== id) {
+      res.status(400).json({ error: 'Syllabus ID mismatch' });
+      return;
+    }
+
+    const db = getSyllabusDb();
+    db.saveSyllabus(syllabus);
+
+    // Also update in-memory service if this is the currently loaded syllabus
+    const currentSyllabus = syllabusService.getSyllabus();
+    if (currentSyllabus?.id === id) {
+      syllabusService.loadSyllabus(syllabus);
+    }
+
+    res.json({ success: true, message: 'Syllabus updated successfully' });
+  } catch (error) {
+    console.error('Error updating syllabus:', error);
+    res.status(400).json({
+      error: error instanceof Error ? error.message : 'Invalid syllabus data',
+    });
+  }
+});
+
+// Delete a syllabus
+app.delete('/syllabuses/:id', authMiddleware, (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const db = getSyllabusDb();
+    const deleted = db.deleteSyllabus(id);
+
+    if (!deleted) {
+      res.status(404).json({ error: 'Syllabus not found' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Syllabus deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting syllabus:', error);
+    res.status(500).json({ error: 'Failed to delete syllabus' });
+  }
+});
+
+// Legacy endpoint: Get current in-memory syllabus (for backward compatibility)
 app.get('/syllabus', authMiddleware, (_req: Request, res: Response) => {
   try {
-    const syllabus = syllabusService.getSyllabus();
+    // First try in-memory service
+    let syllabus = syllabusService.getSyllabus();
+
+    // If not in memory, try to get from database
+    if (!syllabus) {
+      const db = getSyllabusDb();
+      const syllabuses = db.listSyllabuses();
+      if (syllabuses.length > 0) {
+        syllabus = db.getSyllabus(syllabuses[0].id);
+        if (syllabus) {
+          syllabusService.loadSyllabus(syllabus);
+        }
+      }
+    }
+
     if (!syllabus) {
       res.status(404).json({ error: 'No syllabus loaded' });
       return;
     }
     res.json(syllabus);
-  } catch {
+  } catch (error) {
+    console.error('Error getting syllabus:', error);
     res.status(500).json({ error: 'Failed to get syllabus' });
   }
 });
@@ -197,18 +315,49 @@ app.get('/syllabus/domains', authMiddleware, (_req: Request, res: Response) => {
       chapters: chapters
     });
   } catch (error) {
+    console.error('Error getting syllabus domains:', error);
     res.status(500).json({ error: 'Failed to get syllabus domains' });
   }
 });
 
+// Legacy endpoint: Load syllabus into memory (for backward compatibility)
 app.post('/syllabus', authMiddleware, (req: Request, res: Response) => {
   try {
-    syllabusService.loadSyllabus(req.body);
+    const syllabus = req.body;
+
+    // Save to database
+    const db = getSyllabusDb();
+    db.saveSyllabus(syllabus);
+
+    // Load into memory
+    syllabusService.loadSyllabus(syllabus);
+
     res.json({ success: true, message: 'Syllabus loaded successfully' });
   } catch (error) {
+    console.error('Error loading syllabus:', error);
     res.status(400).json({
       error: error instanceof Error ? error.message : 'Invalid syllabus data',
     });
+  }
+});
+
+// Load a specific syllabus into memory (for MCP tools)
+app.post('/syllabuses/:id/activate', authMiddleware, (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const db = getSyllabusDb();
+    const syllabus = db.getSyllabus(id);
+
+    if (!syllabus) {
+      res.status(404).json({ error: 'Syllabus not found' });
+      return;
+    }
+
+    syllabusService.loadSyllabus(syllabus);
+    res.json({ success: true, message: 'Syllabus activated for MCP tools' });
+  } catch (error) {
+    console.error('Error activating syllabus:', error);
+    res.status(500).json({ error: 'Failed to activate syllabus' });
   }
 });
 
