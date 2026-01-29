@@ -1053,6 +1053,7 @@
         -25808,
         7168
       ],
+      "disabled": true,
       "webhookId": "21c5af5b-0d32-4ac3-91f8-57dcf1d4805d",
       "credentials": {
         "smtp": {
@@ -1200,7 +1201,10 @@
       ]
     },
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition"
+      },
       "id": "86468d0b-2b08-4670-84ea-f5b3c3b89dae",
       "name": "🔀 Merge Files",
       "type": "n8n-nodes-base.merge",
@@ -1733,7 +1737,7 @@
       "main": [
         [
           {
-            "node": "📧 Send Chapter Email",
+            "node": "📦 Store Chapter",
             "type": "main",
             "index": 0
           }
