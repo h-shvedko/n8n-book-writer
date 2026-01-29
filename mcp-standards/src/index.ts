@@ -320,6 +320,58 @@ app.get('/syllabus/domains', authMiddleware, (_req: Request, res: Response) => {
   }
 });
 
+// Get all syllabus topics (for workflow generation by topic)
+app.get('/syllabus/topics', authMiddleware, (_req: Request, res: Response) => {
+  try {
+    const syllabus = syllabusService.getSyllabus();
+    if (!syllabus) {
+      res.status(404).json({ error: 'No syllabus loaded' });
+      return;
+    }
+
+    // Flatten all topics from all domains
+    const allTopics: Array<{
+      topic_number: number;
+      topic_id: string;
+      title: string;
+      domain_id: string;
+      domain_name: string;
+      learning_objectives: Array<Record<string, unknown>>;
+      subtopics: Array<unknown>;
+    }> = [];
+
+    let topicCounter = 1;
+    for (const domain of syllabus.domains || []) {
+      for (const topic of domain.topics || []) {
+        allTopics.push({
+          topic_number: topicCounter++,
+          topic_id: topic.id,
+          title: topic.title,
+          domain_id: domain.id,
+          domain_name: domain.name,
+          learning_objectives: (topic.learningObjectives || []).map((lo) => ({
+            id: lo.id,
+            description: lo.description,
+            bloomLevel: lo.bloomLevel,
+            keywords: lo.keywords,
+          })),
+          subtopics: topic.subtopics || [],
+        });
+      }
+    }
+
+    res.json({
+      syllabus_id: syllabus.id,
+      syllabus_name: syllabus.name,
+      total_topics: allTopics.length,
+      topics: allTopics,
+    });
+  } catch (error) {
+    console.error('Error getting syllabus topics:', error);
+    res.status(500).json({ error: 'Failed to get syllabus topics' });
+  }
+});
+
 // Legacy endpoint: Load syllabus into memory (for backward compatibility)
 app.post('/syllabus', authMiddleware, (req: Request, res: Response) => {
   try {

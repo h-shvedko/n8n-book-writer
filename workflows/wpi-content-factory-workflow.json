@@ -21,6 +21,21 @@
               "requiredField": true
             },
             {
+              "fieldLabel": "Generation Strategy",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "By Domain"
+                  },
+                  {
+                    "option": "By Topic"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
               "fieldLabel": "Target Audience",
               "fieldType": "dropdown",
               "fieldOptions": {
@@ -58,7 +73,7 @@
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const syllabusSelection = formData['Syllabus'] || '';\n  \n  // Parse syllabus ID from format: 'Name (syllabus-xxxxx)'\n  // Example: 'WPI Web Development (syllabus-1738051200123)'\n  const match = syllabusSelection.match(/\\(([^)]+)\\)/);\n  const syllabusId = match ? match[1] : null;\n  \n  if (!syllabusId) {\n    throw new Error('Invalid syllabus selection. Expected format: Name (syllabus-id)');\n  }\n  \n  return {\n    syllabus_id: syllabusId,\n    syllabus_name: syllabusSelection.split('(')[0].trim(),\n    target_audience: formData['Target Audience'] || 'Mid-Level Professionals'\n  };\n})() }}",
+        "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const syllabusSelection = formData['Syllabus'] || '';\n  \n  // Parse syllabus ID from format: 'Name (syllabus-xxxxx)'\n  // Example: 'WPI Web Development (syllabus-1738051200123)'\n  const match = syllabusSelection.match(/\\(([^)]+)\\)/);\n  const syllabusId = match ? match[1] : null;\n  \n  if (!syllabusId) {\n    throw new Error('Invalid syllabus selection. Expected format: Name (syllabus-id)');\n  }\n  \n  const strategy = formData['Generation Strategy'] || 'By Domain';\n  \n  return {\n    syllabus_id: syllabusId,\n    syllabus_name: syllabusSelection.split('(')[0].trim(),\n    generation_strategy: strategy,\n    target_audience: formData['Target Audience'] || 'Mid-Level Professionals'\n  };\n})() }}",
         "options": {}
       },
       "id": "extract-syllabus-id-node",
@@ -97,6 +112,39 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "route-by-domain",
+              "leftValue": "={{ $('🔍 Extract Syllabus ID').first().json.generation_strategy }}",
+              "rightValue": "By Domain",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "strategy-if-node",
+      "name": "🔀 Route by Strategy",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -32280,
+        7264
+      ]
+    },
+    {
+      "parameters": {
         "url": "http://mcp-standards:3002/syllabus/domains",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
@@ -107,14 +155,42 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -32304,
-        7264
-      ]
+        -32000,
+        7150
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://mcp-standards:3002/syllabus/topics",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "fetch-topics-node",
+      "name": "📑 Fetch Syllabus Topics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32000,
+        7380
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const domains = $json;\n  \n  // Parse syllabus ID from dropdown: 'Name (ID) - X Domains'\n  const syllabusSelection = formData['Syllabus'] || '';\n  const syllabusMatch = syllabusSelection.match(/\\(([^)]+)\\)/);\n  const syllabusId = syllabusMatch ? syllabusMatch[1] : domains.syllabus_id || 'default';\n  \n  const targetAudience = formData['Target Audience'] || 'Mid-Level Professionals';\n  \n  return {\n    book_id: 'book-' + syllabusId + '-' + Date.now(),\n    syllabus_id: syllabusId,\n    syllabus_name: domains.syllabus_name || 'Unknown Syllabus',\n    target_audience: targetAudience,\n    total_chapters: domains.total_chapters || 0,\n    chapters: domains.chapters || [],\n    status: 'initialized',\n    created_at: new Date().toISOString()\n  };\n})() }}",
+        "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const extractedData = $('🔍 Extract Syllabus ID').first().json;\n  const strategy = extractedData.generation_strategy;\n  const data = $json;\n  \n  // Determine if we're using domains or topics\n  const isDomainMode = strategy === 'By Domain';\n  \n  return {\n    book_id: 'book-' + extractedData.syllabus_id + '-' + Date.now(),\n    syllabus_id: extractedData.syllabus_id,\n    syllabus_name: data.syllabus_name || 'Unknown Syllabus',\n    generation_strategy: strategy,\n    target_audience: extractedData.target_audience,\n    total_items: isDomainMode ? (data.total_chapters || 0) : (data.total_topics || 0),\n    items: isDomainMode ? (data.chapters || []) : (data.topics || []),\n    status: 'initialized',\n    created_at: new Date().toISOString()\n  };\n})() }}",
         "options": {}
       },
       "id": "a31f05d0-d339-417c-854a-ad87a946c958",
@@ -240,7 +316,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.3,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: 'Du bist \"The Architect\" - ein erfahrener Didaktik-Experte für technische Fachbücher.\\n\\nDeine Aufgabe:\\n1. Analysiere die Syllabus-Domains (Kapitel sind bereits vordefiniert!)\\n2. Nutze den Kontext aus der Knowledge Base\\n3. Erstelle für jede Domain detaillierte Lernziele und Sections\\n4. Definiere klare Lernziele für jedes Kapitel (ISO 17024 konform)\\n\\nWICHTIG: Die Kapitelstruktur ist bereits vorgegeben durch die Syllabus-Domains!\\nDu sollst NUR die Details ausarbeiten, nicht die Struktur ändern.\\n\\nRegeln:\\n- Jedes Kapitel sollte 10-15 Seiten umfassen\\n- Beginne mit Grundlagen, steigere die Komplexität\\n- Jedes Kapitel endet mit einer praktischen Übung\\n- Berücksichtige die Zielgruppe bei der Tiefe\\n- Lernziele müssen messbar und überprüfbar sein\\n\\nOutput-Format: JSON\\n```json\\n{\\n  \"title\": \"Buchtitel (aus Syllabus-Name)\",\\n  \"subtitle\": \"Untertitel\",\\n  \"iso_alignment\": {\\n    \"syllabus_id\": \"ID\",\\n    \"covered_domains\": [\"D1\", \"D2\"]\\n  },\\n  \"chapters\": [\\n    {\\n      \"number\": 1,\\n      \"domain_id\": \"D1\",\\n      \"title\": \"Titel aus Domain\",\\n      \"learning_goals\": [\"Lernziel 1 (Bloom: K2)\", \"Lernziel 2 (Bloom: K3)\"],\\n      \"syllabus_mapping\": [\"LO-001\", \"LO-002\"],\\n      \"sections\": [\"Section 1\", \"Section 2\"],\\n      \"estimated_pages\": 12,\\n      \"practical_exercise\": \"Beschreibung der Übung\"\\n    }\\n  ]\\n}\\n```'\n    },\n    {\n      role: 'user',\n      content: 'Erstelle das Inhaltsverzeichnis basierend auf den vorgegebenen Syllabus-Domains:\\n\\n**Syllabus:** ' + $json.syllabus_name + ' (ID: ' + $json.syllabus_id + ')\\n**Zielgruppe:** ' + $json.target_audience + '\\n**Anzahl Kapitel (vorgegeben):** ' + $json.total_chapters + '\\n\\n**VORDEFINIERTE KAPITEL (Syllabus-Domains):**\\n' + $json.chapters.map(function(ch) { return 'Kapitel ' + ch.chapter_number + ': ' + ch.title + '\\n  - Domain ID: ' + ch.domain_id + '\\n  - Beschreibung: ' + (ch.description || 'N/A') + '\\n  - Topics: ' + (ch.topics || []).map(function(t) { return t.title; }).join(', ') + '\\n  - Learning Objectives: ' + (ch.learning_objectives || []).length + ' Stück'; }).join('\\n\\n') + '\\n\\n' + ($json.has_syllabus ? '**Syllabus-Kontext:**\\n' + JSON.stringify($json.syllabus_context, null, 2) : '') + '\\n\\n' + ($json.has_research ? '**Relevanter Kontext aus Knowledge Base:**\\n' + $json.research_context.slice(0, 5).map(function(r) { return '- ' + (r.text || '').substring(0, 200) + '...'; }).join('\\n') : '') + '\\n\\nWICHTIG: Behalte die Domain-Struktur bei! Füge nur Lernziele, Sections und Übungen hinzu.\\n\\nAntworte NUR mit dem JSON, keine Erklärungen.'\n    }\n  ]\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.3,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: 'Du bist \"The Architect\" - ein erfahrener Didaktik-Experte für technische Fachbücher.\\n\\nDeine Aufgabe:\\n1. Analysiere die Syllabus-Struktur (Kapitel/Topics sind bereits vordefiniert!)\\n2. Nutze den Kontext aus der Knowledge Base\\n3. Erstelle detaillierte Lernziele und Sections\\n4. Definiere klare Lernziele für jedes Kapitel (ISO 17024 konform)\\n\\nWICHTIG: Die Kapitelstruktur ist bereits vorgegeben!\\nDu sollst NUR die Details ausarbeiten, nicht die Struktur ändern.\\n\\nRegeln:\\n- Jedes Kapitel sollte 10-15 Seiten umfassen\\n- Beginne mit Grundlagen, steigere die Komplexität\\n- Jedes Kapitel endet mit einer praktischen Übung\\n- Berücksichtige die Zielgruppe bei der Tiefe\\n- Lernziele müssen messbar und überprüfbar sein\\n\\nOutput-Format: JSON\\n```json\\n{\\n  \"title\": \"Buchtitel (aus Syllabus-Name)\",\\n  \"subtitle\": \"Untertitel\",\\n  \"iso_alignment\": {\\n    \"syllabus_id\": \"ID\",\\n    \"covered_domains\": [\"D1\", \"D2\"]\\n  },\\n  \"chapters\": [\\n    {\\n      \"number\": 1,\\n      \"domain_id\": \"D1\",\\n      \"title\": \"Titel\",\\n      \"learning_goals\": [\"Lernziel 1 (Bloom: K2)\", \"Lernziel 2 (Bloom: K3)\"],\\n      \"syllabus_mapping\": [\"LO-001\", \"LO-002\"],\\n      \"sections\": [\"Section 1\", \"Section 2\"],\\n      \"estimated_pages\": 12,\\n      \"practical_exercise\": \"Beschreibung der Übung\"\\n    }\\n  ]\\n}\\n```'\n    },\n    {\n      role: 'user',\n      content: (function() {\n        const items = $json.items || $json.chapters || [];\n        const totalItems = $json.total_items || $json.total_chapters || items.length;\n        const strategy = $json.generation_strategy || 'By Domain';\n        \n        let itemsDescription = items.map(function(item, index) {\n          if (item.chapter_number) {\n            return 'Kapitel ' + item.chapter_number + ': ' + item.title + '\\n  - Domain ID: ' + item.domain_id + '\\n  - Beschreibung: ' + (item.description || 'N/A') + '\\n  - Topics: ' + (item.topics || []).map(function(t) { return t.title; }).join(', ') + '\\n  - Learning Objectives: ' + (item.learning_objectives || []).length + ' Stück';\n          } else {\n            return 'Topic ' + item.topic_number + ': ' + item.title + '\\n  - Topic ID: ' + item.topic_id + '\\n  - Domain: ' + item.domain_name + ' (' + item.domain_id + ')\\n  - Learning Objectives: ' + (item.learning_objectives || []).length + ' Stück' + (item.subtopics && item.subtopics.length > 0 ? '\\n  - Subtopics: ' + item.subtopics.length + ' Stück' : '');\n          }\n        }).join('\\n\\n');\n        \n        return 'Erstelle das Inhaltsverzeichnis basierend auf der vorgegebenen Syllabus-Struktur:\\n\\n**Syllabus:** ' + $json.syllabus_name + ' (ID: ' + $json.syllabus_id + ')\\n**Zielgruppe:** ' + $json.target_audience + '\\n**Generierungsstrategie:** ' + strategy + '\\n**Anzahl Items:** ' + totalItems + '\\n\\n**VORDEFINIERTE STRUKTUR:**\\n' + itemsDescription + '\\n\\n' + ($json.has_syllabus ? '**Syllabus-Kontext:**\\n' + JSON.stringify($json.syllabus_context, null, 2) : '') + '\\n\\n' + ($json.has_research ? '**Relevanter Kontext aus Knowledge Base:**\\n' + $json.research_context.slice(0, 5).map(function(r) { return '- ' + (r.text || '').substring(0, 200) + '...'; }).join('\\n') : '') + '\\n\\nWICHTIG: Behalte die Struktur bei! Füge nur Lernziele, Sections und Übungen hinzu.\\n\\nAntworte NUR mit dem JSON, keine Erklärungen.';\n      })()\n    }\n  ]\n}) }}",
         "options": {}
       },
       "id": "23d3b10e-d8ae-43bd-82b2-88c0c3149749",
@@ -260,7 +336,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse the AI response and extract JSON\nconst response = $input.first().json.choices[0].message.content;\n\n// Try to extract JSON from the response\nlet blueprint;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  blueprint = JSON.parse(jsonStr.trim());\n} catch (e) {\n  throw new Error('Failed to parse blueprint JSON: ' + e.message);\n}\n\n// Get the previous state\nconst prevState = $('🔀 Merge MCP Context').first().json;\n\n// Merge blueprint chapters with original domain data\nconst mergedChapters = blueprint.chapters.map((bpCh, index) => {\n  const originalCh = prevState.chapters[index] || {};\n  return {\n    ...bpCh,\n    number: bpCh.number || index + 1,\n    domain_id: originalCh.domain_id || bpCh.domain_id,\n    original_learning_objectives: originalCh.learning_objectives || [],\n    topics: originalCh.topics || bpCh.topics || [],\n    weight: originalCh.weight,\n    prerequisites: originalCh.prerequisites || []\n  };\n});\n\nblueprint.chapters = mergedChapters;\n\nreturn {\n  json: {\n    ...prevState,\n    blueprint: blueprint,\n    status: 'blueprint_ready'\n  }\n};"
+        "jsCode": "// Parse the AI response and extract JSON\nconst response = $input.first().json.choices[0].message.content;\n\n// Try to extract JSON from the response\nlet blueprint;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  blueprint = JSON.parse(jsonStr.trim());\n} catch (e) {\n  throw new Error('Failed to parse blueprint JSON: ' + e.message);\n}\n\n// Get the previous state\nconst prevState = $('🔀 Merge MCP Context').first().json;\n\n// Get original items (could be chapters or topics)\nconst originalItems = prevState.items || prevState.chapters || [];\n\n// Merge blueprint chapters with original data\nconst mergedChapters = blueprint.chapters.map((bpCh, index) => {\n  const originalItem = originalItems[index] || {};\n  return {\n    ...bpCh,\n    number: bpCh.number || index + 1,\n    domain_id: originalItem.domain_id || bpCh.domain_id,\n    topic_id: originalItem.topic_id,\n    topic_number: originalItem.topic_number,\n    original_learning_objectives: originalItem.learning_objectives || [],\n    topics: originalItem.topics || bpCh.topics || [],\n    subtopics: originalItem.subtopics || [],\n    weight: originalItem.weight,\n    prerequisites: originalItem.prerequisites || []\n  };\n});\n\nblueprint.chapters = mergedChapters;\n\nreturn {\n  json: {\n    ...prevState,\n    blueprint: blueprint,\n    status: 'blueprint_ready'\n  }\n};"
       },
       "id": "2cc121fb-33d6-4537-b865-6f07b578e294",
       "name": "📋 Parse Blueprint",
@@ -1204,7 +1280,25 @@
       "main": [
         [
           {
+            "node": "🔀 Route by Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Route by Strategy": {
+      "main": [
+        [
+          {
             "node": "📚 Fetch Syllabus Domains",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📑 Fetch Syllabus Topics",
             "type": "main",
             "index": 0
           }
@@ -1212,6 +1306,17 @@
       ]
     },
     "📚 Fetch Syllabus Domains": {
+      "main": [
+        [
+          {
+            "node": "🔧 Initialize BookState",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📑 Fetch Syllabus Topics": {
       "main": [
         [
           {

@@ -34,16 +34,18 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
 export const n8nApi = {
   async getExecutions(): Promise<WorkflowExecution[]> {
     try {
-      const response = await fetchApi<{ data: unknown[] }>(`${N8N_API_BASE}/executions?includeData=true&limit=10`);
+      // Don't include data for list view - responses can be 30MB+ for workflows with large outputs
+      const response = await fetchApi<{ data: unknown[] }>(`${N8N_API_BASE}/executions?limit=20`);
       return (response.data || []).map(mapN8nExecution);
     } catch {
-      // Return mock data if n8n is not available
+      // Return empty array if n8n is not available
       return [];
     }
   },
 
   async getExecution(id: string): Promise<WorkflowExecution | null> {
     try {
+      // Only include full data when viewing a specific execution
       const response = await fetchApi<unknown>(`${N8N_API_BASE}/executions/${id}?includeData=true`);
       return mapN8nExecution(response);
     } catch {
@@ -51,16 +53,40 @@ export const n8nApi = {
     }
   },
 
-  async getActiveWorkflows(): Promise<{ id: string; name: string; active: boolean }[]> {
+  async getActiveWorkflows(): Promise<{ id: string; name: string; active: boolean; webhookId?: string }[]> {
     try {
       const response = await fetchApi<{ data: unknown[] }>(`${N8N_API_BASE}/workflows`);
-      return (response.data || []).map((w: any) => ({
-        id: w.id,
-        name: w.name,
-        active: w.active,
-      }));
+      return (response.data || []).map((w: any) => {
+        // Try to find formTrigger node and extract webhookId
+        let webhookId: string | undefined;
+        if (w.nodes && Array.isArray(w.nodes)) {
+          const formTrigger = w.nodes.find((node: any) => node.type === 'n8n-nodes-base.formTrigger');
+          if (formTrigger?.webhookId) {
+            webhookId = formTrigger.webhookId;
+          }
+        }
+
+        return {
+          id: w.id,
+          name: w.name,
+          active: w.active,
+          webhookId,
+        };
+      });
     } catch {
       return [];
+    }
+  },
+
+  async activateWorkflow(workflowId: string, activate: boolean): Promise<boolean> {
+    try {
+      await fetchApi(`${N8N_API_BASE}/workflows/${workflowId}/activate`, {
+        method: 'PATCH',
+        body: JSON.stringify({ active: activate }),
+      });
+      return true;
+    } catch {
+      return false;
     }
   },
 };
@@ -409,6 +435,7 @@ export const standardsApi = {
 function mapN8nExecution(data: any): WorkflowExecution {
   const nodes: WorkflowExecution['nodes'] = [];
 
+  // Only parse node data if available (includeData=true)
   if (data.data?.resultData?.runData) {
     for (const [nodeName, nodeData] of Object.entries(data.data.resultData.runData)) {
       const nodeInfo = (nodeData as any[])[0];
@@ -424,11 +451,24 @@ function mapN8nExecution(data: any): WorkflowExecution {
     }
   }
 
+  // Determine status from execution metadata
+  // n8n sets finished:false for executions that stopped with errors, so check stoppedAt too
+  let status: WorkflowExecution['status'] = 'running';
+
+  if (data.stoppedAt) {
+    // If it has a stoppedAt timestamp, it's not running anymore
+    status = data.status === 'success' ? 'success' : 'error';
+  } else if (data.finished) {
+    // Fallback: if marked finished but no stoppedAt
+    status = data.status === 'success' ? 'success' : 'error';
+  }
+  // Otherwise it's still running (no stoppedAt and not finished)
+
   return {
     id: data.id,
     workflowId: data.workflowId,
-    workflowName: data.workflowData?.name || 'Unknown Workflow',
-    status: data.finished ? (data.stoppedAt ? 'success' : 'error') : 'running',
+    workflowName: data.workflowData?.name || `Workflow ${data.workflowId}`,
+    status,
     startedAt: data.startedAt,
     finishedAt: data.stoppedAt,
     nodes,

@@ -153,9 +153,28 @@ export function WorkflowMonitor() {
   const { executions, setExecutions, currentExecution, setCurrentExecution } = useAppStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'running' | 'success' | 'error'>('all');
+  const [showWorkflowStarter, setShowWorkflowStarter] = useState(false);
+  const [activeWorkflows, setActiveWorkflows] = useState<Array<{ id: string; name: string; active: boolean; webhookId?: string }>>([]);
+  const [reactivatingWorkflow, setReactivatingWorkflow] = useState<string | null>(null);
 
   // Use ref to track current execution ID to avoid re-creating fetchExecutions on selection change
   const currentExecutionIdRef = useRef<string | null>(null);
+
+  // Reactivate workflow to register webhooks
+  const reactivateWorkflow = async (workflowId: string) => {
+    setReactivatingWorkflow(workflowId);
+    try {
+      // Deactivate then activate to refresh webhooks
+      await n8nApi.activateWorkflow(workflowId, false);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await n8nApi.activateWorkflow(workflowId, true);
+      await fetchActiveWorkflows();
+    } catch (error) {
+      console.error('Failed to reactivate workflow:', error);
+    }
+    setReactivatingWorkflow(null);
+  };
 
   // Keep ref in sync with current execution
   useEffect(() => {
@@ -166,18 +185,34 @@ export function WorkflowMonitor() {
   const fetchExecutions = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const data = await n8nApi.getExecutions();
-      setExecutions(data);
+      // Fetch both executions and workflows in parallel
+      const [executionsData, workflowsData] = await Promise.all([
+        n8nApi.getExecutions(),
+        n8nApi.getActiveWorkflows().catch(() => []), // Fallback to empty if fails
+      ]);
+
+      // Create workflow name map
+      const workflowNames = new Map(
+        workflowsData.map((w) => [w.id, w.name])
+      );
+
+      // Enrich executions with workflow names
+      const enrichedData = executionsData.map((exec) => ({
+        ...exec,
+        workflowName: workflowNames.get(exec.workflowId) || exec.workflowName || `Workflow ${exec.workflowId}`,
+      }));
+
+      setExecutions(enrichedData);
 
       // Update current execution if it exists (use ref to avoid dependency)
       const currentId = currentExecutionIdRef.current;
       if (currentId) {
-        const updated = data.find((e) => e.id === currentId);
+        const updated = enrichedData.find((e) => e.id === currentId);
         if (updated) {
           setCurrentExecution(updated);
         }
-      } else if (data.length > 0) {
-        setCurrentExecution(data[0]);
+      } else if (enrichedData.length > 0) {
+        setCurrentExecution(enrichedData[0]);
       }
     } catch (error) {
       console.error('Failed to fetch executions:', error);
@@ -185,17 +220,37 @@ export function WorkflowMonitor() {
     setIsRefreshing(false);
   }, [setExecutions, setCurrentExecution]);
 
+  // Fetch active workflows for starter
+  const fetchActiveWorkflows = useCallback(async () => {
+    try {
+      const workflows = await n8nApi.getActiveWorkflows();
+      // Filter only workflows with form triggers (webhookId present)
+      const withForms = workflows.filter((w) => w.webhookId);
+      setActiveWorkflows(withForms);
+    } catch (error) {
+      console.error('Failed to fetch workflows:', error);
+    }
+  }, []);
+
   // Auto-refresh effect
   useEffect(() => {
     fetchExecutions();
+    fetchActiveWorkflows();
 
     if (autoRefresh) {
       const interval = setInterval(fetchExecutions, 3000);
       return () => clearInterval(interval);
     }
-  }, [autoRefresh, fetchExecutions]);
+  }, [autoRefresh, fetchExecutions, fetchActiveWorkflows]);
 
   const runningCount = executions.filter((e) => e.status === 'running').length;
+  const successCount = executions.filter((e) => e.status === 'success').length;
+  const errorCount = executions.filter((e) => e.status === 'error').length;
+
+  // Filter executions based on status filter
+  const filteredExecutions = statusFilter === 'all'
+    ? executions
+    : executions.filter((e) => e.status === statusFilter);
 
   return (
     <div className="space-y-6">
@@ -230,9 +285,16 @@ export function WorkflowMonitor() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats - Clickable Filters */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <button
+          onClick={() => setStatusFilter('running')}
+          className={`text-left bg-white dark:bg-gray-800 rounded-xl p-4 border-2 transition-all hover:shadow-md ${
+            statusFilter === 'running'
+              ? 'border-blue-500 dark:border-blue-400 ring-2 ring-blue-200 dark:ring-blue-800'
+              : 'border-gray-200 dark:border-gray-700'
+          }`}
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
               <Play className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -242,57 +304,86 @@ export function WorkflowMonitor() {
               <p className="text-sm text-gray-500 dark:text-gray-400">Running</p>
             </div>
           </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        </button>
+        <button
+          onClick={() => setStatusFilter('success')}
+          className={`text-left bg-white dark:bg-gray-800 rounded-xl p-4 border-2 transition-all hover:shadow-md ${
+            statusFilter === 'success'
+              ? 'border-green-500 dark:border-green-400 ring-2 ring-green-200 dark:ring-green-800'
+              : 'border-gray-200 dark:border-gray-700'
+          }`}
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center">
               <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {executions.filter((e) => e.status === 'success').length}
-              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{successCount}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
             </div>
           </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        </button>
+        <button
+          onClick={() => setStatusFilter('error')}
+          className={`text-left bg-white dark:bg-gray-800 rounded-xl p-4 border-2 transition-all hover:shadow-md ${
+            statusFilter === 'error'
+              ? 'border-red-500 dark:border-red-400 ring-2 ring-red-200 dark:ring-red-800'
+              : 'border-gray-200 dark:border-gray-700'
+          }`}
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-100 dark:bg-red-900/50 rounded-lg flex items-center justify-center">
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {executions.filter((e) => e.status === 'error').length}
-              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{errorCount}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">Failed</p>
             </div>
           </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        </button>
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`text-left bg-white dark:bg-gray-800 rounded-xl p-4 border-2 transition-all hover:shadow-md ${
+            statusFilter === 'all'
+              ? 'border-primary-500 dark:border-primary-400 ring-2 ring-primary-200 dark:ring-primary-800'
+              : 'border-gray-200 dark:border-gray-700'
+          }`}
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
               <Activity className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {executions.length}
-              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{executions.length}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total</p>
             </div>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Main Content */}
       <div className="grid grid-cols-3 gap-6">
         {/* Execution List */}
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Recent Executions
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Recent Executions
+              {statusFilter !== 'all' && (
+                <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                  ({statusFilter})
+                </span>
+              )}
+            </h2>
+            <button
+              onClick={() => setShowWorkflowStarter(true)}
+              className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Start Workflow
+            </button>
+          </div>
           <div className="space-y-2 max-h-[600px] overflow-y-auto">
-            {executions.map((execution) => (
+            {filteredExecutions.map((execution) => (
               <ExecutionItem
                 key={execution.id}
                 execution={execution}
@@ -300,10 +391,10 @@ export function WorkflowMonitor() {
                 onClick={() => setCurrentExecution(execution)}
               />
             ))}
-            {executions.length === 0 && (
+            {filteredExecutions.length === 0 && (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No executions found</p>
+                <p>No {statusFilter !== 'all' ? statusFilter : ''} executions found</p>
               </div>
             )}
           </div>
@@ -382,6 +473,118 @@ export function WorkflowMonitor() {
           )}
         </div>
       </div>
+
+      {/* Workflow Starter Modal */}
+      {showWorkflowStarter && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Start Workflow</h2>
+              <button
+                onClick={() => setShowWorkflowStarter(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <span className="text-2xl">&times;</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {activeWorkflows.length === 0 ? (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p>No active workflows with form triggers found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Select a workflow to start. The form will open in n8n.
+                  </p>
+                  {activeWorkflows.map((workflow) => (
+                    <div
+                      key={workflow.id}
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                            {workflow.name}
+                          </h3>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">ID: {workflow.id}</p>
+                          {workflow.webhookId && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono">
+                              Form: /form/{workflow.webhookId}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      {workflow.webhookId ? (
+                        <div className="space-y-3">
+                          <div className="flex gap-2">
+                            <a
+                              href={`http://localhost:5678/form/${workflow.webhookId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Play className="w-4 h-4" />
+                              Open Form
+                            </a>
+                            <a
+                              href={`http://localhost:5678/workflow/${workflow.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white text-sm rounded-lg transition-colors"
+                            >
+                              Edit Workflow
+                            </a>
+                          </div>
+                          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                            <p className="text-xs text-yellow-800 dark:text-yellow-200 mb-2">
+                              <strong>Form not loading?</strong> The workflow may need to be reactivated to register the webhook.
+                            </p>
+                            <button
+                              onClick={() => reactivateWorkflow(workflow.id)}
+                              disabled={reactivatingWorkflow === workflow.id}
+                              className="w-full px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-400 text-white text-xs rounded transition-colors flex items-center justify-center gap-2"
+                            >
+                              {reactivatingWorkflow === workflow.id ? (
+                                <>
+                                  <RefreshCw className="w-3 h-3 animate-spin" />
+                                  Reactivating...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="w-3 h-3" />
+                                  Reactivate Workflow
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
+                          This workflow doesn't have a form trigger configured.
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowWorkflowStarter(false)}
+                className="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
