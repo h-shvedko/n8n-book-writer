@@ -34,8 +34,9 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
 export const n8nApi = {
   async getExecutions(): Promise<WorkflowExecution[]> {
     try {
-      // Don't include data for list view - responses can be 30MB+ for workflows with large outputs
-      const response = await fetchApi<{ data: unknown[] }>(`${N8N_API_BASE}/executions?limit=20`);
+      // Include basic execution data to show node progress (includeData=true)
+      // Note: This may return larger responses for workflows with big outputs
+      const response = await fetchApi<{ data: unknown[] }>(`${N8N_API_BASE}/executions?limit=20&includeData=true`);
       return (response.data || []).map(mapN8nExecution);
     } catch {
       // Return empty array if n8n is not available
