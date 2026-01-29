@@ -92,7 +92,12 @@
         "url": "=http://mcp-standards:3002/syllabuses/{{ $json.syllabus_id }}/activate",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "activate-syllabus-node",
       "name": "🔄 Activate Syllabus",
@@ -148,7 +153,12 @@
         "url": "http://mcp-standards:3002/syllabus/domains",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "361dec5d-c4d2-491f-b6e9-902a2cdb5bbe",
       "name": "📚 Fetch Syllabus Domains",
@@ -170,7 +180,12 @@
         "url": "http://mcp-standards:3002/syllabus/topics",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "fetch-topics-node",
       "name": "📑 Fetch Syllabus Topics",
@@ -225,6 +240,10 @@
             "response": {
               "fullResponse": true
             }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
           }
         }
       },
@@ -267,6 +286,10 @@
             "response": {
               "fullResponse": true
             }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
           }
         }
       },
@@ -317,7 +340,12 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.3,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: 'Du bist \"The Architect\" - ein erfahrener Didaktik-Experte für technische Fachbücher.\\n\\nDeine Aufgabe:\\n1. Analysiere die Syllabus-Struktur (Kapitel/Topics sind bereits vordefiniert!)\\n2. Nutze den Kontext aus der Knowledge Base\\n3. Erstelle detaillierte Lernziele und Sections\\n4. Definiere klare Lernziele für jedes Kapitel (ISO 17024 konform)\\n\\nWICHTIG: Die Kapitelstruktur ist bereits vorgegeben!\\nDu sollst NUR die Details ausarbeiten, nicht die Struktur ändern.\\n\\nRegeln:\\n- Jedes Kapitel sollte 10-15 Seiten umfassen\\n- Beginne mit Grundlagen, steigere die Komplexität\\n- Jedes Kapitel endet mit einer praktischen Übung\\n- Berücksichtige die Zielgruppe bei der Tiefe\\n- Lernziele müssen messbar und überprüfbar sein\\n\\nOutput-Format: JSON\\n```json\\n{\\n  \"title\": \"Buchtitel (aus Syllabus-Name)\",\\n  \"subtitle\": \"Untertitel\",\\n  \"iso_alignment\": {\\n    \"syllabus_id\": \"ID\",\\n    \"covered_domains\": [\"D1\", \"D2\"]\\n  },\\n  \"chapters\": [\\n    {\\n      \"number\": 1,\\n      \"domain_id\": \"D1\",\\n      \"title\": \"Titel\",\\n      \"learning_goals\": [\"Lernziel 1 (Bloom: K2)\", \"Lernziel 2 (Bloom: K3)\"],\\n      \"syllabus_mapping\": [\"LO-001\", \"LO-002\"],\\n      \"sections\": [\"Section 1\", \"Section 2\"],\\n      \"estimated_pages\": 12,\\n      \"practical_exercise\": \"Beschreibung der Übung\"\\n    }\\n  ]\\n}\\n```'\n    },\n    {\n      role: 'user',\n      content: (function() {\n        const items = $json.items || $json.chapters || [];\n        const totalItems = $json.total_items || $json.total_chapters || items.length;\n        const strategy = $json.generation_strategy || 'By Domain';\n        \n        let itemsDescription = items.map(function(item, index) {\n          if (item.chapter_number) {\n            return 'Kapitel ' + item.chapter_number + ': ' + item.title + '\\n  - Domain ID: ' + item.domain_id + '\\n  - Beschreibung: ' + (item.description || 'N/A') + '\\n  - Topics: ' + (item.topics || []).map(function(t) { return t.title; }).join(', ') + '\\n  - Learning Objectives: ' + (item.learning_objectives || []).length + ' Stück';\n          } else {\n            return 'Topic ' + item.topic_number + ': ' + item.title + '\\n  - Topic ID: ' + item.topic_id + '\\n  - Domain: ' + item.domain_name + ' (' + item.domain_id + ')\\n  - Learning Objectives: ' + (item.learning_objectives || []).length + ' Stück' + (item.subtopics && item.subtopics.length > 0 ? '\\n  - Subtopics: ' + item.subtopics.length + ' Stück' : '');\n          }\n        }).join('\\n\\n');\n        \n        return 'Erstelle das Inhaltsverzeichnis basierend auf der vorgegebenen Syllabus-Struktur:\\n\\n**Syllabus:** ' + $json.syllabus_name + ' (ID: ' + $json.syllabus_id + ')\\n**Zielgruppe:** ' + $json.target_audience + '\\n**Generierungsstrategie:** ' + strategy + '\\n**Anzahl Items:** ' + totalItems + '\\n\\n**VORDEFINIERTE STRUKTUR:**\\n' + itemsDescription + '\\n\\n' + ($json.has_syllabus ? '**Syllabus-Kontext:**\\n' + JSON.stringify($json.syllabus_context, null, 2) : '') + '\\n\\n' + ($json.has_research ? '**Relevanter Kontext aus Knowledge Base:**\\n' + $json.research_context.slice(0, 5).map(function(r) { return '- ' + (r.text || '').substring(0, 200) + '...'; }).join('\\n') : '') + '\\n\\nWICHTIG: Behalte die Struktur bei! Füge nur Lernziele, Sections und Übungen hinzu.\\n\\nAntworte NUR mit dem JSON, keine Erklärungen.';\n      })()\n    }\n  ]\n}) }}",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "23d3b10e-d8ae-43bd-82b2-88c0c3149749",
       "name": "🏗️ Architect Agent",
@@ -353,7 +381,12 @@
         "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Initialize BookState').first().json.book_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "4ab214c1-483e-46df-ad7c-31b42c7cddd9",
       "name": "🗑️ Clear Chapter Accumulator",
@@ -421,6 +454,10 @@
             "response": {
               "fullResponse": true
             }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
           }
         }
       },
@@ -463,6 +500,10 @@
             "response": {
               "fullResponse": true
             }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
           }
         }
       },
@@ -535,7 +576,12 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.5,\n  max_tokens: 8000,\n  messages: [\n    {\n      role: 'system',\n      content: '# SYSTEM PROMPT: WPI STUDY GUIDE CHAPTER GENERATOR (v4.4 - MARKDOWN OUTPUT)\\n\\n## 1. ROLE & OBJECTIVE\\n\\nYou are the **\"WPI Technical Architect\"**, an expert educational content creator for high-level IT certifications (ISO 17024 standard).\\n\\nYour task is to generate a **Study Guide Chapter** in German using **MARKDOWN FORMAT** (NOT HTML!).\\n\\n### TARGET AUDIENCE PROFILE (The \"WPI Candidate\")\\n- **Persona:** Career-focused professionals (EQF Level 5/6). Time-constrained and highly motivated.\\n- **Goal:** Passing a rigorous exam and solving real-world architectural problems.\\n- **Mindset:** They hate \"fluff\" and marketing buzzwords. They value precision, density, and \"mechanic-first\" explanations.\\n\\n**CRITICAL:** Prioritize **DEPTH** over breadth. This is a study guide for professionals, not a blog post.\\n\\n## 2. STRICT EDITORIAL RULES (Editorial Guide V3.0)\\n\\n### A. The \"Deep Dive\" Mandate & Workload Calculation\\n- **Target Length:** Generate **3,000 to 3,500 words** of core content\\n- **Workload Calculation:** 40 Words = 1 Minute, round up to next 10 minutes\\n\\n### B. The \"Anti-Circular\" Definition Rule\\n- FORBIDDEN: Defining complex terms using other complex terms\\n- REQUIRED: Explain using simple analogies first\\n\\n### C. Tone & Style\\n- **Voice:** \"Professional-Instructive\". Neutral, factual.\\n- **PROHIBITED:** \"Du\", \"Sie\", \"Wir\" (Personal address). Use Passive or Imperative.\\n- **Acronyms:** First-Mention Rule (Write out fully on first use)\\n\\n### D. Bloom Level Interpretation (Apply Strictly)\\n- **(K1) Remember:** Define terms. Simple Recall.\\n- **(K2) Understand:** Explain concepts. Zero-to-Hero.\\n- **(K3) Apply:** Use scenarios. Show usage.\\n- **(K4) Analyze:** Diagnose errors. Debugging.\\n- **(K5) Evaluate:** Strategic comparison (Pros/Cons).\\n- **(K6) Create:** Design architectures. Coding.\\n\\n## 3. MARKDOWN OUTPUT STRUCTURE\\n\\n**IMPORTANT: Output MARKDOWN, NOT HTML!**\\n\\n```markdown\\n# TEIL [PART]: [TITLE]\\n\\n## Kapitel [NUMBER]: [CHAPTER_TITLE]\\n\\n**⏱️ Workload:** ca. [MINUTES] Minuten\\n\\n*Syllabus-ID: [DOMAIN_ID]*\\n\\n---\\n\\n### Lernziele\\n\\n- LO-1: [Learning Objective 1]\\n- LO-2: [Learning Objective 2]\\n\\n---\\n\\n### Das Szenario\\n\\n> [Realistic business problem / technical failure as blockquote]\\n> [Build a \"Cliffhanger\" - do not solve yet]\\n\\n---\\n\\n### [Topic 1 Title]\\n\\n**📖 Definition: [Term]**\\n\\n[Explanation...]\\n\\n#### [Subtopic]\\n\\n[Content with code blocks using triple backticks]\\n\\n```javascript\\n// Code example with language tag\\nconst example = \"code\";\\n```\\n\\n> **💡 Best Practice:** [Industry standard tip]\\n\\n> **⚠️ Pitfall:** [Common mistake with consequences]\\n\\n> **🚀 Pro-Tip:** [Advanced efficiency hack]\\n\\n---\\n\\n### Fallstudie: Lösung\\n\\n[Explicitly resolve the scenario from above]\\n\\n---\\n\\n### Key Takeaways\\n\\n1. [Takeaway 1]\\n2. [Takeaway 2]\\n3. [Takeaway 3]\\n\\n---\\n\\n### Wissenscheck\\n\\n**Frage 1:** [Question text]\\n\\n> **Antwort:** [Answer]\\n\\n**Frage 2:** [Question text]\\n\\n> **Antwort:** [Answer]\\n\\n[Continue for 5-6 questions]\\n\\n---\\n\\n### Transfer-Übung\\n\\n[Practical exercise or code challenge]\\n```\\n\\n## 4. CODE-HANDLING\\n\\nWhen code examples are needed, insert a placeholder:\\n<<CODE_REQUEST: [Description of what the code should do]>>\\n\\nThe Coder Agent will replace these with validated ES6+ code.\\n\\n**GENERATE CHAPTER IN MARKDOWN NOW.**'\n    },\n    {\n      role: 'user',\n      content: '## INPUT DATA FOR CHAPTER GENERATION\\n\\n**CURRENT CHAPTER:** ' + $json.current_chapter.number + ' of ' + $json.blueprint.chapters.length + '\\n**DOMAIN ID:** ' + ($json.current_chapter.domain_id || $json.current_chapter.topic_id || 'Unknown') + '\\n**CHAPTER TITLE:** ' + $json.current_chapter.title + '\\n\\n### LEARNING GOALS (from Architect):\\n' + ($json.current_chapter.learning_goals || []).map(function(g, i) { return '- LO-' + (i+1) + ': ' + g; }).join('\\n') + '\\n\\n**Sections to cover:**\\n' + ($json.current_chapter.sections || []).map(function(s) { return '- ' + s; }).join('\\n') + '\\n\\n' + ($json.syllabus_learning_objectives.length > 0 ? '### ISO 17024 SYLLABUS LEARNING OBJECTIVES:\\n' + $json.syllabus_learning_objectives.slice(0, 10).map(function(lo) { return '- ' + (lo.id || lo.content?.id || '') + ': ' + (lo.description || lo.content?.description || JSON.stringify(lo).substring(0, 100)); }).join('\\n') : '') + '\\n\\n' + ($json.chapter_research.length > 0 ? '### RAG_CONTENT (Internal Knowledge Base):\\n' + $json.chapter_research.slice(0, 5).map(function(r) { return '---\\n' + (r.text || '').substring(0, 500) + '...'; }).join('\\n') : '') + '\\n\\n### TARGET AUDIENCE: ' + $json.target_audience + '\\n\\n### PRACTICAL EXERCISE: ' + ($json.current_chapter.practical_exercise || 'Create a relevant hands-on exercise') + '\\n\\n---\\n\\n**EXECUTION INSTRUCTIONS:**\\n1. Generate 3,000-3,500 words of content IN MARKDOWN FORMAT\\n2. Calculate workload: words/40, round to next 10 minutes\\n3. Use proper Markdown syntax (headers, code blocks, blockquotes)\\n4. Follow Zero-to-Hero flow for each LO\\n5. Insert <<CODE_REQUEST: ...>> for code examples\\n6. Include all mandatory sections (Scenario, Content, Case Study, Takeaways, Quiz)\\n\\n**GENERATE THE CHAPTER IN MARKDOWN NOW.**'\n    }\n  ]\n}) }}",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "99486c84-5255-4c5b-8cd7-367182298025",
       "name": "✍️ WPI Technical Architect",
@@ -615,7 +661,12 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.2,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent,\" a Senior Full-Stack Engineer and technical author. Your goal is to generate high-quality, production-ready code examples for the WPI Syllabus Guide.\\n\\n## Core Responsibilities\\n1. **Follow the Tangibility Mandate:** For every technical topic, you MUST provide a complete, syntaktisch correct code block.\\n2. **Technical Standards:** Use modern syntax (ES6+ for JavaScript, HTML5, CSS3) and handle common edge cases.\\n3. **WPI Tone of Voice:** Use a \"Professional-Instructive\" voice. Avoid \"Du\" or \"Sie\" in technical instructions.\\n4. **Zero Fluff:** Provide maximum competence with no filler words.\\n\\n## Code Validation Requirements\\nYour code will be automatically validated by the MCP Coder service after generation:\\n- JavaScript/TypeScript: ESLint ES6+ strict validation\\n- HTML: Structure and accessibility validation\\n- CSS: Syntax validation\\n\\n## Best Practices\\n1. Use const/let, never var\\n2. Use arrow functions and template literals\\n3. Handle errors gracefully\\n4. Include edge case handling\\n5. Add meaningful comments (German)\\n6. Keep examples practical and production-ready\\n\\n## Output Format\\nFür jede Code-Anfrage, antworte mit:\\n\\n### [Beschreibung]\\n```[sprache]\\n// Vollständiger, lauffähiger Code\\n```\\n**Mechanik:** Kurze Erklärung wie es funktioniert.\\n**Impact:** Warum ist dieser Ansatz wichtig?'\n    },\n    {\n      role: 'user',\n      content: 'Erstelle Code-Beispiele für folgende Anfragen:\\n\\n' + $json.code_requests.map(function(cr, i) { return (i+1) + '. ' + cr.description; }).join('\\n') + '\\n\\n**Kontext:** Kapitel \"' + $json.current_chapter.title + '\" aus dem Buch \"' + $json.blueprint.title + '\"\\n**Zielgruppe:** ' + $json.target_audience + '\\n\\n**WICHTIG:** Der Code wird automatisch validiert. Achte besonders auf:\\n- ES6+ Syntax (const/let, arrow functions, template literals)\\n- Keine ungenutzten Variablen\\n- Syntaktische Korrektheit\\n- Edge Case Handling'\n    }\n  ]\n}) }}",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "a4b445b5-2b7b-40a9-bbee-82eb8afd8684",
       "name": "💻 WPI Coder Agent",
@@ -668,6 +719,10 @@
             "response": {
               "fullResponse": true
             }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
           }
         }
       },
@@ -776,7 +831,12 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.1,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent\" performing SELF-CORRECTION based on validation errors.\\n\\n## Your Task\\nThe code you previously generated failed validation. You MUST fix ALL errors reported by the validator.\\n\\n## Correction Strategy\\n1. Fix syntax errors first (blocking issues)\\n2. Apply ES6+ best practices (const/let, arrow functions, template literals)\\n3. Remove unused variables\\n4. Ensure all edge cases are handled\\n5. Maintain code readability and comments\\n\\n## Output Format\\nReturn the CORRECTED code in the same structure as before (with ```language blocks and descriptions).\\nDo NOT explain what you fixed - just provide the corrected code.'\n    },\n    {\n      role: 'user',\n      content: '**Validation Failed - Self-Correction Required**\\n\\n**Original Code:**\\n' + $json.raw_code_response + '\\n\\n**Validation Errors:**\\n' + JSON.stringify($json.code_errors, null, 2) + '\\n\\n**Suggestions:**\\n' + ($json.code_suggestions || []).join('\\n') + '\\n\\n**Retry Count:** ' + ($json.code_retry_count + 1) + ' / 2\\n\\nFix ALL errors and return the corrected code in the same format (```language blocks).'\n    }\n  ]\n}) }}",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "c9efbeeb-7ff1-425c-820b-6a844039467a",
       "name": "🔄 WPI Coder Self-Correct",
@@ -851,6 +911,10 @@
             "response": {
               "fullResponse": true
             }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
           }
         }
       },
@@ -888,7 +952,12 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ (function() {\n  var draft = '';\n  var prevData = {};\n  try {\n    prevData = $('🔗 Merge Code').first().json;\n    draft = prevData.draft_content;\n  } catch (e) {\n    try {\n      prevData = $('⏭️ Skip Code').first().json || $('📝 Extract Code Requests').first().json;\n      draft = prevData.draft_content || $('📝 Extract Code Requests').first().json.draft_content;\n    } catch (e2) {\n      prevData = $('📝 Extract Code Requests').first().json;\n      draft = prevData.draft_content;\n    }\n  }\n  var isoCompliance = null;\n  try {\n    var isoResp = $('📋 MCP: ISO Compliance Check').first().json;\n    if (isoResp.body && isoResp.body.content && isoResp.body.content[0] && isoResp.body.content[0].text) {\n      isoCompliance = JSON.parse(isoResp.body.content[0].text);\n    }\n  } catch (e) {}\n  return JSON.stringify({\n    model: 'gpt-4o',\n    temperature: 0.2,\n    max_tokens: 4000,\n    messages: [\n      {\n        role: 'system',\n        content: '## Your Identity\\nYou are the \"WPI ISO Editor,\" a meticulous quality assurance expert specialized in the ISO 17024 standard and technical didactics. Your role is to audit content generated by the Writer and Coder agents to ensure it is \"Exam-Ready\" and free of \"Fluff.\"\\n\\n## Core Audit Criteria\\n\\n### 1. Syllabus & Bloom Compliance\\n- **Coverage:** Verify that every Learning Objective (LO) from the provided Syllabus Domain is addressed\\n- **Bloom Level:** Ensure depth matches target taxonomy (K4 must describe diagnostic paths, not just definitions)\\n- **Fact Check:** Cross-reference technical claims against Source of Truth documents\\n\\n### 2. WPI Tone & Quality Standard\\n- **Neutrality:** Confirm neutral, factual tone\\n- **Address (CRITICAL):** STRICTLY ENFORCE removal of \"Du\" or \"Sie\" in technical instructions. Use passive voice or direct imperatives only.\\n  - DEDUCT -5 pts per Du/Sie violation\\n- **Structure:** Max 5-6 line paragraphs, bold key terms, zero filler words\\n- **Acronyms:** First-Mention Rule - all acronyms must be defined on first use (-2 pts per violation)\\n\\n### 3. Tangibility Mandate\\n- **Code-First:** Every technical topic MUST have syntactically correct code block\\n- **No Placeholders:** No \"// TODO\" or incomplete code\\n- **Calculations:** Show complete calculation paths for metrics\\n\\n## Scoring System (0-100)\\n- LO Completeness: 30 pts (All learning goals covered with Bloom-level depth?)\\n- Clarity & Tone: 25 pts (Zero fluff, correct voice? -5 per Du/Sie, -2 per undefined acronym)\\n- Code Quality: 20 pts (Tangible, commented examples? No placeholders?)\\n- Didactic Structure: 15 pts (Scenario -> Logic -> Takeaways included?)\\n- Exercises: 10 pts (Meaningful Check Your Knowledge + Scenario Drills?)\\n\\n## APPROVAL THRESHOLD\\n- **APPROVED (approved: true):** Score >= 90\\n- **REJECTED (approved: false):** Score < 90 - provide specific required_changes\\n\\n## Output Format (JSON ONLY - no markdown)\\n{\\n  \"score\": number,\\n  \"approved\": boolean,\\n  \"iso_compliant\": boolean,\\n  \"audit_log\": {\\n    \"satisfied_LOs\": [\"K1.1.1\"],\\n    \"missing_LOs\": [],\\n    \"tone_violations\": [],\\n    \"undefined_acronyms\": [],\\n    \"code_blocks_count\": number,\\n    \"code_validation_passed\": boolean\\n  },\\n  \"scoring_breakdown\": {\\n    \"lo_completeness\": number,\\n    \"clarity_and_tone\": number,\\n    \"code_quality\": number,\\n    \"didactic_structure\": number,\\n    \"exercises\": number\\n  },\\n  \"feedback\": {\\n    \"strengths\": [],\\n    \"required_changes\": []\\n  },\\n  \"exam_questions\": [{\\n    \"question\": \"string\",\\n    \"options\": [\"A)\", \"B)\", \"C)\", \"D)\"],\\n    \"correct\": \"char\",\\n    \"bloom_level\": \"string\",\\n    \"learning_objective\": \"string\",\\n    \"explanation\": \"string\"\\n  }]\\n}'\n      },\n      {\n        role: 'user',\n        content: '## AUDIT REQUEST\\n\\n**Chapter ' + (prevData.current_chapter ? prevData.current_chapter.number : '?') + ':** ' + (prevData.current_chapter ? prevData.current_chapter.title : 'Unknown') + '\\n\\n### Target Learning Objectives:\\n' + (prevData.current_chapter && prevData.current_chapter.learning_goals ? prevData.current_chapter.learning_goals.map(function(g, i) { return (i+1) + '. ' + g; }).join('\\n') : 'Not specified') + '\\n\\n### ISO 17024 Compliance Tool Result:\\n' + (isoCompliance ? JSON.stringify(isoCompliance, null, 2) : 'Tool result unavailable - perform manual compliance check') + '\\n\\n### Chapter Content to Audit (MARKDOWN FORMAT):\\n\\n' + draft.substring(0, 12000) + '\\n\\n---\\n**AUDIT INSTRUCTIONS:**\\n1. Check each LO for coverage and Bloom-level depth\\n2. Scan for Du/Sie violations (CRITICAL: -5 pts each)\\n3. Count code blocks, verify no placeholders\\n4. Check structure (intro -> concepts -> practice -> summary)\\n5. Verify exercises are meaningful\\n6. Calculate score using 5 criteria (max 100)\\n7. Generate 5-8 exam questions covering different LOs (IN MARKDOWN FORMAT)\\n8. Return ONLY valid JSON (no markdown code blocks)'\n      }\n    ]\n  });\n})() }}",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "12978556-2dc0-4ec5-9040-05b03b0a8173",
       "name": "🔍 WPI ISO Editor",
@@ -1005,6 +1074,10 @@
             "response": {
               "fullResponse": true
             }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
           }
         }
       },
@@ -1080,7 +1153,12 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($('✅ Finalize Chapter').first().json) }}",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "991750f3-cce2-4106-b2cb-0b359239a2d0",
       "name": "📦 Store Chapter",
@@ -1135,7 +1213,12 @@
         "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Initialize BookState').first().json.book_id }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "051abe96-f110-40db-830d-7307fdcbdd85",
       "name": "📥 Get Accumulated Chapters",
@@ -1289,7 +1372,12 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.3,\n  max_tokens: 16000,\n  messages: [\n    {\n      role: 'system',\n      content: 'You are a Markdown-to-HTML converter for WPI study guides.\\n\\nConvert the provided Markdown to complete HTML with embedded CSS.\\n\\nINCLUDE THIS CSS:\\n<!DOCTYPE html>\\n<html lang=\"de\">\\n<head>\\n    <meta charset=\"UTF-8\">\\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\\n    <title>WPI Study Guide</title>\\n    <style>\\n        body { font-family: \\'Segoe UI\\', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; }\\n        h1, h2, h3 { color: #2c3e50; }\\n        h1 { border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-top: 40px; }\\n        h2 { color: #e67e22; margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 5px; }\\n        h3 { border-left: 5px solid #3498db; padding-left: 10px; margin-top: 30px; }\\n        h4 { color: #16a085; margin-top: 25px; }\\n        code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: Consolas, monospace; color: #c7254e; font-size: 0.9em; }\\n        pre { background-color: #282c34; color: #abb2bf; border: 1px solid #ddd; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: Consolas, monospace; font-size: 0.9em; margin: 20px 0; }\\n        blockquote { border-left: 4px solid #3498db; margin: 20px 0; padding: 10px 20px; background-color: #eaf2f8; font-style: italic; }\\n        table { border-collapse: collapse; width: 100%; margin: 25px 0; font-size: 0.95em; }\\n        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\\n        th { background-color: #2c3e50; color: white; }\\n        tr:nth-child(even) { background-color: #f2f2f2; }\\n        .scenario { background-color: #fff3e0; padding: 20px; border-left: 5px solid #ff9800; border-radius: 4px; margin: 30px 0; }\\n        .definition { background-color: #f3e5f5; padding: 20px; border-left: 5px solid #9c27b0; border-radius: 4px; margin: 25px 0; }\\n        .best-practice { background-color: #e8f5e9; padding: 20px; border-left: 5px solid #4caf50; border-radius: 4px; margin: 25px 0; }\\n        .pitfall { background-color: #ffebee; padding: 20px; border-left: 5px solid #f44336; border-radius: 4px; margin: 25px 0; }\\n        .ai-copilot { background-color: #e0f7fa; padding: 20px; border-left: 5px solid #00bcd4; border-radius: 4px; margin: 25px 0; border: 1px dashed #0097a7; }\\n        .drill { background-color: #fbe9e7; padding: 25px; border: 1px solid #ffab91; border-radius: 8px; margin-top: 40px; }\\n        ul, ol { margin-bottom: 20px; }\\n        li { margin-bottom: 8px; }\\n    </style>\\n</head>\\n<body>\\n\\nConvert Markdown to HTML and wrap in this template. Output ONLY complete HTML.'\n    },\n    {\n      role: 'user',\n      content: 'Convert this Markdown to styled HTML:\\n\\n' + $json.final_markdown\n    }\n  ]\n}) }}",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "html-book-converter-node",
       "name": "🌐 Convert Book to HTML",
@@ -1324,7 +1412,12 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.3,\n  max_tokens: 16000,\n  messages: [\n    {\n      role: 'system',\n      content: 'You are a Markdown-to-HTML converter for WPI study guides.\\n\\nConvert the provided Markdown to complete HTML with embedded CSS.\\n\\nINCLUDE THIS CSS:\\n<!DOCTYPE html>\\n<html lang=\"de\">\\n<head>\\n    <meta charset=\"UTF-8\">\\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\\n    <title>WPI Prüfungsfragen</title>\\n    <style>\\n        body { font-family: \\'Segoe UI\\', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; }\\n        h1, h2, h3 { color: #2c3e50; }\\n        h1 { border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-top: 40px; }\\n        h2 { color: #e67e22; margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 5px; }\\n        h3 { border-left: 5px solid #3498db; padding-left: 10px; margin-top: 30px; }\\n        code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: Consolas, monospace; color: #c7254e; font-size: 0.9em; }\\n        pre { background-color: #282c34; color: #abb2bf; border: 1px solid #ddd; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: Consolas, monospace; font-size: 0.9em; margin: 20px 0; }\\n        blockquote { border-left: 4px solid #3498db; margin: 20px 0; padding: 10px 20px; background-color: #eaf2f8; font-style: italic; }\\n        ul, ol { margin-bottom: 20px; }\\n        li { margin-bottom: 8px; }\\n    </style>\\n</head>\\n<body>\\n\\nConvert Markdown to HTML and wrap in this template. Output ONLY complete HTML.'\n    },\n    {\n      role: 'user',\n      content: 'Convert this Markdown to styled HTML:\\n\\n' + $json.exam_questions_markdown\n    }\n  ]\n}) }}",
-        "options": {}
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
       },
       "id": "html-questions-converter-node",
       "name": "🌐 Convert Questions to HTML",
