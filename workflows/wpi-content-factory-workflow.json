@@ -1171,7 +1171,8 @@
         "operation": "toText",
         "sourceProperty": "final_markdown",
         "options": {
-          "fileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}-book.md"
+          "fileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}-book.txt",
+          "mimeType": "text/plain"
         }
       },
       "id": "9c26fa30-fa47-4282-9fa9-967a7a57f06d",
@@ -1188,7 +1189,8 @@
         "operation": "toText",
         "sourceProperty": "exam_questions_markdown",
         "options": {
-          "fileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}-questions.md"
+          "fileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}-questions.txt",
+          "mimeType": "text/plain"
         }
       },
       "id": "fed60878-d5dc-4e37-91a5-812d714dc8cf",
@@ -1215,10 +1217,25 @@
     },
     {
       "parameters": {
+        "operation": "compress",
+        "format": "zip",
+        "outputFileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}.zip"
+      },
+      "id": "compression-node-zip",
+      "name": "📦 ZIP Files",
+      "type": "n8n-nodes-base.compression",
+      "typeVersion": 1,
+      "position": [
+        -29504,
+        7456
+      ]
+    },
+    {
+      "parameters": {
         "fromEmail": "content-factory@wpi.org",
         "toEmail": "hennadii.shvedko@gmail.com",
         "subject": "=✅ Buch fertig: {{ $json.title }} (Ø Score: {{ Math.round($json.average_score) }}/100)",
-        "html": "=<h1>📚 Buch fertiggestellt!</h1>\n<p><strong>{{ $json.title }}</strong></p>\n{{ $json.iso_alignment ? '<p><strong>ISO 17024 Syllabus:</strong> ' + ($json.iso_alignment.syllabus_id || $json.iso_alignment.domain_id) + '</p>' : '' }}\n<p>Durchschnittlicher Quality Score: <strong>{{ Math.round($json.average_score) }}/100</strong></p>\n<p>In Knowledge Base gespeichert: <strong>{{ $json.kb_document_ids.length }} Kapitel</strong></p>\n<p>Gesamte Kapitel: <strong>{{ $json.total_chapters }}</strong></p>\n\n<h3>Chapter Scores:</h3>\n<table border=\"1\" cellpadding=\"8\" cellspacing=\"0\" style=\"border-collapse: collapse;\">\n<tr><th>Kapitel</th><th>Titel</th><th>Score</th><th>Status</th></tr>\n{{ $json.chapter_scores.map(cs => '<tr><td>' + cs.chapter + '</td><td>' + cs.title + '</td><td>' + cs.score + '/100</td><td>' + (cs.passed_quality ? '✅' : '⚠️') + '</td></tr>').join('') }}\n</table>\n\n<p style=\"margin-top: 20px;\"><strong>Die Markdown-Dateien sind als Anhang beigefügt:</strong></p>\n<ul>\n<li>📖 Vollständiges Buch (.md)</li>\n<li>❓ Prüfungsfragen (.md)</li>\n</ul>\n\n<p><small>Fertiggestellt: {{ $json.completed_at }}</small></p>",
+        "html": "=<h1>📚 Buch fertiggestellt!</h1>\n<p><strong>{{ $json.title }}</strong></p>\n{{ $json.iso_alignment ? '<p><strong>ISO 17024 Syllabus:</strong> ' + ($json.iso_alignment.syllabus_id || $json.iso_alignment.domain_id) + '</p>' : '' }}\n<p>Durchschnittlicher Quality Score: <strong>{{ Math.round($json.average_score) }}/100</strong></p>\n<p>In Knowledge Base gespeichert: <strong>{{ $json.kb_document_ids.length }} Kapitel</strong></p>\n<p>Gesamte Kapitel: <strong>{{ $json.total_chapters }}</strong></p>\n\n<h3>Chapter Scores:</h3>\n<table border=\"1\" cellpadding=\"8\" cellspacing=\"0\" style=\"border-collapse: collapse;\">\n<tr><th>Kapitel</th><th>Titel</th><th>Score</th><th>Status</th></tr>\n{{ $json.chapter_scores.map(cs => '<tr><td>' + cs.chapter + '</td><td>' + cs.title + '</td><td>' + cs.score + '/100</td><td>' + (cs.passed_quality ? '✅' : '⚠️') + '</td></tr>').join('') }}\n</table>\n\n<p style=\"margin-top: 20px;\"><strong>Die Dateien sind als ZIP-Archiv beigefügt</strong></p>\n\n<p><small>Fertiggestellt: {{ $json.completed_at }}</small></p>",
         "options": {
           "attachments": "data"
         }
@@ -1845,6 +1862,17 @@
       ]
     },
     "🔀 Merge Files": {
+      "main": [
+        [
+          {
+            "node": "📦 ZIP Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📦 ZIP Files": {
       "main": [
         [
           {
