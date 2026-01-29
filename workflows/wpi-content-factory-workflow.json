@@ -1202,16 +1202,7 @@
     },
     {
       "parameters": {
-        "mode": "combine",
-        "mergeByFields": {
-          "values": [
-            {
-              "field1": "book_id",
-              "field2": "book_id"
-            }
-          ]
-        },
-        "options": {}
+        "mode": "append"
       },
       "id": "86468d0b-2b08-4670-84ea-f5b3c3b89dae",
       "name": "🔀 Merge Files",
