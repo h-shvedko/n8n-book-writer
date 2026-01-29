@@ -1221,7 +1221,7 @@
         "operation": "compress",
         "outputFormat": "zip",
         "fileName": "book_{{ $('📚 Compile Book').item.json.title }}.zip",
-        "binaryPropertyOutput": "="
+        "binaryPropertyOutput": "data"
       },
       "id": "82816667-f7f2-46eb-a396-95cc7d73a7fd",
       "name": "📦 ZIP Files",
