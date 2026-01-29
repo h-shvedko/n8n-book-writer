@@ -1,0 +1,2237 @@
+{
+  "name": "WPI AI Content Factory - Syllabus Driven (Full)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "wpi-book-generator",
+        "formTitle": "WPI Book Generator",
+        "formDescription": "AI-gestützte Erstellung von Fachbüchern basierend auf Syllabus-Domains. Jede Domain wird zu einem Kapitel.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Syllabus",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "WPI Web Development Professional (WPI-WEB-DEV-2025)"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Generation Strategy",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "By Domain"
+                  },
+                  {
+                    "option": "By Topic"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Target Audience",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Absolute Beginners"
+                  },
+                  {
+                    "option": "Junior Developers"
+                  },
+                  {
+                    "option": "Mid-Level Professionals"
+                  },
+                  {
+                    "option": "Senior Experts"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3d76e14d-5193-4199-9a72-8fb6e4fe384c",
+      "name": "📥 Book Request Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.1,
+      "position": [
+        -32528,
+        7264
+      ],
+      "webhookId": "wpi-book-gen-form"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const syllabusSelection = formData['Syllabus'] || '';\n  \n  // Parse syllabus ID from format: 'Name (syllabus-xxxxx)'\n  // Example: 'WPI Web Development (syllabus-1738051200123)'\n  const match = syllabusSelection.match(/\\(([^)]+)\\)/);\n  const syllabusId = match ? match[1] : null;\n  \n  if (!syllabusId) {\n    throw new Error('Invalid syllabus selection. Expected format: Name (syllabus-id)');\n  }\n  \n  const strategy = formData['Generation Strategy'] || 'By Domain';\n  \n  return {\n    syllabus_id: syllabusId,\n    syllabus_name: syllabusSelection.split('(')[0].trim(),\n    generation_strategy: strategy,\n    target_audience: formData['Target Audience'] || 'Mid-Level Professionals'\n  };\n})() }}",
+        "options": {}
+      },
+      "id": "extract-syllabus-id-node",
+      "name": "🔍 Extract Syllabus ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -32400,
+        7264
+      ],
+      "notes": "Parses syllabus ID from the form dropdown selection"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://mcp-standards:3002/syllabuses/{{ $json.syllabus_id }}/activate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "activate-syllabus-node",
+      "name": "🔄 Activate Syllabus",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32350,
+        7264
+      ],
+      "notes": "Activates the selected syllabus in mcp-standards for MCP tools to use",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "route-by-domain",
+              "leftValue": "={{ $('🔍 Extract Syllabus ID').first().json.generation_strategy }}",
+              "rightValue": "By Domain",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "strategy-if-node",
+      "name": "🔀 Route by Strategy",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -32280,
+        7264
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://mcp-standards:3002/syllabus/domains",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "361dec5d-c4d2-491f-b6e9-902a2cdb5bbe",
+      "name": "📚 Fetch Syllabus Domains",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32000,
+        7150
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://mcp-standards:3002/syllabus/topics",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "fetch-topics-node",
+      "name": "📑 Fetch Syllabus Topics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32000,
+        7380
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const extractedData = $('🔍 Extract Syllabus ID').first().json;\n  const strategy = extractedData.generation_strategy;\n  const data = $json;\n  \n  // Determine if we're using domains or topics\n  const isDomainMode = strategy === 'By Domain';\n  \n  return {\n    book_id: 'book-' + extractedData.syllabus_id + '-' + Date.now(),\n    syllabus_id: extractedData.syllabus_id,\n    syllabus_name: data.syllabus_name || 'Unknown Syllabus',\n    generation_strategy: strategy,\n    target_audience: extractedData.target_audience,\n    total_items: isDomainMode ? (data.total_chapters || 0) : (data.total_topics || 0),\n    items: isDomainMode ? (data.chapters || []) : (data.topics || []),\n    status: 'initialized',\n    created_at: new Date().toISOString()\n  };\n})() }}",
+        "options": {}
+      },
+      "id": "a31f05d0-d339-417c-854a-ad87a946c958",
+      "name": "🔧 Initialize BookState",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -32080,
+        7264
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-standards:3002/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'get_syllabus_section',\n  arguments: {\n    domain_id: $json.chapters[0]?.domain_id || $json.items[0]?.domain_id || $json.items[0]?.topic_id || 'D1',\n    output_format: 'json'\n  }\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "74dca4ba-a9b8-4dd8-b9f6-8f1652269325",
+      "name": "📚 MCP: Get Syllabus Section",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -31856,
+        7168
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-research:3003/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'hybrid_search',\n  arguments: {\n    query: $('🔧 Initialize BookState').first().json.syllabus_name + ' ' + $('🔧 Initialize BookState').first().json.chapters.map(function(c) { return c.title; }).join(' '),\n    limit: 10,\n    output_format: 'json'\n  }\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "033f68c9-d660-4703-914d-20aef8df4db6",
+      "name": "🔍 MCP: Search Knowledge Base",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -31856,
+        7360
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine syllabus and research context\nconst bookState = $('🔧 Initialize BookState').first().json;\n\n// Get syllabus section (from MCP-Standards)\nlet syllabusContext = null;\ntry {\n  const syllabusResponse = $('📚 MCP: Get Syllabus Section').first().json;\n  if (syllabusResponse.body && !syllabusResponse.body.error) {\n    const content = syllabusResponse.body.content?.[0]?.text;\n    syllabusContext = content ? JSON.parse(content) : null;\n  }\n} catch (e) {\n  console.log('Syllabus fetch failed, continuing without:', e.message);\n}\n\n// Get research context (from MCP-Research / Qdrant)\nlet researchContext = [];\ntry {\n  const researchResponse = $('🔍 MCP: Search Knowledge Base').first().json;\n  if (researchResponse.body && !researchResponse.body.error) {\n    const content = researchResponse.body.content?.[0]?.text;\n    const parsed = content ? JSON.parse(content) : null;\n    researchContext = parsed?.results || [];\n  }\n} catch (e) {\n  console.log('Research fetch failed, continuing without:', e.message);\n}\n\nreturn {\n  json: {\n    ...bookState,\n    syllabus_context: syllabusContext,\n    research_context: researchContext,\n    has_syllabus: !!syllabusContext,\n    has_research: researchContext.length > 0\n  }\n};"
+      },
+      "id": "fe52c51b-7892-41c5-a196-7aac00671fd6",
+      "name": "🔀 Merge MCP Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -31632,
+        7264
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.3,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: 'Du bist \"The Architect\" - ein erfahrener Didaktik-Experte für technische Fachbücher.\\n\\nDeine Aufgabe:\\n1. Analysiere die Syllabus-Struktur (Kapitel/Topics sind bereits vordefiniert!)\\n2. Nutze den Kontext aus der Knowledge Base\\n3. Erstelle detaillierte Lernziele und Sections\\n4. Definiere klare Lernziele für jedes Kapitel (ISO 17024 konform)\\n\\nWICHTIG: Die Kapitelstruktur ist bereits vorgegeben!\\nDu sollst NUR die Details ausarbeiten, nicht die Struktur ändern.\\n\\nRegeln:\\n- Jedes Kapitel sollte 10-15 Seiten umfassen\\n- Beginne mit Grundlagen, steigere die Komplexität\\n- Jedes Kapitel endet mit einer praktischen Übung\\n- Berücksichtige die Zielgruppe bei der Tiefe\\n- Lernziele müssen messbar und überprüfbar sein\\n\\nOutput-Format: JSON\\n```json\\n{\\n  \"title\": \"Buchtitel (aus Syllabus-Name)\",\\n  \"subtitle\": \"Untertitel\",\\n  \"iso_alignment\": {\\n    \"syllabus_id\": \"ID\",\\n    \"covered_domains\": [\"D1\", \"D2\"]\\n  },\\n  \"chapters\": [\\n    {\\n      \"number\": 1,\\n      \"domain_id\": \"D1\",\\n      \"title\": \"Titel\",\\n      \"learning_goals\": [\"Lernziel 1 (Bloom: K2)\", \"Lernziel 2 (Bloom: K3)\"],\\n      \"syllabus_mapping\": [\"LO-001\", \"LO-002\"],\\n      \"sections\": [\"Section 1\", \"Section 2\"],\\n      \"estimated_pages\": 12,\\n      \"practical_exercise\": \"Beschreibung der Übung\"\\n    }\\n  ]\\n}\\n```'\n    },\n    {\n      role: 'user',\n      content: (function() {\n        const items = $json.items || $json.chapters || [];\n        const totalItems = $json.total_items || $json.total_chapters || items.length;\n        const strategy = $json.generation_strategy || 'By Domain';\n        \n        let itemsDescription = items.map(function(item, index) {\n          if (item.chapter_number) {\n            return 'Kapitel ' + item.chapter_number + ': ' + item.title + '\\n  - Domain ID: ' + item.domain_id + '\\n  - Beschreibung: ' + (item.description || 'N/A') + '\\n  - Topics: ' + (item.topics || []).map(function(t) { return t.title; }).join(', ') + '\\n  - Learning Objectives: ' + (item.learning_objectives || []).length + ' Stück';\n          } else {\n            return 'Topic ' + item.topic_number + ': ' + item.title + '\\n  - Topic ID: ' + item.topic_id + '\\n  - Domain: ' + item.domain_name + ' (' + item.domain_id + ')\\n  - Learning Objectives: ' + (item.learning_objectives || []).length + ' Stück' + (item.subtopics && item.subtopics.length > 0 ? '\\n  - Subtopics: ' + item.subtopics.length + ' Stück' : '');\n          }\n        }).join('\\n\\n');\n        \n        return 'Erstelle das Inhaltsverzeichnis basierend auf der vorgegebenen Syllabus-Struktur:\\n\\n**Syllabus:** ' + $json.syllabus_name + ' (ID: ' + $json.syllabus_id + ')\\n**Zielgruppe:** ' + $json.target_audience + '\\n**Generierungsstrategie:** ' + strategy + '\\n**Anzahl Items:** ' + totalItems + '\\n\\n**VORDEFINIERTE STRUKTUR:**\\n' + itemsDescription + '\\n\\n' + ($json.has_syllabus ? '**Syllabus-Kontext:**\\n' + JSON.stringify($json.syllabus_context, null, 2) : '') + '\\n\\n' + ($json.has_research ? '**Relevanter Kontext aus Knowledge Base:**\\n' + $json.research_context.slice(0, 5).map(function(r) { return '- ' + (r.text || '').substring(0, 200) + '...'; }).join('\\n') : '') + '\\n\\nWICHTIG: Behalte die Struktur bei! Füge nur Lernziele, Sections und Übungen hinzu.\\n\\nAntworte NUR mit dem JSON, keine Erklärungen.';\n      })()\n    }\n  ]\n}) }}",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "23d3b10e-d8ae-43bd-82b2-88c0c3149749",
+      "name": "🏗️ Architect Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -31408,
+        7264
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5KnJ49CiBjEEjtWM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI response and extract JSON\nconst response = $input.first().json.choices[0].message.content;\n\n// Try to extract JSON from the response\nlet blueprint;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  blueprint = JSON.parse(jsonStr.trim());\n} catch (e) {\n  throw new Error('Failed to parse blueprint JSON: ' + e.message);\n}\n\n// Get the previous state\nconst prevState = $('🔀 Merge MCP Context').first().json;\n\n// Get original items (could be chapters or topics)\nconst originalItems = prevState.items || prevState.chapters || [];\n\n// Merge blueprint chapters with original data\nconst mergedChapters = blueprint.chapters.map((bpCh, index) => {\n  const originalItem = originalItems[index] || {};\n  return {\n    ...bpCh,\n    number: bpCh.number || index + 1,\n    domain_id: originalItem.domain_id || bpCh.domain_id,\n    topic_id: originalItem.topic_id,\n    topic_number: originalItem.topic_number,\n    original_learning_objectives: originalItem.learning_objectives || [],\n    topics: originalItem.topics || bpCh.topics || [],\n    subtopics: originalItem.subtopics || [],\n    weight: originalItem.weight,\n    prerequisites: originalItem.prerequisites || []\n  };\n});\n\nblueprint.chapters = mergedChapters;\n\nreturn {\n  json: {\n    ...prevState,\n    blueprint: blueprint,\n    status: 'blueprint_ready'\n  }\n};"
+      },
+      "id": "2cc121fb-33d6-4537-b865-6f07b578e294",
+      "name": "📋 Parse Blueprint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -31184,
+        7264
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Initialize BookState').first().json.book_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "4ab214c1-483e-46df-ad7c-31b42c7cddd9",
+      "name": "🗑️ Clear Chapter Accumulator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -30960,
+        7264
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get current state\nconst state = $('📋 Parse Blueprint').first().json;\nconst chapters = state.blueprint.chapters;\nconst bookId = state.book_id;\n\nconsole.log('Preparing chapters for book:', bookId, 'Total chapters:', chapters.length);\n\n// Return chapters as array for loop\nreturn chapters.map((chapter, index) => ({\n  json: {\n    ...state,\n    current_chapter: chapter,\n    current_chapter_index: index,\n    total_chapters: chapters.length\n  }\n}));"
+      },
+      "id": "6a1eecca-ffcb-4efd-b014-df4186594272",
+      "name": "📑 Prepare Chapters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -30736,
+        7264
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "208774c0-85c7-4b7a-aabe-3788b075e815",
+      "name": "🔁 Chapter Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -30512,
+        7264
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-research:3003/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'hybrid_search',\n  arguments: {\n    query: $json.current_chapter.title + ' ' + ($json.current_chapter.learning_goals || []).join(' '),\n    filter_metadata: {\n      domain_id: $json.current_chapter.domain_id || $json.current_chapter.topic_id || undefined\n    },\n    limit: 5,\n    output_format: 'json'\n  }\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "400473a1-c8aa-47c2-9b96-0dc7be247677",
+      "name": "🔍 MCP: Chapter Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -30288,
+        6952
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-standards:3002/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'get_syllabus_section',\n  arguments: {\n    domain_id: $('🔁 Chapter Loop').first().json.current_chapter.domain_id || $('🔁 Chapter Loop').first().json.current_chapter.topic_id || 'D1',\n    output_format: 'json'\n  }\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "16995beb-2cff-4b35-ab0a-63a4d45aa497",
+      "name": "📚 MCP: Get Chapter LOs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -30288,
+        7240
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "3056f9d9-8e94-40a2-b7f9-0b2b8fc69aef",
+      "name": "🔀 Merge MCP Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -30064,
+        6952
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "712f760c-7bd0-4546-8035-46293d5fbbfe",
+      "name": "🔀 Add Chapter Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -29840,
+        7024
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reset revision counter for this chapter\nconst staticData = $getWorkflowStaticData('global');\nstaticData.revision_count = 0;\n\n// Get all input items - merged from: MCP Research, MCP Syllabus, Chapter Loop\nconst allItems = $input.all();\n\n// Find chapter data, research results, and syllabus LOs from merged inputs\nlet chapterResearch = [];\nlet syllabusLOs = [];\nlet chapterData = null;\n\nfor (const item of allItems) {\n  const json = item.json;\n  \n  // Check if this is chapter data from the loop (has current_chapter)\n  if (json.current_chapter && json.blueprint) {\n    chapterData = json;\n    continue;\n  }\n  \n  // Check if this is an MCP HTTP response (has body.content structure)\n  if (json.body?.content?.[0]?.text) {\n    try {\n      const parsed = JSON.parse(json.body.content[0].text);\n      \n      // Check for research results (has results_count or query field)\n      if (parsed.query !== undefined || parsed.results_count !== undefined) {\n        chapterResearch = parsed.results || [];\n      }\n      // Check for syllabus section data\n      else if (parsed.results && parsed.count !== undefined) {\n        syllabusLOs = parsed.results || [];\n      }\n      else if (parsed.section || parsed.found || parsed.learning_objectives) {\n        syllabusLOs = parsed.learning_objectives || parsed.results || [];\n        if (parsed.section?.topics) {\n          for (const topic of parsed.section.topics) {\n            if (topic.learning_objectives) {\n              syllabusLOs = syllabusLOs.concat(topic.learning_objectives);\n            }\n          }\n        }\n      }\n    } catch (e) {\n      console.log('Failed to parse MCP response:', e.message);\n    }\n  }\n}\n\n// Verify we have chapter data\nif (!chapterData) {\n  throw new Error('Chapter data not found in merged inputs. Check workflow connections.');\n}\n\n// Merge original LOs from domain with fetched LOs\nconst allLOs = [...(chapterData.current_chapter.original_learning_objectives || []), ...syllabusLOs];\n\nreturn {\n  json: {\n    book_id: chapterData.book_id,\n    current_chapter: chapterData.current_chapter,\n    current_chapter_index: chapterData.current_chapter_index,\n    chapter_research: chapterResearch,\n    syllabus_learning_objectives: allLOs,\n    blueprint: chapterData.blueprint,\n    target_audience: chapterData.target_audience,\n    revision_count: 0\n  }\n};"
+      },
+      "id": "6eec8d6f-c7ed-4213-8cb9-ed65b8c51c30",
+      "name": "💾 Merge Chapter Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -29616,
+        7024
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.5,\n  max_tokens: 8000,\n  messages: [\n    {\n      role: 'system',\n      content: '# SYSTEM PROMPT: WPI STUDY GUIDE CHAPTER GENERATOR (v4.4 - MARKDOWN OUTPUT)\\n\\n## 1. ROLE & OBJECTIVE\\n\\nYou are the **\"WPI Technical Architect\"**, an expert educational content creator for high-level IT certifications (ISO 17024 standard).\\n\\nYour task is to generate a **Study Guide Chapter** in German using **MARKDOWN FORMAT** (NOT HTML!).\\n\\n### TARGET AUDIENCE PROFILE (The \"WPI Candidate\")\\n- **Persona:** Career-focused professionals (EQF Level 5/6). Time-constrained and highly motivated.\\n- **Goal:** Passing a rigorous exam and solving real-world architectural problems.\\n- **Mindset:** They hate \"fluff\" and marketing buzzwords. They value precision, density, and \"mechanic-first\" explanations.\\n\\n**CRITICAL:** Prioritize **DEPTH** over breadth. This is a study guide for professionals, not a blog post.\\n\\n## 2. STRICT EDITORIAL RULES (Editorial Guide V3.0)\\n\\n### A. The \"Deep Dive\" Mandate & Workload Calculation\\n- **Target Length:** Generate **3,000 to 3,500 words** of core content\\n- **Workload Calculation:** 40 Words = 1 Minute, round up to next 10 minutes\\n\\n### B. The \"Anti-Circular\" Definition Rule\\n- FORBIDDEN: Defining complex terms using other complex terms\\n- REQUIRED: Explain using simple analogies first\\n\\n### C. Tone & Style\\n- **Voice:** \"Professional-Instructive\". Neutral, factual.\\n- **PROHIBITED:** \"Du\", \"Sie\", \"Wir\" (Personal address). Use Passive or Imperative.\\n- **Acronyms:** First-Mention Rule (Write out fully on first use)\\n\\n### D. Bloom Level Interpretation (Apply Strictly)\\n- **(K1) Remember:** Define terms. Simple Recall.\\n- **(K2) Understand:** Explain concepts. Zero-to-Hero.\\n- **(K3) Apply:** Use scenarios. Show usage.\\n- **(K4) Analyze:** Diagnose errors. Debugging.\\n- **(K5) Evaluate:** Strategic comparison (Pros/Cons).\\n- **(K6) Create:** Design architectures. Coding.\\n\\n## 3. MARKDOWN OUTPUT STRUCTURE\\n\\n**IMPORTANT: Output MARKDOWN, NOT HTML!**\\n\\n```markdown\\n# TEIL [PART]: [TITLE]\\n\\n## Kapitel [NUMBER]: [CHAPTER_TITLE]\\n\\n**⏱️ Workload:** ca. [MINUTES] Minuten\\n\\n*Syllabus-ID: [DOMAIN_ID]*\\n\\n---\\n\\n### Lernziele\\n\\n- LO-1: [Learning Objective 1]\\n- LO-2: [Learning Objective 2]\\n\\n---\\n\\n### Das Szenario\\n\\n> [Realistic business problem / technical failure as blockquote]\\n> [Build a \"Cliffhanger\" - do not solve yet]\\n\\n---\\n\\n### [Topic 1 Title]\\n\\n**📖 Definition: [Term]**\\n\\n[Explanation...]\\n\\n#### [Subtopic]\\n\\n[Content with code blocks using triple backticks]\\n\\n```javascript\\n// Code example with language tag\\nconst example = \"code\";\\n```\\n\\n> **💡 Best Practice:** [Industry standard tip]\\n\\n> **⚠️ Pitfall:** [Common mistake with consequences]\\n\\n> **🚀 Pro-Tip:** [Advanced efficiency hack]\\n\\n---\\n\\n### Fallstudie: Lösung\\n\\n[Explicitly resolve the scenario from above]\\n\\n---\\n\\n### Key Takeaways\\n\\n1. [Takeaway 1]\\n2. [Takeaway 2]\\n3. [Takeaway 3]\\n\\n---\\n\\n### Wissenscheck\\n\\n**Frage 1:** [Question text]\\n\\n> **Antwort:** [Answer]\\n\\n**Frage 2:** [Question text]\\n\\n> **Antwort:** [Answer]\\n\\n[Continue for 5-6 questions]\\n\\n---\\n\\n### Transfer-Übung\\n\\n[Practical exercise or code challenge]\\n```\\n\\n## 4. CODE-HANDLING\\n\\nWhen code examples are needed, insert a placeholder:\\n<<CODE_REQUEST: [Description of what the code should do]>>\\n\\nThe Coder Agent will replace these with validated ES6+ code.\\n\\n**GENERATE CHAPTER IN MARKDOWN NOW.**'\n    },\n    {\n      role: 'user',\n      content: '## INPUT DATA FOR CHAPTER GENERATION\\n\\n**CURRENT CHAPTER:** ' + $json.current_chapter.number + ' of ' + $json.blueprint.chapters.length + '\\n**DOMAIN ID:** ' + ($json.current_chapter.domain_id || $json.current_chapter.topic_id || 'Unknown') + '\\n**CHAPTER TITLE:** ' + $json.current_chapter.title + '\\n\\n### LEARNING GOALS (from Architect):\\n' + ($json.current_chapter.learning_goals || []).map(function(g, i) { return '- LO-' + (i+1) + ': ' + g; }).join('\\n') + '\\n\\n**Sections to cover:**\\n' + ($json.current_chapter.sections || []).map(function(s) { return '- ' + s; }).join('\\n') + '\\n\\n' + ($json.syllabus_learning_objectives.length > 0 ? '### ISO 17024 SYLLABUS LEARNING OBJECTIVES:\\n' + $json.syllabus_learning_objectives.slice(0, 10).map(function(lo) { return '- ' + (lo.id || lo.content?.id || '') + ': ' + (lo.description || lo.content?.description || JSON.stringify(lo).substring(0, 100)); }).join('\\n') : '') + '\\n\\n' + ($json.chapter_research.length > 0 ? '### RAG_CONTENT (Internal Knowledge Base):\\n' + $json.chapter_research.slice(0, 5).map(function(r) { return '---\\n' + (r.text || '').substring(0, 500) + '...'; }).join('\\n') : '') + '\\n\\n### TARGET AUDIENCE: ' + $json.target_audience + '\\n\\n### PRACTICAL EXERCISE: ' + ($json.current_chapter.practical_exercise || 'Create a relevant hands-on exercise') + '\\n\\n---\\n\\n**EXECUTION INSTRUCTIONS:**\\n1. Generate 3,000-3,500 words of content IN MARKDOWN FORMAT\\n2. Calculate workload: words/40, round to next 10 minutes\\n3. Use proper Markdown syntax (headers, code blocks, blockquotes)\\n4. Follow Zero-to-Hero flow for each LO\\n5. Insert <<CODE_REQUEST: ...>> for code examples\\n6. Include all mandatory sections (Scenario, Content, Case Study, Takeaways, Quiz)\\n\\n**GENERATE THE CHAPTER IN MARKDOWN NOW.**'\n    }\n  ]\n}) }}",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "99486c84-5255-4c5b-8cd7-367182298025",
+      "name": "✍️ WPI Technical Architect",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -29392,
+        7024
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5KnJ49CiBjEEjtWM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const draft = $input.first().json.choices[0].message.content;\n\n// Get base data from Merge Chapter Context\nlet prevData = $('💾 Merge Chapter Context').first().json;\n\n// Get revision count from workflow static data\nconst staticData = $getWorkflowStaticData('global');\nlet revision_count = staticData.revision_count || 0;\n\n// Extract CODE_REQUEST placeholders\nconst codeRequests = [];\nconst regex = /<<CODE_REQUEST:\\s*(.+?)>>/g;\nlet match;\n\nwhile ((match = regex.exec(draft)) !== null) {\n  codeRequests.push({\n    placeholder: match[0],\n    description: match[1].trim()\n  });\n}\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: draft,\n    code_requests: codeRequests,\n    has_code_requests: codeRequests.length > 0,\n    revision_count: revision_count\n  }\n};"
+      },
+      "id": "64498bad-af18-4d45-8d4b-bc527c671b50",
+      "name": "📝 Extract Code Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -29168,
+        6952
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-code",
+              "leftValue": "={{ $json.has_code_requests }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "32ad861d-55a4-471e-b694-d7fec2d8abe6",
+      "name": "🔀 Code Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -28944,
+        6952
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.2,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent,\" a Senior Full-Stack Engineer and technical author. Your goal is to generate high-quality, production-ready code examples for the WPI Syllabus Guide.\\n\\n## Core Responsibilities\\n1. **Follow the Tangibility Mandate:** For every technical topic, you MUST provide a complete, syntaktisch correct code block.\\n2. **Technical Standards:** Use modern syntax (ES6+ for JavaScript, HTML5, CSS3) and handle common edge cases.\\n3. **WPI Tone of Voice:** Use a \"Professional-Instructive\" voice. Avoid \"Du\" or \"Sie\" in technical instructions.\\n4. **Zero Fluff:** Provide maximum competence with no filler words.\\n\\n## Code Validation Requirements\\nYour code will be automatically validated by the MCP Coder service after generation:\\n- JavaScript/TypeScript: ESLint ES6+ strict validation\\n- HTML: Structure and accessibility validation\\n- CSS: Syntax validation\\n\\n## Best Practices\\n1. Use const/let, never var\\n2. Use arrow functions and template literals\\n3. Handle errors gracefully\\n4. Include edge case handling\\n5. Add meaningful comments (German)\\n6. Keep examples practical and production-ready\\n\\n## Output Format\\nFür jede Code-Anfrage, antworte mit:\\n\\n### [Beschreibung]\\n```[sprache]\\n// Vollständiger, lauffähiger Code\\n```\\n**Mechanik:** Kurze Erklärung wie es funktioniert.\\n**Impact:** Warum ist dieser Ansatz wichtig?'\n    },\n    {\n      role: 'user',\n      content: 'Erstelle Code-Beispiele für folgende Anfragen:\\n\\n' + $json.code_requests.map(function(cr, i) { return (i+1) + '. ' + cr.description; }).join('\\n') + '\\n\\n**Kontext:** Kapitel \"' + $json.current_chapter.title + '\" aus dem Buch \"' + $json.blueprint.title + '\"\\n**Zielgruppe:** ' + $json.target_audience + '\\n\\n**WICHTIG:** Der Code wird automatisch validiert. Achte besonders auf:\\n- ES6+ Syntax (const/let, arrow functions, template literals)\\n- Keine ungenutzten Variablen\\n- Syntaktische Korrektheit\\n- Edge Case Handling'\n    }\n  ]\n}) }}",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "a4b445b5-2b7b-40a9-bbee-82eb8afd8684",
+      "name": "💻 WPI Coder Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -28720,
+        6880
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5KnJ49CiBjEEjtWM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevData = $('📝 Extract Code Requests').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Extract code blocks for validation\nconst codeBlocks = codeResponse.match(/```([\\w]*)\\n([\\s\\S]*?)```/g) || [];\nconst extractedCode = codeBlocks.map(block => {\n  const match = block.match(/```([\\w]*)\\n([\\s\\S]*?)```/);\n  return {\n    language: match[1] || 'javascript',\n    code: match[2].trim()\n  };\n});\n\n// Replace placeholders with actual code\nlet finalDraft = prevData.draft_content;\nprevData.code_requests.forEach((req, index) => {\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(req.placeholder, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    extracted_code: extractedCode,\n    raw_code_response: codeResponse,\n    code_validated: false\n  }\n};"
+      },
+      "id": "c47b9e8a-52f2-40ec-9372-44e5673246d6",
+      "name": "🔗 Merge Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -28496,
+        6880
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-coder:3004/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function() {\n  const codeItems = $json.extracted_code || [];\n  if (codeItems.length === 0) {\n    return JSON.stringify({ name: 'validate_code_snippet', arguments: { code: '// no code', language: 'javascript' }});\n  }\n  const firstCode = codeItems[0];\n  const langMap = { 'js': 'javascript', 'ts': 'typescript', 'jsx': 'javascript', 'tsx': 'typescript' };\n  const lang = langMap[firstCode.language] || firstCode.language || 'javascript';\n  return JSON.stringify({\n    name: 'validate_code_snippet',\n    arguments: {\n      code: firstCode.code,\n      language: ['javascript', 'typescript', 'html', 'css', 'json'].includes(lang) ? lang : 'javascript',\n      strict_mode: true,\n      check_best_practices: false\n    }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "6ba8505c-421e-4493-860c-f92b90fe76f0",
+      "name": "🔬 MCP: Validate Code",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -28272,
+        6880
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevData = $('🔗 Merge Code').first().json;\n\n// Parse validation result from MCP-Coder\nlet validationResult = { valid: true, errors: [], suggestions: [] };\ntry {\n  const valResp = $('🔬 MCP: Validate Code').first().json;\n  if (valResp.body?.content?.[0]?.text) {\n    validationResult = JSON.parse(valResp.body.content[0].text);\n  }\n} catch (e) {\n  console.log('Code validation not available:', e.message);\n}\n\n// Get static data for retry count\nconst staticData = $getWorkflowStaticData('global');\nstaticData.code_retry_count = staticData.code_retry_count || 0;\n\nreturn {\n  json: {\n    ...prevData,\n    code_validation: validationResult,\n    code_validated: validationResult.valid,\n    code_errors: validationResult.errors || [],\n    code_suggestions: validationResult.suggestions || [],\n    code_retry_count: staticData.code_retry_count\n  }\n};"
+      },
+      "id": "4536dc9d-63b0-4513-b853-f02da45a16b7",
+      "name": "📊 Parse Code Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -28048,
+        6808
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "code-valid",
+              "leftValue": "={{ $json.code_validated }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4cc5d35d-41e4-4202-8d12-c17b50538d41",
+      "name": "🔀 Code Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -27824,
+        6808
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "code-retry-limit",
+              "leftValue": "={{ $json.code_retry_count }}",
+              "rightValue": 2,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c353fa68-7ee2-423c-a7f1-5561982916dc",
+      "name": "🔀 Code Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -27600,
+        6736
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.1,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent\" performing SELF-CORRECTION based on validation errors.\\n\\n## Your Task\\nThe code you previously generated failed validation. You MUST fix ALL errors reported by the validator.\\n\\n## Correction Strategy\\n1. Fix syntax errors first (blocking issues)\\n2. Apply ES6+ best practices (const/let, arrow functions, template literals)\\n3. Remove unused variables\\n4. Ensure all edge cases are handled\\n5. Maintain code readability and comments\\n\\n## Output Format\\nReturn the CORRECTED code in the same structure as before (with ```language blocks and descriptions).\\nDo NOT explain what you fixed - just provide the corrected code.'\n    },\n    {\n      role: 'user',\n      content: '**Validation Failed - Self-Correction Required**\\n\\n**Original Code:**\\n' + $json.raw_code_response + '\\n\\n**Validation Errors:**\\n' + JSON.stringify($json.code_errors, null, 2) + '\\n\\n**Suggestions:**\\n' + ($json.code_suggestions || []).join('\\n') + '\\n\\n**Retry Count:** ' + ($json.code_retry_count + 1) + ' / 2\\n\\nFix ALL errors and return the corrected code in the same format (```language blocks).'\n    }\n  ]\n}) }}",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "c9efbeeb-7ff1-425c-820b-6a844039467a",
+      "name": "🔄 WPI Coder Self-Correct",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -27376,
+        6640
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5KnJ49CiBjEEjtWM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Increment retry counter and merge corrected code\nconst staticData = $getWorkflowStaticData('global');\nstaticData.code_retry_count = (staticData.code_retry_count || 0) + 1;\n\nconst prevData = $('📊 Parse Code Validation').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Extract code blocks for validation\nconst codeBlocks = codeResponse.match(/```([\\w]*)\\n([\\s\\S]*?)```/g) || [];\nconst extractedCode = codeBlocks.map(block => {\n  const match = block.match(/```([\\w]*)\\n([\\s\\S]*?)```/);\n  return {\n    language: match[1] || 'javascript',\n    code: match[2].trim()\n  };\n});\n\n// Re-merge into draft\nlet finalDraft = prevData.draft_content;\nconst originalCodeBlocks = prevData.draft_content.match(/```[\\s\\S]*?```/g) || [];\noriginalCodeBlocks.forEach((oldBlock, index) => {\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(oldBlock, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    extracted_code: extractedCode,\n    raw_code_response: codeResponse,\n    code_validated: false,\n    code_retry_count: staticData.code_retry_count\n  }\n};"
+      },
+      "id": "537342b0-3b01-4f1a-8876-c1e33385bb3d",
+      "name": "🔗 Merge Corrected Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -27152,
+        6856
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "e29e5b38-80c9-4079-96ed-e245c3256e58",
+      "name": "⏭️ Skip Validation",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -27376,
+        6832
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "fb3b592b-0a11-477b-8c0f-f01797fb957b",
+      "name": "⏭️ Skip Code",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -27376,
+        7240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-standards:3002/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function() {\n  var draft = '';\n  try {\n    draft = $('🔗 Merge Code').first().json.draft_content;\n  } catch (e) {\n    try {\n      draft = $('⏭️ Skip Code').first().json.draft_content || $('📝 Extract Code Requests').first().json.draft_content;\n    } catch (e2) {\n      draft = $('📝 Extract Code Requests').first().json.draft_content;\n    }\n  }\n  return JSON.stringify({\n    name: 'validate_iso_compliance',\n    arguments: {\n      content: draft.substring(0, 10000),\n      output_format: 'json'\n    }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "20fec369-00d8-469d-b253-163211106e3e",
+      "name": "📋 MCP: ISO Compliance Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -27152,
+        7048
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function() {\n  var draft = '';\n  var prevData = {};\n  try {\n    prevData = $('🔗 Merge Code').first().json;\n    draft = prevData.draft_content;\n  } catch (e) {\n    try {\n      prevData = $('⏭️ Skip Code').first().json || $('📝 Extract Code Requests').first().json;\n      draft = prevData.draft_content || $('📝 Extract Code Requests').first().json.draft_content;\n    } catch (e2) {\n      prevData = $('📝 Extract Code Requests').first().json;\n      draft = prevData.draft_content;\n    }\n  }\n  var isoCompliance = null;\n  try {\n    var isoResp = $('📋 MCP: ISO Compliance Check').first().json;\n    if (isoResp.body && isoResp.body.content && isoResp.body.content[0] && isoResp.body.content[0].text) {\n      isoCompliance = JSON.parse(isoResp.body.content[0].text);\n    }\n  } catch (e) {}\n  return JSON.stringify({\n    model: 'gpt-4o',\n    temperature: 0.2,\n    max_tokens: 4000,\n    messages: [\n      {\n        role: 'system',\n        content: '## Your Identity\\nYou are the \"WPI ISO Editor,\" a meticulous quality assurance expert specialized in the ISO 17024 standard and technical didactics. Your role is to audit content generated by the Writer and Coder agents to ensure it is \"Exam-Ready\" and free of \"Fluff.\"\\n\\n## Core Audit Criteria\\n\\n### 1. Syllabus & Bloom Compliance\\n- **Coverage:** Verify that every Learning Objective (LO) from the provided Syllabus Domain is addressed\\n- **Bloom Level:** Ensure depth matches target taxonomy (K4 must describe diagnostic paths, not just definitions)\\n- **Fact Check:** Cross-reference technical claims against Source of Truth documents\\n\\n### 2. WPI Tone & Quality Standard\\n- **Neutrality:** Confirm neutral, factual tone\\n- **Address (CRITICAL):** STRICTLY ENFORCE removal of \"Du\" or \"Sie\" in technical instructions. Use passive voice or direct imperatives only.\\n  - DEDUCT -5 pts per Du/Sie violation\\n- **Structure:** Max 5-6 line paragraphs, bold key terms, zero filler words\\n- **Acronyms:** First-Mention Rule - all acronyms must be defined on first use (-2 pts per violation)\\n\\n### 3. Tangibility Mandate\\n- **Code-First:** Every technical topic MUST have syntactically correct code block\\n- **No Placeholders:** No \"// TODO\" or incomplete code\\n- **Calculations:** Show complete calculation paths for metrics\\n\\n## Scoring System (0-100)\\n- LO Completeness: 30 pts (All learning goals covered with Bloom-level depth?)\\n- Clarity & Tone: 25 pts (Zero fluff, correct voice? -5 per Du/Sie, -2 per undefined acronym)\\n- Code Quality: 20 pts (Tangible, commented examples? No placeholders?)\\n- Didactic Structure: 15 pts (Scenario -> Logic -> Takeaways included?)\\n- Exercises: 10 pts (Meaningful Check Your Knowledge + Scenario Drills?)\\n\\n## APPROVAL THRESHOLD\\n- **APPROVED (approved: true):** Score >= 90\\n- **REJECTED (approved: false):** Score < 90 - provide specific required_changes\\n\\n## Output Format (JSON ONLY - no markdown)\\n{\\n  \"score\": number,\\n  \"approved\": boolean,\\n  \"iso_compliant\": boolean,\\n  \"audit_log\": {\\n    \"satisfied_LOs\": [\"K1.1.1\"],\\n    \"missing_LOs\": [],\\n    \"tone_violations\": [],\\n    \"undefined_acronyms\": [],\\n    \"code_blocks_count\": number,\\n    \"code_validation_passed\": boolean\\n  },\\n  \"scoring_breakdown\": {\\n    \"lo_completeness\": number,\\n    \"clarity_and_tone\": number,\\n    \"code_quality\": number,\\n    \"didactic_structure\": number,\\n    \"exercises\": number\\n  },\\n  \"feedback\": {\\n    \"strengths\": [],\\n    \"required_changes\": []\\n  },\\n  \"exam_questions\": [{\\n    \"question\": \"string\",\\n    \"options\": [\"A)\", \"B)\", \"C)\", \"D)\"],\\n    \"correct\": \"char\",\\n    \"bloom_level\": \"string\",\\n    \"learning_objective\": \"string\",\\n    \"explanation\": \"string\"\\n  }]\\n}'\n      },\n      {\n        role: 'user',\n        content: '## AUDIT REQUEST\\n\\n**Chapter ' + (prevData.current_chapter ? prevData.current_chapter.number : '?') + ':** ' + (prevData.current_chapter ? prevData.current_chapter.title : 'Unknown') + '\\n\\n### Target Learning Objectives:\\n' + (prevData.current_chapter && prevData.current_chapter.learning_goals ? prevData.current_chapter.learning_goals.map(function(g, i) { return (i+1) + '. ' + g; }).join('\\n') : 'Not specified') + '\\n\\n### ISO 17024 Compliance Tool Result:\\n' + (isoCompliance ? JSON.stringify(isoCompliance, null, 2) : 'Tool result unavailable - perform manual compliance check') + '\\n\\n### Chapter Content to Audit (MARKDOWN FORMAT):\\n\\n' + draft.substring(0, 12000) + '\\n\\n---\\n**AUDIT INSTRUCTIONS:**\\n1. Check each LO for coverage and Bloom-level depth\\n2. Scan for Du/Sie violations (CRITICAL: -5 pts each)\\n3. Count code blocks, verify no placeholders\\n4. Check structure (intro -> concepts -> practice -> summary)\\n5. Verify exercises are meaningful\\n6. Calculate score using 5 criteria (max 100)\\n7. Generate 5-8 exam questions covering different LOs (IN MARKDOWN FORMAT)\\n8. Return ONLY valid JSON (no markdown code blocks)'\n      }\n    ]\n  });\n})() }}",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "12978556-2dc0-4ec5-9040-05b03b0a8173",
+      "name": "🔍 WPI ISO Editor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -26928,
+        7048
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5KnJ49CiBjEEjtWM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json.choices[0].message.content;\n\n// Get previous data\nlet prevData;\ntry {\n  prevData = $('🔗 Merge Code').first().json;\n} catch (e1) {\n  try {\n    prevData = $('⏭️ Skip Code').first().json;\n  } catch (e2) {\n    prevData = $('📝 Extract Code Requests').first().json;\n  }\n}\n\n// Parse WPI ISO Editor response\nlet editorResult;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  editorResult = JSON.parse(jsonStr.trim());\n} catch (e) {\n  editorResult = {\n    score: 0,\n    approved: false,\n    iso_compliant: false,\n    audit_log: { satisfied_LOs: [], missing_LOs: [], tone_violations: [], undefined_acronyms: [], code_blocks_count: 0, code_validation_passed: false },\n    scoring_breakdown: { lo_completeness: 0, clarity_and_tone: 0, code_quality: 0, didactic_structure: 0, exercises: 0 },\n    feedback: { strengths: [], required_changes: ['Failed to parse ISO Editor response: ' + e.message] },\n    exam_questions: []\n  };\n}\n\n// APPROVAL THRESHOLD: >= 90 points\nconst APPROVAL_THRESHOLD = 90;\nconst score = editorResult.score || 0;\nconst isApproved = score >= APPROVAL_THRESHOLD;\neditorResult.approved = isApproved;\n\n// Increment revision count\nconst staticData = $getWorkflowStaticData('global');\nstaticData.revision_count = (staticData.revision_count || 0) + 1;\nconst revision_count = staticData.revision_count;\n\nreturn {\n  json: {\n    ...prevData,\n    editor_score: score,\n    editor_approved: isApproved,\n    approval_threshold: APPROVAL_THRESHOLD,\n    iso_compliant: editorResult.iso_compliant || false,\n    audit_log: editorResult.audit_log || {},\n    scoring_breakdown: editorResult.scoring_breakdown || {},\n    editor_feedback: editorResult.feedback || { strengths: [], required_changes: [] },\n    exam_questions: editorResult.exam_questions || [],\n    revision_count: revision_count\n  }\n};"
+      },
+      "id": "c598d8b8-d77c-494d-aafe-760fccea06cb",
+      "name": "📊 Parse ISO Editor Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -26704,
+        7048
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "approved",
+              "leftValue": "={{ $json.editor_approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "68418065-93cc-4281-8f75-62eb02638798",
+      "name": "🔀 Quality OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -26480,
+        7048
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "max-revisions",
+              "leftValue": "={{ $json.revision_count }}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "735b6f33-b039-4d24-bd12-e91cd0602fcc",
+      "name": "🔀 Max Revisions?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -26256,
+        7336
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-research:3003/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'ingest_and_embed',\n  arguments: {\n    text: $json.draft_content,\n    metadata: {\n      source: 'wpi-content-factory',\n      title: $json.blueprint.title + ' - Kapitel ' + $json.current_chapter.number,\n      document_type: 'book_chapter',\n      domain_id: $json.current_chapter.domain_id || $json.current_chapter.topic_id || null,\n      tags: ['generated', 'book-chapter', $('🔧 Initialize BookState').first().json.book_id],\n      language: 'de'\n    },\n    output_format: 'json'\n  }\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "4d1b19b2-78ab-42e9-81ec-be2f6a2c11f0",
+      "name": "💾 MCP: Store in Knowledge Base",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -26256,
+        7000
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mark chapter as stored and output complete chapter data\nlet prevData;\ntry {\n  prevData = $('📊 Parse ISO Editor Result').first().json;\n} catch (e) {\n  prevData = $input.first().json;\n}\n\n// Try to get ingestion result\nlet ingestionResult = null;\ntry {\n  const ingestResp = $('💾 MCP: Store in Knowledge Base').first().json;\n  if (ingestResp.body?.content?.[0]?.text) {\n    ingestionResult = JSON.parse(ingestResp.body.content[0].text);\n  }\n} catch (e) {\n  console.log('Ingestion result not available:', e.message);\n}\n\nconst chapterNumber = prevData.current_chapter?.number || (prevData.current_chapter_index !== undefined ? prevData.current_chapter_index + 1 : 1);\n\n// Format exam questions as Markdown\nconst examQuestionsMarkdown = (prevData.exam_questions || []).map((q, i) => {\n  return '**Frage ' + (i + 1) + ':** ' + q.question + '\\n\\n' +\n    (q.options || []).join('\\n') + '\\n\\n' +\n    '> **Antwort:** ' + (q.correct || 'N/A') + '\\n> *' + (q.explanation || '') + '*';\n}).join('\\n\\n---\\n\\n');\n\nconsole.log('Finalizing chapter', chapterNumber, 'score:', prevData.editor_score || 0);\n\nreturn {\n  json: {\n    chapter_number: chapterNumber,\n    title: prevData.current_chapter?.title || 'Untitled',\n    content: prevData.draft_content || '',\n    exam_questions: prevData.exam_questions || [],\n    exam_questions_markdown: examQuestionsMarkdown,\n    score: prevData.editor_score || 0,\n    iso_compliant: prevData.iso_compliant || false,\n    approval_threshold: prevData.approval_threshold || 90,\n    passed_quality: prevData.editor_approved || false,\n    stored_in_kb: !!ingestionResult,\n    kb_document_id: ingestionResult?.document_id || null,\n    blueprint: prevData.blueprint,\n    book_id: prevData.book_id,\n    current_chapter_index: prevData.current_chapter_index,\n    target_audience: prevData.target_audience\n  }\n};"
+      },
+      "id": "e590fa19-c347-4fa3-a273-e70c39dd4c22",
+      "name": "✅ Finalize Chapter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -26032,
+        7168
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "content-factory@wpi.org",
+        "toEmail": "hennadii.shvedko@gmail.com",
+        "subject": "=📖 Kapitel {{ $json.chapter_number }}: {{ $json.title }} (Score: {{ $json.score }}/100)",
+        "html": "=<h1>Kapitel {{ $json.chapter_number }} fertiggestellt</h1>\n<p><strong>Titel:</strong> {{ $json.title }}</p>\n<p><strong>Buch:</strong> {{ $json.blueprint.title }}</p>\n<p><strong>Zielgruppe:</strong> {{ $json.target_audience }}</p>\n<p><strong>Quality Score:</strong> {{ $json.score }}/100 {{ $json.passed_quality ? '✅ Approved' : '⚠️ Below threshold' }}</p>\n<p><strong>ISO 17024:</strong> {{ $json.iso_compliant ? '✅ Compliant' : '⚠️ Check required' }}</p>\n<p><strong>In KB gespeichert:</strong> {{ $json.stored_in_kb ? 'Ja' : 'Nein' }}</p>\n\n<hr>\n\n<h2>Kapitel-Inhalt (Markdown)</h2>\n<pre style=\"white-space: pre-wrap; font-family: monospace; background: #f5f5f5; padding: 15px; border-radius: 5px; max-height: 600px; overflow: auto;\">{{ $json.content }}</pre>\n\n<hr>\n\n<h2>Prüfungsfragen (Markdown)</h2>\n<pre style=\"white-space: pre-wrap; font-family: monospace; background: #f0f8ff; padding: 15px; border-radius: 5px;\">{{ $json.exam_questions_markdown || 'Keine Fragen generiert' }}</pre>",
+        "options": {}
+      },
+      "id": "2ecd32cb-f6af-4b6f-8156-03c0d29110c7",
+      "name": "📧 Send Chapter Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        -25808,
+        7168
+      ],
+      "disabled": true,
+      "webhookId": "21c5af5b-0d32-4ac3-91f8-57dcf1d4805d",
+      "credentials": {
+        "smtp": {
+          "id": "ZydhFDFy3w045RlS",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Initialize BookState').first().json.book_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('✅ Finalize Chapter').first().json) }}",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "991750f3-cce2-4106-b2cb-0b359239a2d0",
+      "name": "📦 Store Chapter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -25584,
+        7456
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "all-chapters-done",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": "={{ $('📑 Prepare Chapters').first().json.total_chapters }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-all-chapters-done",
+      "name": "🔀 All Chapters Done?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -30400,
+        7456
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Initialize BookState').first().json.book_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "051abe96-f110-40db-830d-7307fdcbdd85",
+      "name": "📥 Get Accumulated Chapters",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -30176,
+        7456
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get chapters from the accumulator service\nconsole.log('=== COMPILE BOOK DEBUG ===');\n\nlet finalChapters = [];\nlet book_id = 'unknown';\nlet blueprint = { title: 'Unknown Book', subtitle: '' };\n\ntry {\n  const accumulatorResponse = $('📥 Get Accumulated Chapters').first().json;\n  console.log('Accumulator response chapters:', accumulatorResponse.chapters?.length || 0);\n  \n  if (accumulatorResponse.chapters && Array.isArray(accumulatorResponse.chapters)) {\n    finalChapters = accumulatorResponse.chapters;\n    book_id = accumulatorResponse.book_id || 'unknown';\n  }\n  \n  if (finalChapters.length > 0 && finalChapters[0].blueprint) {\n    blueprint = finalChapters[0].blueprint;\n  }\n} catch (e) {\n  console.log('Could not get chapters from accumulator:', e.message);\n}\n\nconsole.log('Final chapters to compile:', finalChapters.length);\n\nif (finalChapters.length === 0) {\n  return {\n    json: {\n      book_id: book_id,\n      title: 'ERROR: No chapters',\n      error: 'No chapters were accumulated',\n      final_markdown: '# ERROR\\n\\nNo chapters were processed.',\n      exam_questions_markdown: '# Keine Prüfungsfragen\\n\\nKeine Kapitel wurden verarbeitet.',\n      chapter_scores: [],\n      average_score: 0,\n      total_chapters: 0,\n      completed_at: new Date().toISOString()\n    }\n  };\n}\n\n// Sort by chapter number\nfinalChapters.sort((a, b) => (a.chapter_number || 0) - (b.chapter_number || 0));\n\n// Create final book markdown\nlet bookMarkdown = '# ' + blueprint.title + '\\n\\n';\nbookMarkdown += '*' + (blueprint.subtitle || '') + '*\\n\\n';\n\nif (blueprint.iso_alignment) {\n  bookMarkdown += '**ISO 17024 Syllabus:** ' + (blueprint.iso_alignment.syllabus_id || blueprint.iso_alignment.domain_id) + '\\n\\n';\n}\n\nbookMarkdown += '---\\n\\n## Inhaltsverzeichnis\\n\\n';\nfinalChapters.forEach((ch, i) => {\n  bookMarkdown += (i + 1) + '. ' + (ch.title || 'Kapitel ' + (i + 1)) + '\\n';\n});\nbookMarkdown += '\\n---\\n\\n';\n\nfinalChapters.forEach((ch, i) => {\n  const chapterContent = ch.content || '';\n  console.log('Chapter', ch.chapter_number || i + 1, 'content length:', chapterContent.length);\n  if (chapterContent) {\n    bookMarkdown += chapterContent + '\\n\\n---\\n\\n';\n  }\n});\n\n// Collect all exam questions as Markdown\nlet allQuestionsMarkdown = '# Prüfungsfragen\\n\\n';\nfinalChapters.forEach((ch) => {\n  if (ch.exam_questions_markdown) {\n    allQuestionsMarkdown += '## Kapitel ' + ch.chapter_number + ': ' + ch.title + '\\n\\n';\n    allQuestionsMarkdown += ch.exam_questions_markdown + '\\n\\n---\\n\\n';\n  }\n});\n\n// Calculate average score\nconst validScores = finalChapters.filter(ch => typeof ch.score === 'number' && ch.score > 0);\nconst averageScore = validScores.length > 0 \n  ? validScores.reduce((sum, ch) => sum + ch.score, 0) / validScores.length \n  : 0;\n\nconsole.log('Average score:', averageScore);\nconsole.log('=== END DEBUG ===');\n\nreturn {\n  json: {\n    book_id: book_id,\n    title: blueprint.title,\n    iso_alignment: blueprint.iso_alignment,\n    final_markdown: bookMarkdown,\n    exam_questions_markdown: allQuestionsMarkdown,\n    chapter_scores: finalChapters.map(ch => ({ \n      chapter: ch.chapter_number || 0, \n      title: ch.title,\n      score: ch.score || 0,\n      iso_compliant: ch.iso_compliant || false,\n      passed_quality: ch.passed_quality || false\n    })),\n    average_score: averageScore,\n    kb_document_ids: finalChapters.map(ch => ch.kb_document_id).filter(Boolean),\n    total_chapters: finalChapters.length,\n    completed_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "0dd9f2bb-e5d5-44f0-913e-92943411798a",
+      "name": "📚 Compile Book",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -30064,
+        7456
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "final_markdown",
+        "options": {
+          "fileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}-book.md",
+          "mimeType": "text/markdown"
+        }
+      },
+      "id": "9c26fa30-fa47-4282-9fa9-967a7a57f06d",
+      "name": "📄 Convert Book MD",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -29840,
+        7360
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "exam_questions_markdown",
+        "options": {
+          "fileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}-questions.md",
+          "mimeType": "text/markdown"
+        }
+      },
+      "id": "fed60878-d5dc-4e37-91a5-812d714dc8cf",
+      "name": "📄 Convert Questions MD",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -29840,
+        7552
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "86468d0b-2b08-4670-84ea-f5b3c3b89dae",
+      "name": "🔀 Merge Files",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -29616,
+        7456
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "compress",
+        "format": "zip",
+        "outputFileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}.zip"
+      },
+      "id": "compression-node-zip",
+      "name": "📦 ZIP Files",
+      "type": "n8n-nodes-base.compression",
+      "typeVersion": 1,
+      "position": [
+        -29504,
+        7456
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "content-factory@wpi.org",
+        "toEmail": "hennadii.shvedko@gmail.com",
+        "subject": "=✅ Buch fertig: {{ $json.title }} (Ø Score: {{ Math.round($json.average_score) }}/100)",
+        "html": "=<h1>📚 Buch fertiggestellt!</h1>\\n<p><strong>{{ $json.title }}</strong></p>\\n{{ $json.iso_alignment ? '<p><strong>ISO 17024 Syllabus:</strong> ' + ($json.iso_alignment.syllabus_id || $json.iso_alignment.domain_id) + '</p>' : '' }}\\n<p>Durchschnittlicher Quality Score: <strong>{{ Math.round($json.average_score) }}/100</strong></p>\\n<p>In Knowledge Base gespeichert: <strong>{{ $json.kb_document_ids.length }} Kapitel</strong></p>\\n<p>Gesamte Kapitel: <strong>{{ $json.total_chapters }}</strong></p>\\n\\n<h3>Chapter Scores:</h3>\\n<table border=\\\"1\\\" cellpadding=\\\"8\\\" cellspacing=\\\"0\\\" style=\\\"border-collapse: collapse;\\\">\\n<tr><th>Kapitel</th><th>Titel</th><th>Score</th><th>Status</th></tr>\\n{{ $json.chapter_scores.map(cs => '<tr><td>' + cs.chapter + '</td><td>' + cs.title + '</td><td>' + cs.score + '/100</td><td>' + (cs.passed_quality ? '✅' : '⚠️') + '</td></tr>').join('') }}\\n</table>\\n\\n<p style=\\\"margin-top: 20px;\\\"><strong>📦 Das ZIP-Archiv enthält 4 Dateien:</strong></p>\\n<ul>\\n<li>📘 <strong>book.md</strong> - Vollständiges Buch (Markdown)</li>\\n<li>📝 <strong>questions.md</strong> - Prüfungsfragen (Markdown)</li>\\n<li>🌐 <strong>book.html</strong> - Vollständiges Buch (HTML mit CSS-Styling)</li>\\n<li>🌐 <strong>questions.html</strong> - Prüfungsfragen (HTML mit CSS-Styling)</li>\\n</ul>\\n\\n<p><small>Fertiggestellt: {{ $json.completed_at }}</small></p>",
+        "options": {
+          "attachments": "data"
+        }
+      },
+      "id": "51ec9244-2ad8-49f6-ab5c-fabdcd4f5683",
+      "name": "📧 Final Book Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        -29392,
+        7456
+      ],
+      "webhookId": "14a4cc35-74c1-4472-933a-a3bdeadb2c56",
+      "credentials": {
+        "smtp": {
+          "id": "ZydhFDFy3w045RlS",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## WPI AI Content Factory - Syllabus Driven (Full)\n\n### ALL AI AGENTS ACTIVE:\n- 🏗️ **Architect Agent**: Creates blueprint from domains\n- ✍️ **WPI Technical Architect (v4.4)**: Generates chapters (MARKDOWN)\n- 💻 **WPI Coder Agent**: Generates code\n- 🔄 **WPI Coder Self-Correct**: Fixes validation errors\n- 🔍 **WPI ISO Editor**: Quality gate (90pts threshold)\n\n### ALL MCPs ACTIVE:\n- **mcp-standards** (3002): Syllabus, ISO, Domains\n- **mcp-research** (3003): RAG / Qdrant\n- **mcp-coder** (3004): Code Validation\n\n### CHANGES FROM ORIGINAL:\n1. ✅ Form Trigger with syllabus dropdown\n2. ✅ NO email approval (direct processing)\n3. ✅ Domains = Chapters (from /syllabus/domains)\n4. ✅ Markdown output (not HTML)\n5. ✅ Per-chapter email with MD content\n6. ✅ Final book email with MD attachments\n\n### Flow:\n1. 📥 Form Trigger → Shows form immediately on Execute\n2. 📚 Fetch domains from MCP\n3. 🔧 Initialize BookState with form data\n4. 🏗️ Architect enriches domain structure\n5. 🔁 Chapter Loop:\n   - 🔍 Research + Syllabus LOs\n   - ✍️ Writer (MD) → 💻 Coder → 🔬 Validate\n   - 🔍 ISO Editor → 90pt gate\n   - 📧 Chapter email (MD content)\n6. 📚 Compile → 📧 Final email (MD files)",
+        "height": 620,
+        "width": 400
+      },
+      "id": "9faaca72-4210-4be8-8007-ef7d1638b82f",
+      "name": "📝 Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -32992,
+        7184
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.3,\n  max_tokens: 16000,\n  messages: [\n    {\n      role: 'system',\n      content: 'You are a Markdown-to-HTML converter for WPI study guides.\\n\\nConvert the provided Markdown to complete HTML with embedded CSS.\\n\\nINCLUDE THIS CSS:\\n<!DOCTYPE html>\\n<html lang=\"de\">\\n<head>\\n    <meta charset=\"UTF-8\">\\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\\n    <title>WPI Study Guide</title>\\n    <style>\\n        body { font-family: \\'Segoe UI\\', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; }\\n        h1, h2, h3 { color: #2c3e50; }\\n        h1 { border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-top: 40px; }\\n        h2 { color: #e67e22; margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 5px; }\\n        h3 { border-left: 5px solid #3498db; padding-left: 10px; margin-top: 30px; }\\n        h4 { color: #16a085; margin-top: 25px; }\\n        code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: Consolas, monospace; color: #c7254e; font-size: 0.9em; }\\n        pre { background-color: #282c34; color: #abb2bf; border: 1px solid #ddd; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: Consolas, monospace; font-size: 0.9em; margin: 20px 0; }\\n        blockquote { border-left: 4px solid #3498db; margin: 20px 0; padding: 10px 20px; background-color: #eaf2f8; font-style: italic; }\\n        table { border-collapse: collapse; width: 100%; margin: 25px 0; font-size: 0.95em; }\\n        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }\\n        th { background-color: #2c3e50; color: white; }\\n        tr:nth-child(even) { background-color: #f2f2f2; }\\n        .scenario { background-color: #fff3e0; padding: 20px; border-left: 5px solid #ff9800; border-radius: 4px; margin: 30px 0; }\\n        .definition { background-color: #f3e5f5; padding: 20px; border-left: 5px solid #9c27b0; border-radius: 4px; margin: 25px 0; }\\n        .best-practice { background-color: #e8f5e9; padding: 20px; border-left: 5px solid #4caf50; border-radius: 4px; margin: 25px 0; }\\n        .pitfall { background-color: #ffebee; padding: 20px; border-left: 5px solid #f44336; border-radius: 4px; margin: 25px 0; }\\n        .ai-copilot { background-color: #e0f7fa; padding: 20px; border-left: 5px solid #00bcd4; border-radius: 4px; margin: 25px 0; border: 1px dashed #0097a7; }\\n        .drill { background-color: #fbe9e7; padding: 25px; border: 1px solid #ffab91; border-radius: 8px; margin-top: 40px; }\\n        ul, ol { margin-bottom: 20px; }\\n        li { margin-bottom: 8px; }\\n    </style>\\n</head>\\n<body>\\n\\nConvert Markdown to HTML and wrap in this template. Output ONLY complete HTML.'\n    },\n    {\n      role: 'user',\n      content: 'Convert this Markdown to styled HTML:\\n\\n' + $json.final_markdown\n    }\n  ]\n}) }}",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "html-book-converter-node",
+      "name": "🌐 Convert Book to HTML",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -29840,
+        8052
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5KnJ49CiBjEEjtWM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.3,\n  max_tokens: 16000,\n  messages: [\n    {\n      role: 'system',\n      content: 'You are a Markdown-to-HTML converter for WPI study guides.\\n\\nConvert the provided Markdown to complete HTML with embedded CSS.\\n\\nINCLUDE THIS CSS:\\n<!DOCTYPE html>\\n<html lang=\"de\">\\n<head>\\n    <meta charset=\"UTF-8\">\\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\\n    <title>WPI Prüfungsfragen</title>\\n    <style>\\n        body { font-family: \\'Segoe UI\\', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; }\\n        h1, h2, h3 { color: #2c3e50; }\\n        h1 { border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-top: 40px; }\\n        h2 { color: #e67e22; margin-top: 40px; border-bottom: 1px solid #eee; padding-bottom: 5px; }\\n        h3 { border-left: 5px solid #3498db; padding-left: 10px; margin-top: 30px; }\\n        code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: Consolas, monospace; color: #c7254e; font-size: 0.9em; }\\n        pre { background-color: #282c34; color: #abb2bf; border: 1px solid #ddd; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: Consolas, monospace; font-size: 0.9em; margin: 20px 0; }\\n        blockquote { border-left: 4px solid #3498db; margin: 20px 0; padding: 10px 20px; background-color: #eaf2f8; font-style: italic; }\\n        ul, ol { margin-bottom: 20px; }\\n        li { margin-bottom: 8px; }\\n    </style>\\n</head>\\n<body>\\n\\nConvert Markdown to HTML and wrap in this template. Output ONLY complete HTML.'\n    },\n    {\n      role: 'user',\n      content: 'Convert this Markdown to styled HTML:\\n\\n' + $json.exam_questions_markdown\n    }\n  ]\n}) }}",
+        "options": {
+          "retry": {
+            "maxTries": 3,
+            "waitBetweenTries": 1000
+          }
+        }
+      },
+      "id": "html-questions-converter-node",
+      "name": "🌐 Convert Questions to HTML",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -29840,
+        8252
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5KnJ49CiBjEEjtWM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const htmlContent = $input.first().json.choices[0].message.content;\nconst originalData = $('📚 Compile Book').first().json;\n\nreturn {\n  json: {\n    ...originalData,\n    final_html: htmlContent\n  }\n};"
+      },
+      "id": "extract-html-book-node",
+      "name": "📋 Extract HTML Book",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -29616,
+        8052
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const htmlContent = $input.first().json.choices[0].message.content;\nconst originalData = $('📚 Compile Book').first().json;\n\nreturn {\n  json: {\n    ...originalData,\n    exam_questions_html: htmlContent\n  }\n};"
+      },
+      "id": "extract-html-questions-node",
+      "name": "📋 Extract HTML Questions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -29616,
+        8252
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "final_html",
+        "options": {
+          "fileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}-book.html",
+          "mimeType": "text/html"
+        }
+      },
+      "id": "convert-book-html-node",
+      "name": "📄 Convert Book HTML",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -29392,
+        8052
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "exam_questions_html",
+        "options": {
+          "fileName": "={{ $('🔧 Initialize BookState').first().json.book_id }}-questions.html",
+          "mimeType": "text/html"
+        }
+      },
+      "id": "convert-questions-html-node",
+      "name": "📄 Convert Questions HTML",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -29392,
+        8252
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "📥 Book Request Form": {
+      "main": [
+        [
+          {
+            "node": "🔍 Extract Syllabus ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Extract Syllabus ID": {
+      "main": [
+        [
+          {
+            "node": "🔄 Activate Syllabus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Activate Syllabus": {
+      "main": [
+        [
+          {
+            "node": "🔀 Route by Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Route by Strategy": {
+      "main": [
+        [
+          {
+            "node": "📚 Fetch Syllabus Domains",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📑 Fetch Syllabus Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📚 Fetch Syllabus Domains": {
+      "main": [
+        [
+          {
+            "node": "🔧 Initialize BookState",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📑 Fetch Syllabus Topics": {
+      "main": [
+        [
+          {
+            "node": "🔧 Initialize BookState",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Initialize BookState": {
+      "main": [
+        [
+          {
+            "node": "📚 MCP: Get Syllabus Section",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🔍 MCP: Search Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📚 MCP: Get Syllabus Section": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge MCP Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 MCP: Search Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge MCP Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Merge MCP Context": {
+      "main": [
+        [
+          {
+            "node": "🏗️ Architect Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏗️ Architect Agent": {
+      "main": [
+        [
+          {
+            "node": "📋 Parse Blueprint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Parse Blueprint": {
+      "main": [
+        [
+          {
+            "node": "🗑️ Clear Chapter Accumulator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗑️ Clear Chapter Accumulator": {
+      "main": [
+        [
+          {
+            "node": "📑 Prepare Chapters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📑 Prepare Chapters": {
+      "main": [
+        [
+          {
+            "node": "🔁 Chapter Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔁 Chapter Loop": {
+      "main": [
+        [
+          {
+            "node": "🔀 All Chapters Done?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔍 MCP: Chapter Research",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📚 MCP: Get Chapter LOs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🔀 Add Chapter Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔍 MCP: Chapter Research": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge MCP Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📚 MCP: Get Chapter LOs": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge MCP Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔀 Merge MCP Results": {
+      "main": [
+        [
+          {
+            "node": "🔀 Add Chapter Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Add Chapter Data": {
+      "main": [
+        [
+          {
+            "node": "💾 Merge Chapter Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Merge Chapter Context": {
+      "main": [
+        [
+          {
+            "node": "✍️ WPI Technical Architect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✍️ WPI Technical Architect": {
+      "main": [
+        [
+          {
+            "node": "📝 Extract Code Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Extract Code Requests": {
+      "main": [
+        [
+          {
+            "node": "🔀 Code Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Code Needed?": {
+      "main": [
+        [
+          {
+            "node": "💻 WPI Coder Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⏭️ Skip Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💻 WPI Coder Agent": {
+      "main": [
+        [
+          {
+            "node": "🔗 Merge Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Merge Code": {
+      "main": [
+        [
+          {
+            "node": "🔬 MCP: Validate Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔬 MCP: Validate Code": {
+      "main": [
+        [
+          {
+            "node": "📊 Parse Code Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Parse Code Validation": {
+      "main": [
+        [
+          {
+            "node": "🔀 Code Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Code Valid?": {
+      "main": [
+        [
+          {
+            "node": "📋 MCP: ISO Compliance Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔀 Code Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Code Retry?": {
+      "main": [
+        [
+          {
+            "node": "🔄 WPI Coder Self-Correct",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⏭️ Skip Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 WPI Coder Self-Correct": {
+      "main": [
+        [
+          {
+            "node": "🔗 Merge Corrected Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Merge Corrected Code": {
+      "main": [
+        [
+          {
+            "node": "🔬 MCP: Validate Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏭️ Skip Validation": {
+      "main": [
+        [
+          {
+            "node": "📋 MCP: ISO Compliance Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏭️ Skip Code": {
+      "main": [
+        [
+          {
+            "node": "📋 MCP: ISO Compliance Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 MCP: ISO Compliance Check": {
+      "main": [
+        [
+          {
+            "node": "🔍 WPI ISO Editor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 WPI ISO Editor": {
+      "main": [
+        [
+          {
+            "node": "📊 Parse ISO Editor Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Parse ISO Editor Result": {
+      "main": [
+        [
+          {
+            "node": "🔀 Quality OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Quality OK?": {
+      "main": [
+        [
+          {
+            "node": "💾 MCP: Store in Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔀 Max Revisions?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 MCP: Store in Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "✅ Finalize Chapter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Finalize Chapter": {
+      "main": [
+        [
+          {
+            "node": "📦 Store Chapter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📧 Send Chapter Email": {
+      "main": [
+        [
+          {
+            "node": "📦 Store Chapter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📦 Store Chapter": {
+      "main": [
+        [
+          {
+            "node": "🔁 Chapter Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 All Chapters Done?": {
+      "main": [
+        [
+          {
+            "node": "📥 Get Accumulated Chapters",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "📥 Get Accumulated Chapters": {
+      "main": [
+        [
+          {
+            "node": "📚 Compile Book",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Max Revisions?": {
+      "main": [
+        [
+          {
+            "node": "✍️ WPI Technical Architect",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "✅ Finalize Chapter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📚 Compile Book": {
+      "main": [
+        [
+          {
+            "node": "📄 Convert Book MD",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📄 Convert Questions MD",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🌐 Convert Book to HTML",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🌐 Convert Questions to HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Convert Book MD": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Convert Questions MD": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Files",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔀 Merge Files": {
+      "main": [
+        [
+          {
+            "node": "📦 ZIP Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📦 ZIP Files": {
+      "main": [
+        [
+          {
+            "node": "📧 Final Book Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 Convert Book to HTML": {
+      "main": [
+        [
+          {
+            "node": "📋 Extract HTML Book",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 Convert Questions to HTML": {
+      "main": [
+        [
+          {
+            "node": "📋 Extract HTML Questions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Extract HTML Book": {
+      "main": [
+        [
+          {
+            "node": "📄 Convert Book HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Extract HTML Questions": {
+      "main": [
+        [
+          {
+            "node": "📄 Convert Questions HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Convert Book HTML": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Convert Questions HTML": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "af625d4c-02ef-418a-ab19-e40d17f23722",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60d48302a9aa1e8edca02aea5b256f3d430c6966fd15714072dd79eb1d923da5"
+  },
+  "id": "2x3ju9qC1rZQuHsK",
+  "tags": [
+    {
+      "updatedAt": "2026-01-22T08:19:48.642Z",
+      "createdAt": "2026-01-22T08:19:48.642Z",
+      "id": "5yx7Odspidz9tjQG",
+      "name": "WPI"
+    },
+    {
+      "updatedAt": "2026-01-22T08:19:48.690Z",
+      "createdAt": "2026-01-22T08:19:48.690Z",
+      "id": "BQWMJByq9Vm6jASn",
+      "name": "AI"
+    },
+    {
+      "name": "Syllabus-Driven",
+      "id": "Um67A3Nb7UvVyHn0",
+      "updatedAt": "2026-01-24T15:09:35.714Z",
+      "createdAt": "2026-01-24T15:09:35.714Z"
+    },
+    {
+      "updatedAt": "2026-01-22T08:19:48.652Z",
+      "createdAt": "2026-01-22T08:19:48.652Z",
+      "id": "Zua73lWs0ELXRGMn",
+      "name": "MCP-Integrated"
+    },
+    {
+      "updatedAt": "2026-01-22T08:19:48.698Z",
+      "createdAt": "2026-01-22T08:19:48.698Z",
+      "id": "iRYgw0Jsz0tN1eFX",
+      "name": "Content Factory"
+    },
+    {
+      "updatedAt": "2026-01-22T08:19:48.705Z",
+      "createdAt": "2026-01-22T08:19:48.705Z",
+      "id": "ibzcD43GZdRC88fk",
+      "name": "PoC"
+    }
+  ]
+}

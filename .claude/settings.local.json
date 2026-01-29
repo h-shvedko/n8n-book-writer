@@ -35,7 +35,10 @@
       "Bash(jq:*)",
       "Bash(presents a potential security issue\"\n\nRoot cause: Gmail''s anti-virus scanner flags markdown files with code \nsnippets as potentially dangerous, especially .md files which can be \nconfused with malicious content.\n\nSolution implemented:\n1. Changed file extensions from .md to .txt \\(more Gmail-friendly\\)\n2. Added mimeType: \"text/plain\" to both Convert nodes\n3. Added new \"📦 ZIP Files\" compression node between Merge and Email\n   - Compresses both .txt files into a single .zip archive\n   - ZIP filename uses book_id for identification\n4. Updated email HTML to mention \"ZIP-Archiv\" instead of \".md files\"\n5. Updated connection flow: Merge Files → ZIP Files → Final Book Email\n\nResult: \n- Single ZIP file attachment \\(bypasses content scanning\\)\n- Gmail accepts ZIP files more reliably\n- Users can extract and rename files back to .md if desired\n- Cleaner, professional delivery with one archive\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(node scripts/add-html-generation.js:*)",
-      "Bash(node scripts/add-retry-logic.js:*)"
+      "Bash(node scripts/add-retry-logic.js:*)",
+      "Bash(node scripts/fix-merge-inputs.js:*)",
+      "Bash(node scripts/verify-html-connections.js:*)",
+      "Bash(ls:*)"
     ]
   }
 }
