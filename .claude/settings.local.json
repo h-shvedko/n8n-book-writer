@@ -39,7 +39,8 @@
       "Bash(node scripts/fix-merge-inputs.js:*)",
       "Bash(node scripts/verify-html-connections.js:*)",
       "Bash(ls:*)",
-      "Bash(node scripts/fix-html-to-merge.js:*)"
+      "Bash(node scripts/fix-html-to-merge.js:*)",
+      "Bash(node scripts/fix-merge-zip-email.js:*)"
     ]
   }
 }
