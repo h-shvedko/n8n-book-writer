@@ -219,7 +219,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"name\": \"get_syllabus_section\",\n  \"arguments\": {\n    \"domain_id\": \"{{ $json.chapters[0]?.domain_id || $json.items[0]?.domain_id || $json.items[0]?.topic_id || 'D1' }}\",\n    \"output_format\": \"json\"\n  }\n}",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'get_syllabus_section',\n  arguments: {\n    domain_id: $json.chapters[0]?.domain_id || $json.items[0]?.domain_id || $json.items[0]?.topic_id || 'D1',\n    output_format: 'json'\n  }\n}) }}",
         "options": {
           "response": {
             "response": {
@@ -261,7 +261,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"name\": \"hybrid_search\",\n  \"arguments\": {\n    \"query\": \"{{ $('🔧 Initialize BookState').first().json.syllabus_name + ' ' + $('🔧 Initialize BookState').first().json.chapters.map(function(c) { return c.title; }).join(' ') }}\",\n    \"limit\": 10,\n    \"output_format\": \"json\"\n  }\n}",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'hybrid_search',\n  arguments: {\n    query: $('🔧 Initialize BookState').first().json.syllabus_name + ' ' + $('🔧 Initialize BookState').first().json.chapters.map(function(c) { return c.title; }).join(' '),\n    limit: 10,\n    output_format: 'json'\n  }\n}) }}",
         "options": {
           "response": {
             "response": {
@@ -288,28 +288,14 @@
     },
     {
       "parameters": {
-        "mode": "append",
-        "numberInputs": 2
+        "jsCode": "// Combine syllabus and research context\nconst bookState = $('🔧 Initialize BookState').first().json;\n\n// Get syllabus section (from MCP-Standards)\nlet syllabusContext = null;\ntry {\n  const syllabusResponse = $('📚 MCP: Get Syllabus Section').first().json;\n  if (syllabusResponse.body && !syllabusResponse.body.error) {\n    const content = syllabusResponse.body.content?.[0]?.text;\n    syllabusContext = content ? JSON.parse(content) : null;\n  }\n} catch (e) {\n  console.log('Syllabus fetch failed, continuing without:', e.message);\n}\n\n// Get research context (from MCP-Research / Qdrant)\nlet researchContext = [];\ntry {\n  const researchResponse = $('🔍 MCP: Search Knowledge Base').first().json;\n  if (researchResponse.body && !researchResponse.body.error) {\n    const content = researchResponse.body.content?.[0]?.text;\n    const parsed = content ? JSON.parse(content) : null;\n    researchContext = parsed?.results || [];\n  }\n} catch (e) {\n  console.log('Research fetch failed, continuing without:', e.message);\n}\n\nreturn {\n  json: {\n    ...bookState,\n    syllabus_context: syllabusContext,\n    research_context: researchContext,\n    has_syllabus: !!syllabusContext,\n    has_research: researchContext.length > 0\n  }\n};"
       },
       "id": "38adaa00-8042-4442-89e6-1cf3db086700",
       "name": "🔀 Merge MCP Context",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        -32032,
-        12040
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Combine syllabus and research context\nconst bookState = $('🔧 Initialize BookState').first().json;\n\n// Get syllabus section (from MCP-Standards)\nlet syllabusContext = null;\ntry {\n  const syllabusResponse = $('📚 MCP: Get Syllabus Section').first().json;\n  if (syllabusResponse.body && !syllabusResponse.body.error) {\n    const content = syllabusResponse.body.content?.[0]?.text;\n    syllabusContext = content ? JSON.parse(content) : null;\n  }\n} catch (e) {\n  console.log('Syllabus fetch failed, continuing without:', e.message);\n}\n\n// Get research context (from MCP-Research / Qdrant)\nlet researchContext = [];\ntry {\n  const researchResponse = $('🔍 MCP: Search Knowledge Base').first().json;\n  if (researchResponse.body && !researchResponse.body.error) {\n    const content = researchResponse.body.content?.[0]?.text;\n    const parsed = content ? JSON.parse(content) : null;\n    researchContext = parsed?.results || [];\n  }\n} catch (e) {\n  console.log('Research fetch failed, continuing without:', e.message);\n}\n\nreturn {\n  json: {\n    ...bookState,\n    syllabus_context: syllabusContext,\n    research_context: researchContext,\n    has_syllabus: !!syllabusContext,\n    has_research: researchContext.length > 0\n  }\n};"
-      },
-      "id": "combine-mcp-context-code",
-      "name": "🧩 Combine MCP Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -31808,
+        -32032,
         12040
       ]
     },
@@ -1393,7 +1379,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Create ZIP - pull binaries directly from 4 Convert nodes by name\n// This avoids Merge node batching issues\n\nconst nodeNames = [\n  '📄 Convert Book MD',\n  '📄 Convert Questions MD',\n  '📄 Convert Book HTML',\n  '📄 Convert Questions HTML'\n];\n\nconst files = [];\nfor (const nodeName of nodeNames) {\n  try {\n    const nodeOutput = $(nodeName).first();\n    if (nodeOutput && nodeOutput.binary && nodeOutput.binary.data) {\n      const bd = nodeOutput.binary.data;\n      const buffer = Buffer.from(bd.data, 'base64');\n      files.push({ name: bd.fileName || 'file', data: buffer });\n    }\n  } catch (e) {\n    // Node not yet executed - skip\n  }\n}\n\n// CRC-32 implementation\nconst crcTable = [];\nfor (let i = 0; i < 256; i++) {\n  let c = i;\n  for (let j = 0; j < 8; j++) {\n    c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);\n  }\n  crcTable[i] = c;\n}\n\nfunction crc32(buf) {\n  let crc = 0xFFFFFFFF;\n  for (let i = 0; i < buf.length; i++) {\n    crc = crcTable[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);\n  }\n  return (crc ^ 0xFFFFFFFF) >>> 0;\n}\n\n// Build ZIP file (STORED method, no compression)\nconst parts = [];\nconst centralDir = [];\nlet offset = 0;\n\nfor (const file of files) {\n  const nameBuffer = Buffer.from(file.name, \"utf8\");\n  const crc = crc32(file.data);\n  const size = file.data.length;\n\n  // Local file header (30 bytes + name)\n  const lh = Buffer.alloc(30);\n  lh.writeUInt32LE(0x04034b50, 0);\n  lh.writeUInt16LE(20, 4);\n  lh.writeUInt16LE(0, 6);\n  lh.writeUInt16LE(0, 8);\n  lh.writeUInt16LE(0, 10);\n  lh.writeUInt16LE(0, 12);\n  lh.writeUInt32LE(crc, 14);\n  lh.writeUInt32LE(size, 18);\n  lh.writeUInt32LE(size, 22);\n  lh.writeUInt16LE(nameBuffer.length, 26);\n  lh.writeUInt16LE(0, 28);\n\n  parts.push(lh, nameBuffer, file.data);\n\n  // Central directory entry (46 bytes + name)\n  const cd = Buffer.alloc(46);\n  cd.writeUInt32LE(0x02014b50, 0);\n  cd.writeUInt16LE(20, 4);\n  cd.writeUInt16LE(20, 6);\n  cd.writeUInt16LE(0, 8);\n  cd.writeUInt16LE(0, 10);\n  cd.writeUInt16LE(0, 12);\n  cd.writeUInt16LE(0, 14);\n  cd.writeUInt32LE(crc, 16);\n  cd.writeUInt32LE(size, 20);\n  cd.writeUInt32LE(size, 24);\n  cd.writeUInt16LE(nameBuffer.length, 28);\n  cd.writeUInt16LE(0, 30);\n  cd.writeUInt16LE(0, 32);\n  cd.writeUInt16LE(0, 34);\n  cd.writeUInt16LE(0, 36);\n  cd.writeUInt32LE(0, 38);\n  cd.writeUInt32LE(offset, 42);\n\n  centralDir.push(cd, nameBuffer);\n  offset += 30 + nameBuffer.length + size;\n}\n\nconst cdBuf = Buffer.concat(centralDir);\nconst cdOffset = offset;\n\n// End of central directory (22 bytes)\nconst ecd = Buffer.alloc(22);\necd.writeUInt32LE(0x06054b50, 0);\necd.writeUInt16LE(0, 4);\necd.writeUInt16LE(0, 6);\necd.writeUInt16LE(files.length, 8);\necd.writeUInt16LE(files.length, 10);\necd.writeUInt32LE(cdBuf.length, 12);\necd.writeUInt32LE(cdOffset, 16);\necd.writeUInt16LE(0, 20);\n\nconst zipBuffer = Buffer.concat([...parts, cdBuf, ecd]);\n\n// Get title for filename\nconst compileData = $('📚 Compile Book').first().json;\nconst title = compileData.title || 'book';\nconst safeTitle = title.replace(/[^a-zA-Z0-9\\s\\u00e4\\u00f6\\u00fc\\u00c4\\u00d6\\u00dc\\u00df-]/g, '').replace(/\\s+/g, '_');\n\nreturn [{\n  json: {\n    title: safeTitle,\n    fileCount: files.length\n  },\n  binary: {\n    data: {\n      data: zipBuffer.toString(\"base64\"),\n      mimeType: \"application/zip\",\n      fileName: safeTitle + \".zip\",\n      fileExtension: \"zip\"\n    }\n  }\n}];"
+        "jsCode": "// Create ZIP - pull binaries directly from 4 Convert nodes by name\n// This avoids Merge node batching issues\n\nconst nodeNames = [\n  '📄 Convert Book MD',\n  '📄 Convert Questions MD',\n  '📄 Convert Book HTML',\n  '📄 Convert Questions HTML'\n];\n\nconst files = [];\nfor (const nodeName of nodeNames) {\n  try {\n    const nodeOutput = $(nodeName).first();\n    if (nodeOutput && nodeOutput.binary && nodeOutput.binary.data) {\n      const bd = nodeOutput.binary.data;\n      const buffer = Buffer.from(bd.data, 'base64');\n      files.push({ name: bd.fileName || 'file', data: buffer });\n    }\n  } catch (e) {\n    // Node not yet executed - skip\n  }\n}"\n\n// CRC-32 implementation\nconst crcTable = [];\nfor (let i = 0; i < 256; i++) {\n  let c = i;\n  for (let j = 0; j < 8; j++) {\n    c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);\n  }\n  crcTable[i] = c;\n}\n\nfunction crc32(buf) {\n  let crc = 0xFFFFFFFF;\n  for (let i = 0; i < buf.length; i++) {\n    crc = crcTable[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);\n  }\n  return (crc ^ 0xFFFFFFFF) >>> 0;\n}\n\n// Build ZIP file (STORED method, no compression)\nconst parts = [];\nconst centralDir = [];\nlet offset = 0;\n\nfor (const file of files) {\n  const nameBuffer = Buffer.from(file.name, \"utf8\");\n  const crc = crc32(file.data);\n  const size = file.data.length;\n\n  // Local file header (30 bytes + name)\n  const lh = Buffer.alloc(30);\n  lh.writeUInt32LE(0x04034b50, 0);\n  lh.writeUInt16LE(20, 4);\n  lh.writeUInt16LE(0, 6);\n  lh.writeUInt16LE(0, 8);\n  lh.writeUInt16LE(0, 10);\n  lh.writeUInt16LE(0, 12);\n  lh.writeUInt32LE(crc, 14);\n  lh.writeUInt32LE(size, 18);\n  lh.writeUInt32LE(size, 22);\n  lh.writeUInt16LE(nameBuffer.length, 26);\n  lh.writeUInt16LE(0, 28);\n\n  parts.push(lh, nameBuffer, file.data);\n\n  // Central directory entry (46 bytes + name)\n  const cd = Buffer.alloc(46);\n  cd.writeUInt32LE(0x02014b50, 0);\n  cd.writeUInt16LE(20, 4);\n  cd.writeUInt16LE(20, 6);\n  cd.writeUInt16LE(0, 8);\n  cd.writeUInt16LE(0, 10);\n  cd.writeUInt16LE(0, 12);\n  cd.writeUInt16LE(0, 14);\n  cd.writeUInt32LE(crc, 16);\n  cd.writeUInt32LE(size, 20);\n  cd.writeUInt32LE(size, 24);\n  cd.writeUInt16LE(nameBuffer.length, 28);\n  cd.writeUInt16LE(0, 30);\n  cd.writeUInt16LE(0, 32);\n  cd.writeUInt16LE(0, 34);\n  cd.writeUInt16LE(0, 36);\n  cd.writeUInt32LE(0, 38);\n  cd.writeUInt32LE(offset, 42);\n\n  centralDir.push(cd, nameBuffer);\n  offset += 30 + nameBuffer.length + size;\n}\n\nconst cdBuf = Buffer.concat(centralDir);\nconst cdOffset = offset;\n\n// End of central directory (22 bytes)\nconst ecd = Buffer.alloc(22);\necd.writeUInt32LE(0x06054b50, 0);\necd.writeUInt16LE(0, 4);\necd.writeUInt16LE(0, 6);\necd.writeUInt16LE(files.length, 8);\necd.writeUInt16LE(files.length, 10);\necd.writeUInt32LE(cdBuf.length, 12);\necd.writeUInt32LE(cdOffset, 16);\necd.writeUInt16LE(0, 20);\n\nconst zipBuffer = Buffer.concat([...parts, cdBuf, ecd]);\n\n// Get title for filename\nconst compileData = $('📚 Compile Book').first().json;\nconst title = compileData.title || 'book';\nconst safeTitle = title.replace(/[^a-zA-Z0-9\\u00e4\\u00f6\\u00fc\\u00c4\\u00d6\\u00dc\\u00df\\-\\s]/g, '').replace(/\\s+/g, '_');\n\nreturn [{\n  json: {\n    title: safeTitle,\n    fileCount: files.length\n  },\n  binary: {\n    data: {\n      data: zipBuffer.toString(\"base64\"),\n      mimeType: \"application/zip\",\n      fileName: safeTitle + \".zip\",\n      fileExtension: \"zip\"\n    }\n  }\n}];"
       },
       "id": "create-zip-code-node",
       "name": "📦 Create ZIP",
@@ -1513,23 +1499,12 @@
           {
             "node": "🔀 Merge MCP Context",
             "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "🔀 Merge MCP Context": {
-      "main": [
-        [
-          {
-            "node": "🧩 Combine MCP Data",
-            "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "🧩 Combine MCP Data": {
+    "🔀 Merge MCP Context": {
       "main": [
         [
           {
@@ -1994,12 +1969,24 @@
     },
     "📄 Convert Book MD": {
       "main": [
-        []
+        [
+          {
+            "node": "📦 Create ZIP",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "📄 Convert Questions MD": {
       "main": [
-        []
+        [
+          {
+            "node": "📦 Create ZIP",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "🌐 Convert Book to HTML": {
@@ -2048,7 +2035,13 @@
     },
     "📄 Convert Book HTML": {
       "main": [
-        []
+        [
+          {
+            "node": "📦 Create ZIP",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "📄 Convert Questions HTML": {
