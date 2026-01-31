@@ -40,7 +40,12 @@
       "Bash(node scripts/verify-html-connections.js:*)",
       "Bash(ls:*)",
       "Bash(node scripts/fix-html-to-merge.js:*)",
-      "Bash(node scripts/fix-merge-zip-email.js:*)"
+      "Bash(node scripts/fix-merge-zip-email.js:*)",
+      "Bash(node scripts/fix-combine-files.js:*)",
+      "Bash(node scripts/fix-remove-aggregate.js:*)",
+      "Bash(node scripts/fix-add-aggregate-proper.js:*)",
+      "Bash(node scripts/fix-replace-zip-with-code.js:*)",
+      "Bash(git rm:*)"
     ]
   }
 }
