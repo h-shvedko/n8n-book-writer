@@ -131,3 +131,62 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
 }
+
+// Job tracking types
+export interface Job {
+  id: string;
+  syllabus_name: string;
+  strategy: string;
+  target_audience: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  total_chapters: number;
+  completed_chapters: number;
+  current_workflow: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Book types
+export interface Book {
+  id: number;
+  job_id: string;
+  title: string;
+  json_content: any;
+  exam_questions: any;
+  global_history: string | null;
+  created_at: string;
+  chapter_count?: number;
+}
+
+// Chapter types
+export interface Chapter {
+  id: number;
+  book_id: number | null;
+  job_id: string;
+  chapter_id: string;
+  title: string;
+  chapter_index: number;
+  json_content: any;
+  exam_questions: any;
+  chapter_summary: string | null;
+  editor_score: number | null;
+  status: 'draft' | 'approved';
+  created_at: string;
+  updated_at: string;
+}
+
+// Workflow log types
+export interface WorkflowLog {
+  id: number;
+  job_id: string;
+  workflow_name: string;
+  chapter_id: string | null;
+  status: 'started' | 'completed' | 'failed';
+  input_summary: string | null;
+  output_summary: string | null;
+  error_message: string | null;
+  duration_ms: number | null;
+  created_at: string;
+}

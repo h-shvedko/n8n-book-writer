@@ -1,8 +1,10 @@
-# WPI Editorial Guide v2.9
+# WPI Editorial Guide v3.0
 
 ## Purpose
 
-This guide defines the standards for creating educational content at Web Professional Institute (WPI). All content must align with ISO 17024 certification requirements while maintaining WPI's distinctive tone and quality standards.
+This guide defines the **content quality standards** for creating educational content at Web Professional Institute (WPI). All content must align with ISO 17024 certification requirements while maintaining WPI's distinctive tone and quality standards.
+
+**Note:** This guide covers content and didactic quality only. Styling, formatting, and HTML rendering are handled externally. All output is structured JSON.
 
 ---
 
@@ -45,46 +47,17 @@ This guide defines the standards for creating educational content at Web Profess
 
 ---
 
-## Content Structure Template
+## Content Structure (Logical Sections)
 
-### Chapter Structure (Standard)
+Each chapter must contain these logical sections (output as JSON, not formatted text):
 
-```markdown
-# [Chapter Number]. [Chapter Title]
-
-## Einleitung (1 paragraph)
-- Why this topic matters
-- Real-world context
-- What you'll learn
-
-## Konzepte (2-3 pages)
-- Fundamental concepts explained clearly
-- Analogies from real-world scenarios
-- Architecture diagrams (when applicable)
-
-## Praxis (3-4 pages)
-- Code examples with explanations
-- Step-by-step implementation
-- Edge cases and error handling
-- Best practices
-
-## Best Practices (1 page)
-- Dos and Don'ts
-- Common pitfalls
-- Production considerations
-
-## Zusammenfassung (1 paragraph)
-- Key takeaways (3-5 bullet points)
-- Connection to next chapter
-
-## Lernziel-Check (Checkboxen)
-- [ ] Self-assessment checklist aligned with ISO 17024 learning objectives
-
-## Übung (1 page)
-- Practical hands-on task
-- Clear acceptance criteria
-- Estimated time: 30-60 minutes
-```
+1. **Einleitung** — Why this topic matters, real-world context, what you'll learn
+2. **Konzepte** — Fundamental concepts explained clearly, analogies, architecture diagrams
+3. **Praxis** — Code examples with explanations, step-by-step implementation, edge cases
+4. **Best Practices** — Dos and Don'ts, common pitfalls, production considerations
+5. **Zusammenfassung** — Key takeaways (3-5 bullet points), connection to next chapter
+6. **Lernziel-Check** — Self-assessment checklist aligned with ISO 17024 learning objectives
+7. **Übung** — Practical hands-on task, clear acceptance criteria, estimated time: 30-60 minutes
 
 ---
 
@@ -100,8 +73,6 @@ No placeholders like `// Your code here` or `/* Implementation details */`.
 
 1. **Modern Syntax**
    - JavaScript: ES6+ (const/let, arrow functions, template literals)
-   - HTML: HTML5 semantic elements
-   - CSS: Modern layout techniques (Grid, Flexbox)
 
 2. **Production-Ready**
    - Error handling included
@@ -331,6 +302,7 @@ For questions about this guide:
 
 ---
 
-**Version:** 2.9
-**Last Updated:** January 2026
-**Next Review:** March 2026
+**Version:** 3.0
+**Last Updated:** February 2026
+**Next Review:** April 2026
+**Change:** Removed styling/formatting standards — output is JSON only, HTML rendering is external.

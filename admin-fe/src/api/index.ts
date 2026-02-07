@@ -1,4 +1,4 @@
-import { Syllabus, WorkflowExecution, ServiceStatus, DocumentMetadata, IngestedFileRecord } from '../types';
+import { Syllabus, WorkflowExecution, ServiceStatus, DocumentMetadata, IngestedFileRecord, Job, Book, Chapter, WorkflowLog } from '../types';
 
 const N8N_API_BASE = import.meta.env.VITE_N8N_API_BASE || '/api/n8n';
 const MCP_RESEARCH_BASE = import.meta.env.VITE_MCP_RESEARCH_BASE || '/api/mcp-research';
@@ -429,6 +429,51 @@ export const standardsApi = {
       }),
     });
     return JSON.parse(response.content[0].text);
+  },
+};
+
+// Admin API (MySQL storage via admin-api service)
+const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_BASE || '/api/local';
+
+export const adminApi = {
+  // Jobs
+  async getJobs(): Promise<Job[]> {
+    try {
+      return await fetchApi<Job[]>(`${ADMIN_API_BASE}/jobs`);
+    } catch { return []; }
+  },
+
+  async getJob(id: string): Promise<Job | null> {
+    try {
+      return await fetchApi<Job>(`${ADMIN_API_BASE}/jobs/${id}`);
+    } catch { return null; }
+  },
+
+  // Books
+  async getBooks(): Promise<Book[]> {
+    try {
+      return await fetchApi<Book[]>(`${ADMIN_API_BASE}/books`);
+    } catch { return []; }
+  },
+
+  async getBook(id: number): Promise<(Book & { chapters: Chapter[] }) | null> {
+    try {
+      return await fetchApi<Book & { chapters: Chapter[] }>(`${ADMIN_API_BASE}/books/${id}`);
+    } catch { return null; }
+  },
+
+  // Chapters
+  async getChapter(id: number): Promise<Chapter | null> {
+    try {
+      return await fetchApi<Chapter>(`${ADMIN_API_BASE}/chapters/${id}`);
+    } catch { return null; }
+  },
+
+  // Logs
+  async getJobLogs(jobId: string): Promise<WorkflowLog[]> {
+    try {
+      return await fetchApi<WorkflowLog[]>(`${ADMIN_API_BASE}/jobs/${jobId}/logs`);
+    } catch { return []; }
   },
 };
 

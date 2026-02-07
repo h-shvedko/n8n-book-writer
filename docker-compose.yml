@@ -217,6 +217,76 @@ services:
           memory: 256M
 
   # ============================================
+  # MySQL Database (Storage & Tracking)
+  # ============================================
+  mysql:
+    image: mysql:8.0
+    container_name: wpi-mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-wpi_root_pass}
+      - MYSQL_DATABASE=wpi_content
+      - MYSQL_USER=${MYSQL_USER:-wpi_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-wpi_pass}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - wpi-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-wpi_root_pass}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ============================================
+  # Admin API (Express Backend for MySQL)
+  # ============================================
+  admin-api:
+    build:
+      context: ./admin-api
+      dockerfile: Dockerfile
+    container_name: wpi-admin-api
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=wpi_content
+      - MYSQL_USER=${MYSQL_USER:-wpi_user}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-wpi_pass}
+      - API_TOKEN=${MCP_AUTH_TOKEN:-}
+    ports:
+      - "${ADMIN_API_PORT:-3005}:3005"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - wpi-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # ============================================
   # Admin Dashboard (React Frontend)
   # ============================================
   admin-fe:
@@ -279,3 +349,6 @@ volumes:
   mcp_standards_data:
     driver: local
     name: wpi-mcp-standards-data
+  mysql_data:
+    driver: local
+    name: wpi-mysql-data

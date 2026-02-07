@@ -5,6 +5,7 @@ import {
   Database,
   Activity,
   BookOpen,
+  Briefcase,
   Settings,
 } from 'lucide-react';
 
@@ -75,6 +76,18 @@ export function Layout({ children }: LayoutProps) {
             label="Syllabus Editor"
             to="/syllabus"
             isActive={currentPath === '/syllabus'}
+          />
+          <NavItem
+            icon={<BookOpen className="w-5 h-5" />}
+            label="Books"
+            to="/books"
+            isActive={currentPath.startsWith('/books')}
+          />
+          <NavItem
+            icon={<Briefcase className="w-5 h-5" />}
+            label="Jobs"
+            to="/jobs"
+            isActive={currentPath === '/jobs'}
           />
         </nav>
 

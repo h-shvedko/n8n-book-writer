@@ -152,7 +152,7 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: 'get_editorial_guide',
-    description: 'Returns the WPI Editorial Guide (Styleguide 2.9) containing tone of voice, structure templates, and content quality guidelines for technical authoring.',
+    description: 'Returns the WPI Editorial Guide v3.0 containing tone of voice, content structure, code quality standards, and ISO 17024 alignment guidelines. Content quality only — no styling or formatting.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -168,7 +168,7 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: 'get_masterprompt',
-    description: 'Returns the Master Prompt v4.4 (WPI Course Generator) - the comprehensive system prompt for the WPI Technical Architect role. Contains all rules for chapter generation: target audience, source priorities, editorial rules (3000-3500 words, workload calculation), Bloom levels K1-K6, HTML output structure, Zero-to-Hero flow, and Anti-Circular definitions.',
+    description: 'Returns the Master Prompt v4.4 (WPI Course Generator) - the comprehensive system prompt for the WPI Technical Architect role. Contains rules for chapter generation: target audience, source priorities, editorial rules (3000-3500 words, workload calculation), Bloom levels K1-K6, Zero-to-Hero flow, and Anti-Circular definitions. Note: HTML output references are legacy — new workflows use JSON output.',
     inputSchema: {
       type: 'object',
       properties: {},
