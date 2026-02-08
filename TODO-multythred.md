@@ -295,19 +295,19 @@ Must produce a structured list of chapters with their Learning Objectives (LOs) 
 Encapsulates syllabus data fetching and knowledge base research for a single chapter.
 Performs **per-LO RAG lookups** against the existing Qdrant instance and returns structured results.
 
-- [ ] **3.1** Create workflow `WF-2-Research.json`
+- [x] **3.1** Create workflow `WF-2-Research.json`
   - Trigger: `Execute Workflow Trigger`
   - Input: `{ job_id, chapter_id, chapter_title, learning_objectives: [...], syllabus_section, global_history }`
-- [ ] **3.2** Migrate MCP research nodes from monolith
+- [x] **3.2** Migrate MCP research nodes from monolith
   - `MCP: Get Syllabus Section` (mcp-standards:3002) — **content structure only, no styling**
   - `MCP: Get Chapter LOs` (mcp-standards:3002)
   - `MCP: Search Knowledge Base` (mcp-research:3003)
   - `MCP: Chapter Research` (mcp-research:3003)
-- [ ] **3.3** **Add per-LO RAG lookup** (SplitInBatches over learning_objectives)
+- [x] **3.3** **Add per-LO RAG lookup** (SplitInBatches over learning_objectives)
   - For each LO → query Qdrant with LO description
   - Collect top-k relevant chunks per LO
   - Output: `{ lo_id: "LO-1.1.1", rag_chunks: [{ text, score }] }`
-- [ ] **3.4** Merge results into a structured fact sheet (Code node)
+- [x] **3.4** Merge results into a structured fact sheet (Code node)
   - Combine: syllabus data + KB results + **per-LO RAG results**
   ```json
   {
@@ -319,8 +319,8 @@ Performs **per-LO RAG lookups** against the existing Qdrant instance and returns
     "sources": [...]
   }
   ```
-- [ ] **3.5** Store research in knowledge base: `MCP: Store in Knowledge Base`
-- [ ] **3.6** Return output: `{ status: "success", fact_sheet: {...}, sources: [...] }`
+- [x] **3.5** Store research in knowledge base: `MCP: Store in Knowledge Base`
+- [x] **3.6** Return output: `{ status: "success", fact_sheet: {...}, sources: [...] }`
 
 ---
 
