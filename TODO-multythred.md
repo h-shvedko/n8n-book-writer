@@ -204,7 +204,7 @@ Central state machine that owns the book generation lifecycle.
 Maintains `global_history` across chapters for context continuity.
 Reports workflow-level status to Admin FE API after each step.
 
-- [ ] **1.1** Create new workflow `WF-0-Manager.json`
+- [x] **1.1** Create new workflow `WF-0-Manager.json`
   - Trigger: Form Trigger (Book Request Form) — migrated from monolith
   - Initialize state:
     ```json
@@ -217,34 +217,34 @@ Reports workflow-level status to Admin FE API after each step.
       "blueprint": null
     }
     ```
-- [ ] **1.2** **Register job in DB** — POST to Admin FE API to create job record
+- [x] **1.2** **Register job in DB** — POST to Admin FE API to create job record
   - `POST /api/jobs` → `{ job_id, syllabus_name, strategy, target_audience, status: "running" }`
-- [ ] **1.3** Call WF-1 (Blueprint) to generate the syllabus-based chapter plan
+- [x] **1.3** Call WF-1 (Blueprint) to generate the syllabus-based chapter plan
   - Pass: `{ job_id, product_definition, target_audience, focus_areas }`
   - Receive: `{ blueprint: { chapters: [{ id, title, learning_objectives: [...] }] } }`
   - Report status: `{ current_wf: "WF-1-Blueprint", chapter_progress: "0/N" }`
-- [ ] **1.4** **Implement Chapter Loop (Loop 1)** using `SplitInBatches` node
+- [x] **1.4** **Implement Chapter Loop (Loop 1)** using `SplitInBatches` node
   - Iterates `blueprint.chapters` one by one (sequential, NOT parallel)
   - For each chapter, execute the pipeline: `research → chapter_build → coding → qa`
   - **Critical:** pass `global_history` into each iteration
-- [ ] **1.5** Per-chapter pipeline inside the loop:
+- [x] **1.5** Per-chapter pipeline inside the loop:
   - Step A: Call WF-2 (Research) — `{ chapter, global_history }` → `{ fact_sheet }`
   - Step B: Call WF-3 (Chapter Builder) — `{ chapter, fact_sheet, global_history, system_prompt_v30 }` → `{ json_content, chapter_summary }`
   - Step C: If `has_code_requests` → Call WF-4 (Coder) — `{ code_requests }` → `{ code_snippets }`
   - Step D: Call WF-5 (Editor/QA) — `{ json_content, learning_goals }` → `{ score, verdict }`
   - **Report status after each step** to Admin FE API:
     `PATCH /api/jobs/{job_id}` → `{ current_workflow: "WF-3", completed_chapters: N }`
-- [ ] **1.6** **Update Global History after each chapter** (Code node)
+- [x] **1.6** **Update Global History after each chapter** (Code node)
   - `global_history += chapter_summary` (returned by WF-3)
   - This ensures the next chapter's generation is informed by all prior chapters
-- [ ] **1.7** Implement revision loop logic
+- [x] **1.7** Implement revision loop logic
   - If WF-5 returns `needs_revision` and `revision_count < 3` → re-call WF-3 with `{ revision_feedback, previous_draft }`
   - If `revision_count >= 3` → log warning and continue with best version
-- [ ] **1.8** After all chapters complete → Call WF-6 (Compiler) → Call WF-7 (Publisher)
-- [ ] **1.9** Add error handling at orchestrator level
+- [x] **1.8** After all chapters complete → Call WF-6 (Compiler) → Call WF-7 (Publisher)
+- [x] **1.9** Add error handling at orchestrator level
   - If any sub-workflow fails → log error to DB, retry once, then mark job as failed
   - Report failure status to Admin FE API
-- [ ] **1.10** **Update job status on completion**
+- [x] **1.10** **Update job status on completion**
   - `PATCH /api/jobs/{job_id}` → `{ status: "completed", completed_at: timestamp }`
 
 ---
