@@ -452,20 +452,20 @@ Generates and validates code snippets for a chapter. Self-correction loop is int
 
 Quality check against ISO criteria. Returns score and verdict.
 
-- [ ] **6.1** Create workflow `WF-5-EditorQA.json`
+- [x] **6.1** Create workflow `WF-5-EditorQA.json`
   - Trigger: `Execute Workflow Trigger`
   - Input: `{ job_id, chapter_id, json_content, code_snippets, learning_objectives }`
-- [ ] **6.2** Migrate Editor Agent (WPI ISO Editor — OpenAI HTTP call)
+- [x] **6.2** Migrate Editor Agent (WPI ISO Editor — OpenAI HTTP call)
   - Score 0-100 against ISO 17024 criteria
   - Generate exam questions for the chapter
   - **Evaluate content quality only** — no styling/formatting checks
-- [ ] **6.3** Migrate ISO Compliance Check (MCP: ISO Compliance Check — mcp-standards:3002)
-- [ ] **6.4** **Validate LO coverage** — check that every LO from the chapter blueprint has corresponding content in the JSON
-- [ ] **6.5** **Validate no hallucinated content** — check that content doesn't cover LOs from OTHER chapters (future content leak)
-- [ ] **6.6** Add Code node to evaluate score and produce verdict
+- [x] **6.3** Migrate ISO Compliance Check (MCP: ISO Compliance Check — mcp-standards:3002)
+- [x] **6.4** **Validate LO coverage** — check that every LO from the chapter blueprint has corresponding content in the JSON
+- [x] **6.5** **Validate no hallucinated content** — check that content doesn't cover LOs from OTHER chapters (future content leak)
+- [x] **6.6** Add Code node to evaluate score and produce verdict
   - `score >= 90` → `{ status: "success", verdict: "approved" }`
   - `score < 90` → `{ status: "success", verdict: "needs_revision", feedback: "..." }`
-- [ ] **6.7** Return output:
+- [x] **6.7** Return output:
   ```json
   {
     "status": "success",
@@ -476,7 +476,7 @@ Quality check against ISO criteria. Returns score and verdict.
     "exam_questions": [...]
   }
   ```
-- [ ] **6.8** The revision decision is NOT made here — the Manager reads the verdict and decides
+- [x] **6.8** The revision decision is NOT made here — the Manager reads the verdict and decides
 
 ---
 
