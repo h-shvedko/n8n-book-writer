@@ -484,13 +484,13 @@ Quality check against ISO criteria. Returns score and verdict.
 
 Assembles all finished chapters into a complete book as **JSON only**.
 
-- [ ] **7.1** Create workflow `WF-6-Compiler.json`
+- [x] **7.1** Create workflow `WF-6-Compiler.json`
   - Trigger: `Execute Workflow Trigger`
   - Input: `{ job_id, chapters: [{ chapter_id, json_content, code_snippets, exam_questions }] }`
-- [ ] **7.2** Migrate chapter accumulation logic
+- [x] **7.2** Migrate chapter accumulation logic
   - `Store Chapter` / `Get Accumulated Chapters` (mcp-standards:3002)
-- [ ] **7.3** Migrate book assembly Code node — merge chapters in order
-- [ ] **7.4** Compile complete book JSON structure:
+- [x] **7.3** Migrate book assembly Code node — merge chapters in order
+- [x] **7.4** Compile complete book JSON structure:
   ```json
   {
     "title": "Book Title",
@@ -512,7 +512,7 @@ Assembles all finished chapters into a complete book as **JSON only**.
     "exam_questions": [ ... ]
   }
   ```
-- [ ] **7.5** Return output:
+- [x] **7.5** Return output:
   ```json
   {
     "status": "success",

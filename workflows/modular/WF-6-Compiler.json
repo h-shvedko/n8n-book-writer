@@ -3,49 +3,55 @@
   "nodes": [
     {
       "parameters": {},
-      "id": "db86f6de-b4f5-4438-b1ed-a11ada712e30",
+      "id": "1a703732-7b6f-48f5-a72f-90bf5ac2bc42",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -200,
+        0,
         300
       ]
     },
     {
       "parameters": {
-        "url": "=http://mcp-standards:3002/chapters/{{ $('🔧 Initialize BookState').first().json.book_id }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
+        "jsCode": "// Validate input from WF-0 Manager\nconst input = $input.first().json;\n\nconst required = ['job_id', 'chapters'];\nconst missing = required.filter(f => !input[f]);\n\nif (missing.length > 0) {\n  throw new Error('WF-6 input validation failed. Missing: ' + missing.join(', '));\n}\n\nif (!Array.isArray(input.chapters) || input.chapters.length === 0) {\n  throw new Error('WF-6: chapters must be a non-empty array');\n}\n\nreturn [{\n  json: {\n    job_id: input.job_id,\n    book_title: input.book_title || input.title || 'Untitled Book',\n    book_subtitle: input.book_subtitle || input.subtitle || '',\n    syllabus_id: input.syllabus_id || '',\n    syllabus_name: input.syllabus_name || '',\n    target_audience: input.target_audience || 'Mid-Level Professionals',\n    chapters: input.chapters\n  }\n}];",
+        "mode": "runOnceForAllItems"
       },
-      "id": "306d75fc-257b-4d51-a67f-6f9f4abacaa5",
-      "name": "📥 Get Accumulated Chapters",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -30464,
-        12640
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "xOk2J7CAxWG1jwph",
-          "name": "Header Auth account"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Get chapters from the accumulator service\nconsole.log('=== COMPILE BOOK DEBUG ===');\n\nlet finalChapters = [];\nlet book_id = 'unknown';\nlet blueprint = { title: 'Unknown Book', subtitle: '' };\n\ntry {\n  const accumulatorResponse = $('📥 Get Accumulated Chapters').first().json;\n  console.log('Accumulator response chapters:', accumulatorResponse.chapters?.length || 0);\n  \n  if (accumulatorResponse.chapters && Array.isArray(accumulatorResponse.chapters)) {\n    finalChapters = accumulatorResponse.chapters;\n    book_id = accumulatorResponse.book_id || 'unknown';\n  }\n  \n  if (finalChapters.length > 0 && finalChapters[0].blueprint) {\n    blueprint = finalChapters[0].blueprint;\n  }\n} catch (e) {\n  console.log('Could not get chapters from accumulator:', e.message);\n}\n\nconsole.log('Final chapters to compile:', finalChapters.length);\n\nif (finalChapters.length === 0) {\n  return {\n    json: {\n      book_id: book_id,\n      title: 'ERROR: No chapters',\n      error: 'No chapters were accumulated',\n      final_markdown: '# ERROR\\n\\nNo chapters were processed.',\n      exam_questions_markdown: '# Keine Prüfungsfragen\\n\\nKeine Kapitel wurden verarbeitet.',\n      chapter_scores: [],\n      average_score: 0,\n      total_chapters: 0,\n      completed_at: new Date().toISOString()\n    }\n  };\n}\n\n// Sort by chapter number\nfinalChapters.sort((a, b) => (a.chapter_number || 0) - (b.chapter_number || 0));\n\n// Create final book markdown\nlet bookMarkdown = '# ' + blueprint.title + '\\n\\n';\nbookMarkdown += '*' + (blueprint.subtitle || '') + '*\\n\\n';\n\nif (blueprint.iso_alignment) {\n  bookMarkdown += '**ISO 17024 Syllabus:** ' + (blueprint.iso_alignment.syllabus_id || blueprint.iso_alignment.domain_id) + '\\n\\n';\n}\n\nbookMarkdown += '---\\n\\n## Inhaltsverzeichnis\\n\\n';\nfinalChapters.forEach((ch, i) => {\n  bookMarkdown += (i + 1) + '. ' + (ch.title || 'Kapitel ' + (i + 1)) + '\\n';\n});\nbookMarkdown += '\\n---\\n\\n';\n\nfinalChapters.forEach((ch, i) => {\n  const chapterContent = ch.content || '';\n  console.log('Chapter', ch.chapter_number || i + 1, 'content length:', chapterContent.length);\n  if (chapterContent) {\n    bookMarkdown += chapterContent + '\\n\\n---\\n\\n';\n  }\n});\n\n// Collect all exam questions as Markdown\nlet allQuestionsMarkdown = '# Prüfungsfragen\\n\\n';\nfinalChapters.forEach((ch) => {\n  if (ch.exam_questions_markdown) {\n    allQuestionsMarkdown += '## Kapitel ' + ch.chapter_number + ': ' + ch.title + '\\n\\n';\n    allQuestionsMarkdown += ch.exam_questions_markdown + '\\n\\n---\\n\\n';\n  }\n});\n\n// Calculate average score\nconst validScores = finalChapters.filter(ch => typeof ch.score === 'number' && ch.score > 0);\nconst averageScore = validScores.length > 0 \n  ? validScores.reduce((sum, ch) => sum + ch.score, 0) / validScores.length \n  : 0;\n\nconsole.log('Average score:', averageScore);\nconsole.log('=== END DEBUG ===');\n\nreturn {\n  json: {\n    book_id: book_id,\n    title: blueprint.title,\n    iso_alignment: blueprint.iso_alignment,\n    final_markdown: bookMarkdown,\n    exam_questions_markdown: allQuestionsMarkdown,\n    chapter_scores: finalChapters.map(ch => ({ \n      chapter: ch.chapter_number || 0, \n      title: ch.title,\n      score: ch.score || 0,\n      iso_compliant: ch.iso_compliant || false,\n      passed_quality: ch.passed_quality || false\n    })),\n    average_score: averageScore,\n    kb_document_ids: finalChapters.map(ch => ch.kb_document_id).filter(Boolean),\n    total_chapters: finalChapters.length,\n    completed_at: new Date().toISOString()\n  }\n};"
-      },
-      "id": "13a35b0b-7351-417a-9347-1d38a6f55463",
-      "name": "📚 Compile Book",
+      "id": "4774343d-c7f6-47de-8444-9b72315ddd0d",
+      "name": "✅ Validate Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -30240,
-        12640
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble all chapters into a complete book JSON structure\nconst data = $input.first().json;\nconst chapters = data.chapters || [];\n\n// Sort chapters by chapter number or index\nconst sortedChapters = [...chapters].sort((a, b) => {\n  const numA = a.chapter_number || a.number || 0;\n  const numB = b.chapter_number || b.number || 0;\n  return numA - numB;\n});\n\n// Build compiled chapters array\nconst compiledChapters = sortedChapters.map((ch, index) => {\n  // json_content comes from WF-3 ChapterBuilder\n  const jsonContent = ch.json_content || {};\n\n  // code_snippets comes from WF-4 Coder\n  const codeSnippets = ch.code_snippets || [];\n\n  // exam_questions comes from WF-5 Editor/QA\n  const examQuestions = ch.exam_questions || [];\n\n  return {\n    chapter_id: ch.chapter_id || 'ch-' + (index + 1),\n    number: ch.chapter_number || ch.number || index + 1,\n    title: ch.title || jsonContent.title || 'Kapitel ' + (index + 1),\n    domain_id: ch.domain_id || jsonContent.domain_id || '',\n    opener: jsonContent.opener || null,\n    body: jsonContent.body || [],\n    closer: jsonContent.closer || null,\n    code_snippets: codeSnippets,\n    exam_questions: examQuestions,\n    score: ch.score || null,\n    verdict: ch.verdict || null\n  };\n});\n\n// Collect all exam questions into a flat array\nconst allExamQuestions = [];\nfor (const ch of compiledChapters) {\n  if (ch.exam_questions && ch.exam_questions.length > 0) {\n    for (const q of ch.exam_questions) {\n      allExamQuestions.push({\n        ...q,\n        chapter_id: ch.chapter_id,\n        chapter_title: ch.title\n      });\n    }\n  }\n}\n\n// Collect all code snippets\nconst allCodeSnippets = [];\nfor (const ch of compiledChapters) {\n  if (ch.code_snippets && ch.code_snippets.length > 0) {\n    for (const s of ch.code_snippets) {\n      allCodeSnippets.push({\n        ...s,\n        chapter_id: ch.chapter_id,\n        chapter_title: ch.title\n      });\n    }\n  }\n}\n\n// Build the complete book JSON (7.4)\nconst bookJson = {\n  title: data.book_title,\n  subtitle: data.book_subtitle,\n  metadata: {\n    syllabus_id: data.syllabus_id,\n    syllabus_name: data.syllabus_name,\n    target_audience: data.target_audience,\n    generated_at: new Date().toISOString(),\n    total_chapters: compiledChapters.length,\n    total_exam_questions: allExamQuestions.length,\n    total_code_snippets: allCodeSnippets.length\n  },\n  chapters: compiledChapters.map(ch => ({\n    chapter_id: ch.chapter_id,\n    number: ch.number,\n    title: ch.title,\n    domain_id: ch.domain_id,\n    opener: ch.opener,\n    body: ch.body,\n    closer: ch.closer,\n    code_snippets: ch.code_snippets\n  })),\n  exam_questions: allExamQuestions\n};\n\n// Calculate chapter statistics\nconst scores = compiledChapters.filter(ch => typeof ch.score === 'number' && ch.score > 0);\nconst averageScore = scores.length > 0\n  ? Math.round(scores.reduce((sum, ch) => sum + ch.score, 0) / scores.length)\n  : null;\n\nreturn [{\n  json: {\n    book_json: bookJson,\n    all_exam_questions: allExamQuestions,\n    stats: {\n      total_chapters: compiledChapters.length,\n      total_exam_questions: allExamQuestions.length,\n      total_code_snippets: allCodeSnippets.length,\n      average_score: averageScore,\n      chapter_scores: compiledChapters.map(ch => ({\n        chapter_id: ch.chapter_id,\n        title: ch.title,\n        score: ch.score,\n        verdict: ch.verdict\n      }))\n    },\n    job_id: data.job_id\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "7ef8205e-8095-4b5f-a38a-dc9ec24cfd86",
+      "name": "📚 Compile Book JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build structured output (7.5)\nconst data = $input.first().json;\n\nreturn [{\n  json: {\n    status: 'success',\n    book_json: data.book_json,\n    exam_questions_json: data.all_exam_questions,\n    stats: data.stats,\n    job_id: data.job_id\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "1b520900-5a49-4e0a-bfff-a2e35b589fe7",
+      "name": "📊 Build Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
       ]
     }
   ],
@@ -54,18 +60,29 @@
       "main": [
         [
           {
-            "node": "📥 Get Accumulated Chapters",
+            "node": "✅ Validate Input",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "📥 Get Accumulated Chapters": {
+    "✅ Validate Input": {
       "main": [
         [
           {
-            "node": "📚 Compile Book",
+            "node": "📚 Compile Book JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📚 Compile Book JSON": {
+      "main": [
+        [
+          {
+            "node": "📊 Build Output",
             "type": "main",
             "index": 0
           }
