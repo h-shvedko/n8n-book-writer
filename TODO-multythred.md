@@ -254,14 +254,14 @@ Reports workflow-level status to Admin FE API after each step.
 Encapsulates the Architect agent and blueprint parsing. Stateless.
 Must produce a structured list of chapters with their Learning Objectives (LOs) — this feeds both loops.
 
-- [ ] **2.1** Create workflow `WF-1-Blueprint.json`
+- [x] **2.1** Create workflow `WF-1-Blueprint.json`
   - Trigger: `Execute Workflow Trigger` (called by Manager)
   - Input: `{ job_id, product_definition, target_audience, focus_areas }`
-- [ ] **2.2** Migrate Architect Agent node (OpenAI HTTP call) from monolith
+- [x] **2.2** Migrate Architect Agent node (OpenAI HTTP call) from monolith
   - System prompt: didactics expert
   - **No styling instructions** — output is structural/content only
   - Output: raw blueprint text
-- [ ] **2.3** Migrate Blueprint Parser (Code node) from monolith
+- [x] **2.3** Migrate Blueprint Parser (Code node) from monolith
   - Parse AI output into structured JSON with **explicit LO arrays per chapter**:
     ```json
     {
@@ -280,13 +280,13 @@ Must produce a structured list of chapters with their Learning Objectives (LOs) 
     }
     ```
   - **Critical for Loop 2:** Each chapter MUST have a parsed `learning_objectives` array
-- [ ] **2.4** Add Syllabus Activation step (HTTP to mcp-standards:3002)
+- [x] **2.4** Add Syllabus Activation step (HTTP to mcp-standards:3002)
   - Fetch syllabus domains & topics to enrich the blueprint
   - **Do not request styling/formatting standards** — content structure only
   - Map syllabus LOs to blueprint chapters
-- [ ] **2.5** Return structured output to Manager
+- [x] **2.5** Return structured output to Manager
   - `{ status: "success", blueprint: {...} }` or `{ status: "failed", error: "..." }`
-- [ ] **2.6** Add input validation — reject if required fields missing
+- [x] **2.6** Add input validation — reject if required fields missing
 
 ---
 
