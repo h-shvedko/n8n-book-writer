@@ -334,7 +334,7 @@ Implements the **Micro-Step Protocol** (Opener → Body per LO → Closer).
 Maintains `current_chapter_draft` as a running accumulator to avoid token fatigue.
 **Output: structured JSON** — no HTML, no Markdown. HTML rendering happens externally.
 
-- [ ] **4.1** Create workflow `WF-3-ChapterBuilder.json`
+- [x] **4.1** Create workflow `WF-3-ChapterBuilder.json`
   - Trigger: `Execute Workflow Trigger`
   - Input:
     ```json
@@ -347,16 +347,16 @@ Maintains `current_chapter_draft` as a running accumulator to avoid token fatigu
       "revision_feedback": null
     }
     ```
-- [ ] **4.2** **Initialize Accumulator** (Code node at workflow start)
+- [x] **4.2** **Initialize Accumulator** (Code node at workflow start)
   - Set `current_chapter_draft = ""` as a workflow variable
   - This string grows with each phase and is re-injected as context
-- [ ] **4.3** **Phase 1: OPENER** (AI call — OpenAI HTTP Request)
+- [x] **4.3** **Phase 1: OPENER** (AI call — OpenAI HTTP Request)
   - Prompt context: `system_prompt_v30 + syllabus_chapter + global_history`
   - Generate: Chapter Header + LO List + Professional Context paragraph
   - **No styling/CSS instructions** — pure content structure
   - **Rule:** No body content — only framing and context-setting
   - Append result to `current_chapter_draft` via Code node (Accumulator pattern)
-- [ ] **4.4** **Phase 2: BODY — LO Loop** (`SplitInBatches` node over `learning_objectives`)
+- [x] **4.4** **Phase 2: BODY — LO Loop** (`SplitInBatches` node over `learning_objectives`)
   - For each LO:
     - **4.4.1** Retrieve per-LO RAG data from `fact_sheet.lo_research[lo_id]`
     - **4.4.2** AI call (OpenAI HTTP Request) with full context injection:
@@ -369,14 +369,14 @@ Maintains `current_chapter_draft` as a running accumulator to avoid token fatigu
     - **4.4.4** Extract `<<CODE_REQUEST>>` placeholders if any
   - **Critical:** The accumulator ensures each LO generation sees all prior LOs' output,
     preventing repetition and maintaining narrative flow
-- [ ] **4.5** **Phase 3: CLOSER** (AI call — OpenAI HTTP Request)
+- [x] **4.5** **Phase 3: CLOSER** (AI call — OpenAI HTTP Request)
   - Prompt context: `system_prompt_v30 + current_chapter_draft (full) + chapter LOs`
   - Generate:
     - Synthesis / Summary section
     - Assessment: Multiple Choice Questions (MCQs)
     - Assessment: Practical Drill / Exercise
   - Append to `current_chapter_draft` (final accumulator write)
-- [ ] **4.6** **Finalize & Return as JSON** (Code node)
+- [x] **4.6** **Finalize & Return as JSON** (Code node)
   - Convert `current_chapter_draft` into structured JSON:
     ```json
     {
@@ -408,7 +408,7 @@ Maintains `current_chapter_draft` as a running accumulator to avoid token fatigu
       "has_code_requests": true
     }
     ```
-- [ ] **4.7** **Accumulator Implementation Detail** (Code node pattern)
+- [x] **4.7** **Accumulator Implementation Detail** (Code node pattern)
   ```javascript
   // In n8n Code node — Accumulator append
   const currentDraft = $('Init Accumulator').first().json.current_chapter_draft || '';
@@ -418,7 +418,7 @@ Maintains `current_chapter_draft` as a running accumulator to avoid token fatigu
   ```
   - Use n8n's `$('nodeName')` to reference the accumulator across loop iterations
   - Alternative: use workflow static data (`$getWorkflowStaticData()`) for persistence within execution
-- [ ] **4.8** Handle revision mode
+- [x] **4.8** Handle revision mode
   - When called with `revision_feedback` → include previous draft + editor notes in Opener prompt
   - Re-run the full Opener → Body → Closer pipeline with feedback context
 
