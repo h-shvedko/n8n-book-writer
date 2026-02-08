@@ -1,0 +1,198 @@
+{
+  "name": "WF-2 Research Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "26b8a0e7-0374-4de8-8d87-6f4d2653ef60",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-research:3003/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'hybrid_search',\n  arguments: {\n    query: $json.current_chapter.title + ' ' + ($json.current_chapter.learning_goals || []).join(' '),\n    filter_metadata: {\n      domain_id: $json.current_chapter.domain_id || $json.current_chapter.topic_id || undefined\n    },\n    limit: 5,\n    output_format: 'json'\n  }\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "d96b946b-ed09-4fc8-adf5-c41ddfe2b777",
+      "name": "🔍 MCP: Chapter Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -30688,
+        11752
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-standards:3002/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  name: 'get_syllabus_section',\n  arguments: {\n    domain_id: $('🔁 Chapter Loop').first().json.current_chapter.domain_id || $('🔁 Chapter Loop').first().json.current_chapter.topic_id || 'D1',\n    output_format: 'json'\n  }\n}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "9d5d7c4a-f3c0-4dc8-8126-6f1abad2dc7a",
+      "name": "📚 MCP: Get Chapter LOs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -30688,
+        12328
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "6cbf362e-8858-443f-8643-3ca5343861c7",
+      "name": "🔀 Merge MCP Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -30464,
+        11752
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "7b4da3af-6664-49ef-b2ff-682642a44a21",
+      "name": "🔀 Add Chapter Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -30240,
+        11824
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reset revision counter for this chapter\nconst staticData = $getWorkflowStaticData('global');\nstaticData.revision_count = 0;\n\n// Get all input items - merged from: MCP Research, MCP Syllabus, Chapter Loop\nconst allItems = $input.all();\n\n// Find chapter data, research results, and syllabus LOs from merged inputs\nlet chapterResearch = [];\nlet syllabusLOs = [];\nlet chapterData = null;\n\nfor (const item of allItems) {\n  const json = item.json;\n  \n  // Check if this is chapter data from the loop (has current_chapter)\n  if (json.current_chapter && json.blueprint) {\n    chapterData = json;\n    continue;\n  }\n  \n  // Check if this is an MCP HTTP response (has body.content structure)\n  if (json.body?.content?.[0]?.text) {\n    try {\n      const parsed = JSON.parse(json.body.content[0].text);\n      \n      // Check for research results (has results_count or query field)\n      if (parsed.query !== undefined || parsed.results_count !== undefined) {\n        chapterResearch = parsed.results || [];\n      }\n      // Check for syllabus section data\n      else if (parsed.results && parsed.count !== undefined) {\n        syllabusLOs = parsed.results || [];\n      }\n      else if (parsed.section || parsed.found || parsed.learning_objectives) {\n        syllabusLOs = parsed.learning_objectives || parsed.results || [];\n        if (parsed.section?.topics) {\n          for (const topic of parsed.section.topics) {\n            if (topic.learning_objectives) {\n              syllabusLOs = syllabusLOs.concat(topic.learning_objectives);\n            }\n          }\n        }\n      }\n    } catch (e) {\n      console.log('Failed to parse MCP response:', e.message);\n    }\n  }\n}\n\n// Verify we have chapter data\nif (!chapterData) {\n  throw new Error('Chapter data not found in merged inputs. Check workflow connections.');\n}\n\n// Merge original LOs from domain with fetched LOs\nconst allLOs = [...(chapterData.current_chapter.original_learning_objectives || []), ...syllabusLOs];\n\nreturn {\n  json: {\n    book_id: chapterData.book_id,\n    current_chapter: chapterData.current_chapter,\n    current_chapter_index: chapterData.current_chapter_index,\n    chapter_research: chapterResearch,\n    syllabus_learning_objectives: allLOs,\n    blueprint: chapterData.blueprint,\n    target_audience: chapterData.target_audience,\n    revision_count: 0\n  }\n};"
+      },
+      "id": "bc5a0bfd-6718-43b3-a8d8-9bf4ef7c1ce8",
+      "name": "💾 Merge Chapter Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -30016,
+        11824
+      ]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "🔍 MCP: Chapter Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 MCP: Chapter Research": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge MCP Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📚 MCP: Get Chapter LOs": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge MCP Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔀 Merge MCP Results": {
+      "main": [
+        [
+          {
+            "node": "🔀 Add Chapter Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Add Chapter Data": {
+      "main": [
+        [
+          {
+            "node": "💾 Merge Chapter Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

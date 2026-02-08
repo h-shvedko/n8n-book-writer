@@ -1,0 +1,432 @@
+{
+  "name": "WF-1 Blueprint Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "d7b65568-000d-4bad-aced-5f7dcaf6aeec",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://mcp-standards:3002/syllabuses/{{ $json.syllabus_id }}/activate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "e9b80b55-1177-472b-ada8-9ba2a92c97eb",
+      "name": "🔄 Activate Syllabus",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -33152,
+        12040
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "notes": "Activates the selected syllabus in mcp-standards for MCP tools to use"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "route-by-domain",
+              "leftValue": "={{ $('🔍 Extract Syllabus ID').first().json.generation_strategy }}",
+              "rightValue": "By Domain",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1c269414-5580-4448-808e-b716c54f0f6c",
+      "name": "🔀 Route by Strategy",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -32928,
+        12040
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://mcp-standards:3002/syllabus/domains",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "e26e9d58-4fe9-4368-9515-ffd8264659ca",
+      "name": "📚 Fetch Syllabus Domains",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32704,
+        11944
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://mcp-standards:3002/syllabus/topics",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "1a212af5-ea79-4d26-b99c-8e1ed3f82d5f",
+      "name": "📑 Fetch Syllabus Topics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32704,
+        12136
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const extractedData = $('🔍 Extract Syllabus ID').first().json;\n  const strategy = extractedData.generation_strategy;\n  const data = $json;\n  \n  // Determine if we're using domains or topics\n  const isDomainMode = strategy === 'By Domain';\n  \n  return {\n    book_id: 'book-' + extractedData.syllabus_id + '-' + Date.now(),\n    syllabus_id: extractedData.syllabus_id,\n    syllabus_name: data.syllabus_name || 'Unknown Syllabus',\n    generation_strategy: strategy,\n    target_audience: extractedData.target_audience,\n    total_items: isDomainMode ? (data.total_chapters || 0) : (data.total_topics || 0),\n    items: isDomainMode ? (data.chapters || []) : (data.topics || []),\n    status: 'initialized',\n    created_at: new Date().toISOString()\n  };\n})() }}",
+        "options": {}
+      },
+      "id": "6cd13c2f-f81e-46e8-aa2f-1804280b41d3",
+      "name": "🔧 Initialize BookState",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -32480,
+        12040
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-standards:3002/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"name\": \"get_syllabus_section\",\n  \"arguments\": {\n    \"domain_id\": \"{{ $json.chapters[0]?.domain_id || $json.items[0]?.domain_id || $json.items[0]?.topic_id || 'D1' }}\",\n    \"output_format\": \"json\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "66b832de-161d-4c9a-bddd-f306c154ce54",
+      "name": "📚 MCP: Get Syllabus Section",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32256,
+        11944
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-research:3003/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"name\": \"hybrid_search\",\n  \"arguments\": {\n    \"query\": \"{{ $('🔧 Initialize BookState').first().json.syllabus_name + ' ' + $('🔧 Initialize BookState').first().json.chapters.map(function(c) { return c.title; }).join(' ') }}\",\n    \"limit\": 10,\n    \"output_format\": \"json\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "01190958-3642-4de7-9877-d54d74419f17",
+      "name": "🔍 MCP: Search Knowledge Base",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32256,
+        12136
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 2
+      },
+      "id": "95bed244-4093-4d91-9835-81301e38d72b",
+      "name": "🔀 Merge MCP Context",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -32032,
+        12040
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine syllabus and research context\nconst bookState = $('🔧 Initialize BookState').first().json;\n\n// Get syllabus section (from MCP-Standards)\nlet syllabusContext = null;\ntry {\n  const syllabusResponse = $('📚 MCP: Get Syllabus Section').first().json;\n  if (syllabusResponse.body && !syllabusResponse.body.error) {\n    const content = syllabusResponse.body.content?.[0]?.text;\n    syllabusContext = content ? JSON.parse(content) : null;\n  }\n} catch (e) {\n  console.log('Syllabus fetch failed, continuing without:', e.message);\n}\n\n// Get research context (from MCP-Research / Qdrant)\nlet researchContext = [];\ntry {\n  const researchResponse = $('🔍 MCP: Search Knowledge Base').first().json;\n  if (researchResponse.body && !researchResponse.body.error) {\n    const content = researchResponse.body.content?.[0]?.text;\n    const parsed = content ? JSON.parse(content) : null;\n    researchContext = parsed?.results || [];\n  }\n} catch (e) {\n  console.log('Research fetch failed, continuing without:', e.message);\n}\n\nreturn {\n  json: {\n    ...bookState,\n    syllabus_context: syllabusContext,\n    research_context: researchContext,\n    has_syllabus: !!syllabusContext,\n    has_research: researchContext.length > 0\n  }\n};"
+      },
+      "id": "d4f4ba78-d082-4797-a819-79b5af45dffd",
+      "name": "🧩 Combine MCP Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -31808,
+        12040
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.3,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: 'Du bist \"The Architect\" - ein erfahrener Didaktik-Experte für technische Fachbücher.\\n\\nDeine Aufgabe:\\n1. Analysiere die Syllabus-Struktur (Kapitel/Topics sind bereits vordefiniert!)\\n2. Nutze den Kontext aus der Knowledge Base\\n3. Erstelle detaillierte Lernziele und Sections\\n4. Definiere klare Lernziele für jedes Kapitel (ISO 17024 konform)\\n\\nWICHTIG: Die Kapitelstruktur ist bereits vorgegeben!\\nDu sollst NUR die Details ausarbeiten, nicht die Struktur ändern.\\n\\nRegeln:\\n- Jedes Kapitel sollte 10-15 Seiten umfassen\\n- Beginne mit Grundlagen, steigere die Komplexität\\n- Jedes Kapitel endet mit einer praktischen Übung\\n- Berücksichtige die Zielgruppe bei der Tiefe\\n- Lernziele müssen messbar und überprüfbar sein\\n\\nOutput-Format: JSON\\n```json\\n{\\n  \"title\": \"Buchtitel (aus Syllabus-Name)\",\\n  \"subtitle\": \"Untertitel\",\\n  \"iso_alignment\": {\\n    \"syllabus_id\": \"ID\",\\n    \"covered_domains\": [\"D1\", \"D2\"]\\n  },\\n  \"chapters\": [\\n    {\\n      \"number\": 1,\\n      \"domain_id\": \"D1\",\\n      \"title\": \"Titel\",\\n      \"learning_goals\": [\"Lernziel 1 (Bloom: K2)\", \"Lernziel 2 (Bloom: K3)\"],\\n      \"syllabus_mapping\": [\"LO-001\", \"LO-002\"],\\n      \"sections\": [\"Section 1\", \"Section 2\"],\\n      \"estimated_pages\": 12,\\n      \"practical_exercise\": \"Beschreibung der Übung\"\\n    }\\n  ]\\n}\\n```'\n    },\n    {\n      role: 'user',\n      content: (function() {\n        const items = $json.items || $json.chapters || [];\n        const totalItems = $json.total_items || $json.total_chapters || items.length;\n        const strategy = $json.generation_strategy || 'By Domain';\n        \n        let itemsDescription = items.map(function(item, index) {\n          if (item.chapter_number) {\n            return 'Kapitel ' + item.chapter_number + ': ' + item.title + '\\n  - Domain ID: ' + item.domain_id + '\\n  - Beschreibung: ' + (item.description || 'N/A') + '\\n  - Topics: ' + (item.topics || []).map(function(t) { return t.title; }).join(', ') + '\\n  - Learning Objectives: ' + (item.learning_objectives || []).length + ' Stück';\n          } else {\n            return 'Topic ' + item.topic_number + ': ' + item.title + '\\n  - Topic ID: ' + item.topic_id + '\\n  - Domain: ' + item.domain_name + ' (' + item.domain_id + ')\\n  - Learning Objectives: ' + (item.learning_objectives || []).length + ' Stück' + (item.subtopics && item.subtopics.length > 0 ? '\\n  - Subtopics: ' + item.subtopics.length + ' Stück' : '');\n          }\n        }).join('\\n\\n');\n        \n        return 'Erstelle das Inhaltsverzeichnis basierend auf der vorgegebenen Syllabus-Struktur:\\n\\n**Syllabus:** ' + $json.syllabus_name + ' (ID: ' + $json.syllabus_id + ')\\n**Zielgruppe:** ' + $json.target_audience + '\\n**Generierungsstrategie:** ' + strategy + '\\n**Anzahl Items:** ' + totalItems + '\\n\\n**VORDEFINIERTE STRUKTUR:**\\n' + itemsDescription + '\\n\\n' + ($json.has_syllabus ? '**Syllabus-Kontext:**\\n' + JSON.stringify($json.syllabus_context, null, 2) : '') + '\\n\\n' + ($json.has_research ? '**Relevanter Kontext aus Knowledge Base:**\\n' + $json.research_context.slice(0, 5).map(function(r) { return '- ' + (r.text || '').substring(0, 200) + '...'; }).join('\\n') : '') + '\\n\\nWICHTIG: Behalte die Struktur bei! Füge nur Lernziele, Sections und Übungen hinzu.\\n\\nAntworte NUR mit dem JSON, keine Erklärungen.';\n      })()\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "id": "8007810e-2805-4615-adc5-5eb960ddff63",
+      "name": "🏗️ Architect Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -31808,
+        12040
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5KnJ49CiBjEEjtWM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI response and extract JSON\nconst response = $input.first().json.choices[0].message.content;\n\n// Try to extract JSON from the response\nlet blueprint;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  blueprint = JSON.parse(jsonStr.trim());\n} catch (e) {\n  throw new Error('Failed to parse blueprint JSON: ' + e.message);\n}\n\n// Get the previous state\nconst prevState = $('🔀 Merge MCP Context').first().json;\n\n// Get original items (could be chapters or topics)\nconst originalItems = prevState.items || prevState.chapters || [];\n\n// Merge blueprint chapters with original data\nconst mergedChapters = blueprint.chapters.map((bpCh, index) => {\n  const originalItem = originalItems[index] || {};\n  return {\n    ...bpCh,\n    number: bpCh.number || index + 1,\n    domain_id: originalItem.domain_id || bpCh.domain_id,\n    topic_id: originalItem.topic_id,\n    topic_number: originalItem.topic_number,\n    original_learning_objectives: originalItem.learning_objectives || [],\n    topics: originalItem.topics || bpCh.topics || [],\n    subtopics: originalItem.subtopics || [],\n    weight: originalItem.weight,\n    prerequisites: originalItem.prerequisites || []\n  };\n});\n\nblueprint.chapters = mergedChapters;\n\nreturn {\n  json: {\n    ...prevState,\n    blueprint: blueprint,\n    status: 'blueprint_ready'\n  }\n};"
+      },
+      "id": "67349e7f-74a2-49bf-ae26-fe4b325ab99c",
+      "name": "📋 Parse Blueprint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -31584,
+        12040
+      ]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "🔄 Activate Syllabus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Activate Syllabus": {
+      "main": [
+        [
+          {
+            "node": "🔀 Route by Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Route by Strategy": {
+      "main": [
+        [
+          {
+            "node": "📚 Fetch Syllabus Domains",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📑 Fetch Syllabus Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📚 Fetch Syllabus Domains": {
+      "main": [
+        [
+          {
+            "node": "🔧 Initialize BookState",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📑 Fetch Syllabus Topics": {
+      "main": [
+        [
+          {
+            "node": "🔧 Initialize BookState",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Initialize BookState": {
+      "main": [
+        [
+          {
+            "node": "📚 MCP: Get Syllabus Section",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🔍 MCP: Search Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📚 MCP: Get Syllabus Section": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge MCP Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 MCP: Search Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge MCP Context",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔀 Merge MCP Context": {
+      "main": [
+        [
+          {
+            "node": "🧩 Combine MCP Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧩 Combine MCP Data": {
+      "main": [
+        [
+          {
+            "node": "🏗️ Architect Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏗️ Architect Agent": {
+      "main": [
+        [
+          {
+            "node": "📋 Parse Blueprint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

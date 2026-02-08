@@ -579,20 +579,20 @@ No Google Drive, no email, no external targets.
 
 The actual work of splitting `wpi-content-factory-workflow.json` into separate files.
 
-- [ ] **9.1** Map every node in the 57-node monolith to its target sub-workflow
+- [x] **9.1** Map every node in the 57-node monolith to its target sub-workflow
   - Create a node-to-workflow mapping table
-- [ ] **9.2** Extract WF-1 nodes: Architect Agent, Blueprint Parser, Syllabus Activation
-- [ ] **9.3** Extract WF-2 nodes: all MCP research + syllabus fetch nodes
-- [ ] **9.4** Extract WF-3 nodes: Writer Agent + post-processing Code nodes → rebuild as Chapter Builder with LO loop
-- [ ] **9.5** Extract WF-4 nodes: Coder Agent + Self-Correct + MCP Validate
-- [ ] **9.6** Extract WF-5 nodes: Editor Agent + ISO Compliance Check
-- [ ] **9.7** Extract WF-6 nodes: chapter accumulation + compile JSON
-- [ ] **9.8** Extract WF-7 nodes: output to Admin FE API
-- [ ] **9.9** Build WF-0 Manager from scratch — new workflow with Execute Workflow calls + Global History
-- [ ] **9.10** Replace each extracted group with an `Execute Workflow Trigger` (input) at the start
+- [x] **9.2** Extract WF-1 nodes: Architect Agent, Blueprint Parser, Syllabus Activation
+- [x] **9.3** Extract WF-2 nodes: all MCP research + syllabus fetch nodes
+- [x] **9.4** Extract WF-3 nodes: Writer Agent + post-processing Code nodes → rebuild as Chapter Builder with LO loop
+- [x] **9.5** Extract WF-4 nodes: Coder Agent + Self-Correct + MCP Validate
+- [x] **9.6** Extract WF-5 nodes: Editor Agent + ISO Compliance Check
+- [x] **9.7** Extract WF-6 nodes: chapter accumulation + compile JSON
+- [x] **9.8** Extract WF-7 nodes: output to Admin FE API
+- [x] **9.9** Build WF-0 Manager from scratch — new workflow with Execute Workflow calls + Global History
+- [x] **9.10** Replace each extracted group with an `Execute Workflow Trigger` (input) at the start
 - [ ] **9.11** Test each sub-workflow in isolation with mock input data
 - [ ] **9.12** Integration test: run WF-0 end-to-end and verify output matches expected JSON structure
-- [ ] **9.13** Archive the monolith as `LEGACY-wpi-content-factory-workflow.json`
+- [x] **9.13** Archive the monolith as `LEGACY-wpi-content-factory-workflow.json`
 
 ---
 

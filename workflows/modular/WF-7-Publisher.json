@@ -1,0 +1,218 @@
+{
+  "name": "WF-7 Publisher",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "9472b027-e937-4743-81aa-059bbd90218d",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Extract book data from workflow input\nconst input = $input.first().json;\nconst { job_id, book_json, exam_questions_json } = input;\n\nreturn [{\n  json: {\n    job_id,\n    title: book_json.title || 'Untitled Book',\n    json_content: book_json,\n    exam_questions: exam_questions_json || [],\n    chapters: book_json.chapters || []\n  }\n}];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "ee0e9b56-fbbf-437c-b351-3c344f130cf7",
+      "name": "📦 Prepare Book Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://admin-api:3005/api/books",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"json_content\": {{ JSON.stringify($json.json_content) }},\n  \"exam_questions\": {{ JSON.stringify($json.exam_questions) }}\n}"
+      },
+      "id": "446e45a5-9c9c-483a-8a56-765fca46e629",
+      "name": "📚 Store Book in DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Prepare chapters for batch storage\nconst input = $input.first().json;\nconst book_id = input.id; // returned from book creation\nconst chapters = $('📦 Prepare Book Data').first().json.chapters;\n\nreturn chapters.map((ch, idx) => ({\n  json: {\n    book_id,\n    job_id: $('📦 Prepare Book Data').first().json.job_id,\n    chapter_id: ch.chapter_id || ch.id || `ch-${idx+1}`,\n    title: ch.title || `Chapter ${idx+1}`,\n    chapter_index: idx,\n    json_content: ch,\n    exam_questions: ch.closer?.mcqs || null,\n    chapter_summary: ch.closer?.synthesis || null,\n    editor_score: ch.editor_score || null\n  }\n}));\n",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "618298da-a4e4-432d-b0bd-cfbf5b15e86d",
+      "name": "📑 Prepare Chapters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "c4dd287a-23e8-4136-b991-e3a80a6ce97b",
+      "name": "🔁 Store Chapters Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://admin-api:3005/api/chapters",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"book_id\": {{ $json.book_id }},\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"chapter_id\": \"{{ $json.chapter_id }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"chapter_index\": {{ $json.chapter_index }},\n  \"json_content\": {{ JSON.stringify($json.json_content) }},\n  \"exam_questions\": {{ JSON.stringify($json.exam_questions) }},\n  \"chapter_summary\": \"{{ $json.chapter_summary }}\",\n  \"editor_score\": {{ $json.editor_score || 'null' }}\n}"
+      },
+      "id": "3737b15b-300c-4504-a011-4a19f6efe7af",
+      "name": "💾 Store Chapter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://admin-api:3005/api/jobs/{{ $(\"📦 Prepare Book Data\").first().json.job_id }}",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"status\": \"completed\", \"completed_at\": \"{{ new Date().toISOString() }}\" }"
+      },
+      "id": "d77c0604-5e0a-4863-b195-1484c5de64af",
+      "name": "✅ Update Job Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst bookId = $('📚 Store Book in DB').first().json.id;\nreturn [{ json: { status: \"success\", book_id: bookId } }];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "f308c11e-18d6-484f-9d26-4f1d2c678b8e",
+      "name": "📤 Return Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "📦 Prepare Book Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📦 Prepare Book Data": {
+      "main": [
+        [
+          {
+            "node": "📚 Store Book in DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📚 Store Book in DB": {
+      "main": [
+        [
+          {
+            "node": "📑 Prepare Chapters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📑 Prepare Chapters": {
+      "main": [
+        [
+          {
+            "node": "🔁 Store Chapters Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔁 Store Chapters Loop": {
+      "main": [
+        [
+          {
+            "node": "✅ Update Job Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "💾 Store Chapter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Store Chapter": {
+      "main": [
+        [
+          {
+            "node": "🔁 Store Chapters Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Update Job Status": {
+      "main": [
+        [
+          {
+            "node": "📤 Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

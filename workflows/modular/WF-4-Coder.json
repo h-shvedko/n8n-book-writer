@@ -1,0 +1,442 @@
+{
+  "name": "WF-4 Code Generation",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "acda76dd-b22d-4909-9218-0a13d9f8faa5",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const draft = $input.first().json.choices[0].message.content;\n\n// Get base data from Merge Chapter Context\nlet prevData = $('💾 Merge Chapter Context').first().json;\n\n// Get revision count from workflow static data\nconst staticData = $getWorkflowStaticData('global');\nlet revision_count = staticData.revision_count || 0;\n\n// Extract CODE_REQUEST placeholders\nconst codeRequests = [];\nconst regex = /<<CODE_REQUEST:\\s*(.+?)>>/g;\nlet match;\n\nwhile ((match = regex.exec(draft)) !== null) {\n  codeRequests.push({\n    placeholder: match[0],\n    description: match[1].trim()\n  });\n}\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: draft,\n    code_requests: codeRequests,\n    has_code_requests: codeRequests.length > 0,\n    revision_count: revision_count\n  }\n};"
+      },
+      "id": "c9254aa1-d3f4-4cff-aa57-e57cb6f7878e",
+      "name": "📝 Extract Code Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -29568,
+        11752
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-code",
+              "leftValue": "={{ $json.has_code_requests }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "41206494-960d-4776-b7e4-cb737dfbcdd1",
+      "name": "🔀 Code Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -29344,
+        11752
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.2,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent,\" a Senior Full-Stack Engineer and technical author. Your goal is to generate high-quality, production-ready code examples for the WPI Syllabus Guide.\\n\\n## Core Responsibilities\\n1. **Follow the Tangibility Mandate:** For every technical topic, you MUST provide a complete, syntaktisch correct code block.\\n2. **Technical Standards:** Use modern syntax (ES6+ for JavaScript, HTML5, CSS3) and handle common edge cases.\\n3. **WPI Tone of Voice:** Use a \"Professional-Instructive\" voice. Avoid \"Du\" or \"Sie\" in technical instructions.\\n4. **Zero Fluff:** Provide maximum competence with no filler words.\\n\\n## Code Validation Requirements\\nYour code will be automatically validated by the MCP Coder service after generation:\\n- JavaScript/TypeScript: ESLint ES6+ strict validation\\n- HTML: Structure and accessibility validation\\n- CSS: Syntax validation\\n\\n## Best Practices\\n1. Use const/let, never var\\n2. Use arrow functions and template literals\\n3. Handle errors gracefully\\n4. Include edge case handling\\n5. Add meaningful comments (German)\\n6. Keep examples practical and production-ready\\n\\n## Output Format\\nFür jede Code-Anfrage, antworte mit:\\n\\n### [Beschreibung]\\n```[sprache]\\n// Vollständiger, lauffähiger Code\\n```\\n**Mechanik:** Kurze Erklärung wie es funktioniert.\\n**Impact:** Warum ist dieser Ansatz wichtig?'\n    },\n    {\n      role: 'user',\n      content: 'Erstelle Code-Beispiele für folgende Anfragen:\\n\\n' + $json.code_requests.map(function(cr, i) { return (i+1) + '. ' + cr.description; }).join('\\n') + '\\n\\n**Kontext:** Kapitel \"' + $json.current_chapter.title + '\" aus dem Buch \"' + $json.blueprint.title + '\"\\n**Zielgruppe:** ' + $json.target_audience + '\\n\\n**WICHTIG:** Der Code wird automatisch validiert. Achte besonders auf:\\n- ES6+ Syntax (const/let, arrow functions, template literals)\\n- Keine ungenutzten Variablen\\n- Syntaktische Korrektheit\\n- Edge Case Handling'\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "id": "bb8b6ff7-5e0f-4142-8d89-38fbc88c6bb0",
+      "name": "💻 WPI Coder Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -29120,
+        11656
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5KnJ49CiBjEEjtWM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevData = $('📝 Extract Code Requests').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Extract code blocks for validation\nconst codeBlocks = codeResponse.match(/```([\\w]*)\\n([\\s\\S]*?)```/g) || [];\nconst extractedCode = codeBlocks.map(block => {\n  const match = block.match(/```([\\w]*)\\n([\\s\\S]*?)```/);\n  return {\n    language: match[1] || 'javascript',\n    code: match[2].trim()\n  };\n});\n\n// Replace placeholders with actual code\nlet finalDraft = prevData.draft_content;\nprevData.code_requests.forEach((req, index) => {\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(req.placeholder, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    extracted_code: extractedCode,\n    raw_code_response: codeResponse,\n    code_validated: false\n  }\n};"
+      },
+      "id": "251f3a34-11a3-43d0-8eec-85ff4487e374",
+      "name": "🔗 Merge Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -28896,
+        11656
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mcp-coder:3004/call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (function() {\n  const codeItems = $json.extracted_code || [];\n  if (codeItems.length === 0) {\n    return JSON.stringify({ name: 'validate_code_snippet', arguments: { code: '// no code', language: 'javascript' }});\n  }\n  const firstCode = codeItems[0];\n  const langMap = { 'js': 'javascript', 'ts': 'typescript', 'jsx': 'javascript', 'tsx': 'typescript' };\n  const lang = langMap[firstCode.language] || firstCode.language || 'javascript';\n  return JSON.stringify({\n    name: 'validate_code_snippet',\n    arguments: {\n      code: firstCode.code,\n      language: ['javascript', 'typescript', 'html', 'css', 'json'].includes(lang) ? lang : 'javascript',\n      strict_mode: true,\n      check_best_practices: false\n    }\n  });\n})() }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "12b8b48b-d1e3-449e-94f8-255f9109fad6",
+      "name": "🔬 MCP: Validate Code",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -28672,
+        11656
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const prevData = $('🔗 Merge Code').first().json;\n\n// Parse validation result from MCP-Coder\nlet validationResult = { valid: true, errors: [], suggestions: [] };\ntry {\n  const valResp = $('🔬 MCP: Validate Code').first().json;\n  if (valResp.body?.content?.[0]?.text) {\n    validationResult = JSON.parse(valResp.body.content[0].text);\n  }\n} catch (e) {\n  console.log('Code validation not available:', e.message);\n}\n\n// Get static data for retry count\nconst staticData = $getWorkflowStaticData('global');\nstaticData.code_retry_count = staticData.code_retry_count || 0;\n\nreturn {\n  json: {\n    ...prevData,\n    code_validation: validationResult,\n    code_validated: validationResult.valid,\n    code_errors: validationResult.errors || [],\n    code_suggestions: validationResult.suggestions || [],\n    code_retry_count: staticData.code_retry_count\n  }\n};"
+      },
+      "id": "26987ee9-e373-4c99-b0f9-e95012a5c9a6",
+      "name": "📊 Parse Code Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -28448,
+        11584
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "code-valid",
+              "leftValue": "={{ $json.code_validated }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1dd91dab-f51d-4ae3-ad8c-6faa72bab880",
+      "name": "🔀 Code Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -28224,
+        11584
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "code-retry-limit",
+              "leftValue": "={{ $json.code_retry_count }}",
+              "rightValue": 2,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2b3b0c94-d560-4066-9f9f-196cf67ddddf",
+      "name": "🔀 Code Retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -28000,
+        11512
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.1,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent\" performing SELF-CORRECTION based on validation errors.\\n\\n## Your Task\\nThe code you previously generated failed validation. You MUST fix ALL errors reported by the validator.\\n\\n## Correction Strategy\\n1. Fix syntax errors first (blocking issues)\\n2. Apply ES6+ best practices (const/let, arrow functions, template literals)\\n3. Remove unused variables\\n4. Ensure all edge cases are handled\\n5. Maintain code readability and comments\\n\\n## Output Format\\nReturn the CORRECTED code in the same structure as before (with ```language blocks and descriptions).\\nDo NOT explain what you fixed - just provide the corrected code.'\n    },\n    {\n      role: 'user',\n      content: '**Validation Failed - Self-Correction Required**\\n\\n**Original Code:**\\n' + $json.raw_code_response + '\\n\\n**Validation Errors:**\\n' + JSON.stringify($json.code_errors, null, 2) + '\\n\\n**Suggestions:**\\n' + ($json.code_suggestions || []).join('\\n') + '\\n\\n**Retry Count:** ' + ($json.code_retry_count + 1) + ' / 2\\n\\nFix ALL errors and return the corrected code in the same format (```language blocks).'\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "id": "789611bc-cfa3-458c-a20b-ddb0ff5ac910",
+      "name": "🔄 WPI Coder Self-Correct",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -27776,
+        11440
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "5KnJ49CiBjEEjtWM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Increment retry counter and merge corrected code\nconst staticData = $getWorkflowStaticData('global');\nstaticData.code_retry_count = (staticData.code_retry_count || 0) + 1;\n\nconst prevData = $('📊 Parse Code Validation').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Extract code blocks for validation\nconst codeBlocks = codeResponse.match(/```([\\w]*)\\n([\\s\\S]*?)```/g) || [];\nconst extractedCode = codeBlocks.map(block => {\n  const match = block.match(/```([\\w]*)\\n([\\s\\S]*?)```/);\n  return {\n    language: match[1] || 'javascript',\n    code: match[2].trim()\n  };\n});\n\n// Re-merge into draft\nlet finalDraft = prevData.draft_content;\nconst originalCodeBlocks = prevData.draft_content.match(/```[\\s\\S]*?```/g) || [];\noriginalCodeBlocks.forEach((oldBlock, index) => {\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(oldBlock, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    extracted_code: extractedCode,\n    raw_code_response: codeResponse,\n    code_validated: false,\n    code_retry_count: staticData.code_retry_count\n  }\n};"
+      },
+      "id": "48de5664-7685-493d-bc6c-e4a6c1e0cb2e",
+      "name": "🔗 Merge Corrected Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -27552,
+        11488
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "4ff814ca-cede-4b78-a289-fe6554a11dce",
+      "name": "⏭️ Skip Validation",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -27776,
+        11632
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "f135fc90-2d21-425b-846d-1497f584c396",
+      "name": "⏭️ Skip Code",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -27776,
+        12040
+      ]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "📝 Extract Code Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Extract Code Requests": {
+      "main": [
+        [
+          {
+            "node": "🔀 Code Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Code Needed?": {
+      "main": [
+        [
+          {
+            "node": "💻 WPI Coder Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⏭️ Skip Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💻 WPI Coder Agent": {
+      "main": [
+        [
+          {
+            "node": "🔗 Merge Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Merge Code": {
+      "main": [
+        [
+          {
+            "node": "🔬 MCP: Validate Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔬 MCP: Validate Code": {
+      "main": [
+        [
+          {
+            "node": "📊 Parse Code Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Parse Code Validation": {
+      "main": [
+        [
+          {
+            "node": "🔀 Code Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Code Valid?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "🔀 Code Retry?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Code Retry?": {
+      "main": [
+        [
+          {
+            "node": "🔄 WPI Coder Self-Correct",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⏭️ Skip Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 WPI Coder Self-Correct": {
+      "main": [
+        [
+          {
+            "node": "🔗 Merge Corrected Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Merge Corrected Code": {
+      "main": [
+        [
+          {
+            "node": "🔬 MCP: Validate Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

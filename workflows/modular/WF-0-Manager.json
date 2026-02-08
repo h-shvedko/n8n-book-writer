@@ -1,0 +1,720 @@
+{
+  "name": "WF-0 Master Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "3d9430f4-c69d-4392-bae9-70bef5444575",
+        "formTitle": "WPI Book Generator",
+        "formDescription": "AI-gestützte Erstellung von Fachbüchern basierend auf Syllabus-Domains. Jede Domain wird zu einem Kapitel.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Syllabus",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "WPI Web Development Professional (WPI-WEB-DEV-2025)"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Generation Strategy",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "By Domain"
+                  },
+                  {
+                    "option": "By Topic"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Target Audience",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Absolute Beginners"
+                  },
+                  {
+                    "option": "Junior Developers"
+                  },
+                  {
+                    "option": "Mid-Level Professionals"
+                  },
+                  {
+                    "option": "Senior Experts"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "38dbd0c6-0f86-4ba5-927f-2aeb9963c6e9",
+      "name": "📥 Book Request Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "3d9430f4-c69d-4392-bae9-70bef5444575"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const syllabusSelection = formData['Syllabus'] || '';\n  \n  // Parse syllabus ID from format: 'Name (syllabus-xxxxx)'\n  // Example: 'WPI Web Development (syllabus-1738051200123)'\n  const match = syllabusSelection.match(/\\(([^)]+)\\)/);\n  const syllabusId = match ? match[1] : null;\n  \n  if (!syllabusId) {\n    throw new Error('Invalid syllabus selection. Expected format: Name (syllabus-id)');\n  }\n  \n  const strategy = formData['Generation Strategy'] || 'By Domain';\n  \n  return {\n    syllabus_id: syllabusId,\n    syllabus_name: syllabusSelection.split('(')[0].trim(),\n    generation_strategy: strategy,\n    target_audience: formData['Target Audience'] || 'Mid-Level Professionals'\n  };\n})() }}",
+        "options": {}
+      },
+      "id": "3b986b29-2fff-416a-8ddc-d632f682e0cb",
+      "name": "🔍 Extract Syllabus ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        250,
+        300
+      ],
+      "notes": "Parses syllabus ID from the form dropdown selection"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://admin-api:3005/api/jobs",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"id\": \"{{ $runId }}\",\n  \"syllabus_name\": \"{{ $json.syllabus_name }}\",\n  \"strategy\": \"{{ $json.generation_strategy }}\",\n  \"target_audience\": \"{{ $json.target_audience }}\",\n  \"status\": \"running\",\n  \"started_at\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "f4aa911a-23ae-4cc0-8ba3-0fd631c8c9a5",
+      "name": "📋 Register Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        }
+      },
+      "id": "c2ab4060-7cbd-41f6-9461-b8b259002800",
+      "name": "🏗️ Call WF-1 Blueprint",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://admin-api:3005/api/jobs/{{ $(\"📋 Register Job\").first().json.id }}",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"current_workflow\": \"WF-1-Blueprint\" }"
+      },
+      "id": "5ba7774f-5dba-4a14-b69a-9446bd3b1f5c",
+      "name": "📊 Report: Blueprint Done",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Extract chapters from blueprint output\nconst blueprint = $('🏗️ Call WF-1 Blueprint').first().json;\nconst chapters = blueprint.blueprint?.chapters || blueprint.chapters || [];\nconst jobId = $('📋 Register Job').first().json.id;\n\n// Update total chapters count\nreturn chapters.map(ch => ({\n  json: {\n    ...ch,\n    job_id: jobId,\n    global_history: '',\n    syllabus_id: $('🔍 Extract Syllabus ID').first().json.syllabus_id,\n    target_audience: $('🔍 Extract Syllabus ID').first().json.target_audience\n  }\n}));\n",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "5907bea1-c156-4eb3-af8c-eaf3d6ba01c6",
+      "name": "📑 Prepare Chapter List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://admin-api:3005/api/jobs/{{ $(\"📋 Register Job\").first().json.id }}",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"total_chapters\": {{ $input.all().length }} }"
+      },
+      "id": "d44849a7-dcb8-4823-926d-e191682ec49a",
+      "name": "📊 Update Total Chapters",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "50821e24-28c0-4293-9c4d-87b744156671",
+      "name": "🔁 Chapter Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        }
+      },
+      "id": "f0aeb8de-ffbf-4e8a-8def-711d87b91148",
+      "name": "🔍 Call WF-2 Research",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://admin-api:3005/api/jobs/{{ $(\"📋 Register Job\").first().json.id }}",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"current_workflow\": \"WF-2-Research\" }"
+      },
+      "id": "88824ee6-1eb4-4965-8302-94d85c9f0078",
+      "name": "📊 Report: Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2250,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        }
+      },
+      "id": "6f761175-c1c4-4f29-9246-8fb54a067e5e",
+      "name": "✍️ Call WF-3 Chapter Builder",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://admin-api:3005/api/jobs/{{ $(\"📋 Register Job\").first().json.id }}",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"current_workflow\": \"WF-3-ChapterBuilder\" }"
+      },
+      "id": "761b6b7f-7d5a-4108-8934-ae370934a37f",
+      "name": "📊 Report: Writing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2750,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst result = $input.first().json;\nreturn [{ json: { ...result, has_code: result.has_code_requests || false } }];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "e33246eb-f462-41dc-962b-93252e04b067",
+      "name": "🔀 Has Code Requests?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "rightValue": ""
+          },
+          "conditions": [
+            {
+              "id": "8a87bb9a-3276-41db-8ba5-26edc3c94e9f",
+              "leftValue": "={{ $json.has_code }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "79a57c44-254e-4eac-a4da-0cc81450da04",
+      "name": "🔀 Code Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3250,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        }
+      },
+      "id": "8834e152-b8df-4259-9db0-3a69c035b953",
+      "name": "💻 Call WF-4 Coder",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        }
+      },
+      "id": "bcc7408e-2d9f-47f0-b9ca-6e35f36e10d0",
+      "name": "🔍 Call WF-5 Editor/QA",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3750,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://admin-api:3005/api/jobs/{{ $(\"📋 Register Job\").first().json.id }}",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"current_workflow\": \"WF-5-EditorQA\" }"
+      },
+      "id": "0699cefc-24db-49ad-ba18-65d9b69b97e6",
+      "name": "📊 Report: QA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Append chapter summary to global history\nconst result = $input.first().json;\nconst currentHistory = $('📑 Prepare Chapter List').first().json.global_history || '';\nconst chapterSummary = result.chapter_summary || '';\nconst updatedHistory = currentHistory + '\\n\\n' + chapterSummary;\n\n// Update the chapter data with new global history\nreturn [{ json: { ...result, global_history: updatedHistory } }];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "2120ff50-a9a0-43b8-9300-14d4505a5487",
+      "name": "📝 Update Global History",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4250,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://admin-api:3005/api/jobs/{{ $(\"📋 Register Job\").first().json.id }}",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"completed_chapters\": {{ $(\"🔁 Chapter Loop\").first().json._batchIndex + 1 }} }"
+      },
+      "id": "29f41857-db27-4c10-8d6e-027004e1535c",
+      "name": "📊 Update Chapter Progress",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Check from SplitInBatches done output\nreturn [{ json: { all_done: true, job_id: $('📋 Register Job').first().json.id } }];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "9cd41a5d-961f-414e-8039-0af8f3f12912",
+      "name": "🔀 All Chapters Done?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1750,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        }
+      },
+      "id": "8cda3cf9-e460-4266-be28-497a911d785c",
+      "name": "📚 Call WF-6 Compiler",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        }
+      },
+      "id": "0822d43e-8634-4079-9f66-be239306a73f",
+      "name": "📤 Call WF-7 Publisher",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nreturn [{ json: { status: 'success', message: 'Book generation complete' } }];\n",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "545ac132-1fac-498d-b5e8-cf98f95957d7",
+      "name": "✅ Job Complete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2500,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "📥 Book Request Form": {
+      "main": [
+        [
+          {
+            "node": "🔍 Extract Syllabus ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Extract Syllabus ID": {
+      "main": [
+        [
+          {
+            "node": "📋 Register Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Register Job": {
+      "main": [
+        [
+          {
+            "node": "🏗️ Call WF-1 Blueprint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏗️ Call WF-1 Blueprint": {
+      "main": [
+        [
+          {
+            "node": "📊 Report: Blueprint Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Report: Blueprint Done": {
+      "main": [
+        [
+          {
+            "node": "📑 Prepare Chapter List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📑 Prepare Chapter List": {
+      "main": [
+        [
+          {
+            "node": "📊 Update Total Chapters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Update Total Chapters": {
+      "main": [
+        [
+          {
+            "node": "🔁 Chapter Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔁 Chapter Loop": {
+      "main": [
+        [
+          {
+            "node": "🔀 All Chapters Done?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔍 Call WF-2 Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Call WF-2 Research": {
+      "main": [
+        [
+          {
+            "node": "📊 Report: Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Report: Research": {
+      "main": [
+        [
+          {
+            "node": "✍️ Call WF-3 Chapter Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✍️ Call WF-3 Chapter Builder": {
+      "main": [
+        [
+          {
+            "node": "📊 Report: Writing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Report: Writing": {
+      "main": [
+        [
+          {
+            "node": "🔀 Has Code Requests?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Has Code Requests?": {
+      "main": [
+        [
+          {
+            "node": "🔀 Code Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Code Needed?": {
+      "main": [
+        [
+          {
+            "node": "💻 Call WF-4 Coder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔍 Call WF-5 Editor/QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💻 Call WF-4 Coder": {
+      "main": [
+        [
+          {
+            "node": "🔍 Call WF-5 Editor/QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Call WF-5 Editor/QA": {
+      "main": [
+        [
+          {
+            "node": "📊 Report: QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Report: QA": {
+      "main": [
+        [
+          {
+            "node": "📝 Update Global History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Update Global History": {
+      "main": [
+        [
+          {
+            "node": "📊 Update Chapter Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Update Chapter Progress": {
+      "main": [
+        [
+          {
+            "node": "🔁 Chapter Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 All Chapters Done?": {
+      "main": [
+        [
+          {
+            "node": "📚 Call WF-6 Compiler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📚 Call WF-6 Compiler": {
+      "main": [
+        [
+          {
+            "node": "📤 Call WF-7 Publisher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📤 Call WF-7 Publisher": {
+      "main": [
+        [
+          {
+            "node": "✅ Job Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
