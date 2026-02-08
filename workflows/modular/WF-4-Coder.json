@@ -3,58 +3,69 @@
   "nodes": [
     {
       "parameters": {},
-      "id": "acda76dd-b22d-4909-9218-0a13d9f8faa5",
+      "id": "6e00015f-0876-41bd-8b0d-e07c5dc2344d",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -200,
+        0,
         300
       ]
     },
     {
       "parameters": {
-        "jsCode": "const draft = $input.first().json.choices[0].message.content;\n\n// Get base data from Merge Chapter Context\nlet prevData = $('💾 Merge Chapter Context').first().json;\n\n// Get revision count from workflow static data\nconst staticData = $getWorkflowStaticData('global');\nlet revision_count = staticData.revision_count || 0;\n\n// Extract CODE_REQUEST placeholders\nconst codeRequests = [];\nconst regex = /<<CODE_REQUEST:\\s*(.+?)>>/g;\nlet match;\n\nwhile ((match = regex.exec(draft)) !== null) {\n  codeRequests.push({\n    placeholder: match[0],\n    description: match[1].trim()\n  });\n}\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: draft,\n    code_requests: codeRequests,\n    has_code_requests: codeRequests.length > 0,\n    revision_count: revision_count\n  }\n};"
+        "jsCode": "// Validate input from WF-0 Manager\nconst input = $input.first().json;\n\nconst required = ['job_id', 'chapter_id'];\nconst missing = required.filter(f => !input[f]);\n\nif (missing.length > 0) {\n  throw new Error('WF-4 input validation failed. Missing: ' + missing.join(', '));\n}\n\nconst codeRequests = input.code_requests || [];\n\nreturn [{\n  json: {\n    job_id: input.job_id,\n    chapter_id: input.chapter_id,\n    chapter_title: input.chapter_title || input.title || 'Untitled',\n    domain_id: input.domain_id || '',\n    target_audience: input.target_audience || 'Mid-Level Professionals',\n    code_requests: codeRequests,\n    has_code_requests: codeRequests.length > 0\n  }\n}];",
+        "mode": "runOnceForAllItems"
       },
-      "id": "c9254aa1-d3f4-4cff-aa57-e57cb6f7878e",
-      "name": "📝 Extract Code Requests",
+      "id": "c3124067-3a72-449b-bc52-f0a69dee7591",
+      "name": "✅ Validate Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -29568,
-        11752
+        250,
+        300
       ]
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "has-code",
-              "leftValue": "={{ $json.has_code_requests }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+        "jsCode": "// Convert code_requests array into items for SplitInBatches\nconst staticData = $getWorkflowStaticData('global');\nstaticData.code_snippets = [];\n\nconst data = $input.first().json;\nconst requests = data.code_requests || [];\n\nif (requests.length === 0) {\n  // No code requests — return empty result directly\n  return [{\n    json: {\n      _skip: true,\n      job_id: data.job_id,\n      chapter_id: data.chapter_id\n    }\n  }];\n}\n\nreturn requests.map((req, index) => ({\n  json: {\n    request_id: 'req_' + (index + 1),\n    description: typeof req === 'string' ? req : (req.description || String(req)),\n    placeholder: typeof req === 'object' ? (req.placeholder || '') : '',\n    index: index,\n    chapter_title: data.chapter_title,\n    domain_id: data.domain_id,\n    target_audience: data.target_audience,\n    job_id: data.job_id,\n    chapter_id: data.chapter_id\n  }\n}));",
+        "mode": "runOnceForAllItems"
       },
-      "id": "41206494-960d-4776-b7e4-cb737dfbcdd1",
-      "name": "🔀 Code Needed?",
-      "type": "n8n-nodes-base.if",
+      "id": "49fbdc07-6aa2-42b6-8a5d-85ac5e7efff7",
+      "name": "📝 Prepare Code Items",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -29344,
-        11752
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "6d733e22-4724-4e21-9ef7-ce5ac48cc072",
+      "name": "🔁 Code Request Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reset retry counter for this code request\nconst staticData = $getWorkflowStaticData('global');\nstaticData.current_retry = 0;\n\nconst req = $input.first().json;\nreturn [{ json: req }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "9a75c9a7-84f4-4bee-bfe7-0b805b49d62f",
+      "name": "📝 Init Request Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        500
       ]
     },
     {
@@ -74,16 +85,16 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.2,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent,\" a Senior Full-Stack Engineer and technical author. Your goal is to generate high-quality, production-ready code examples for the WPI Syllabus Guide.\\n\\n## Core Responsibilities\\n1. **Follow the Tangibility Mandate:** For every technical topic, you MUST provide a complete, syntaktisch correct code block.\\n2. **Technical Standards:** Use modern syntax (ES6+ for JavaScript, HTML5, CSS3) and handle common edge cases.\\n3. **WPI Tone of Voice:** Use a \"Professional-Instructive\" voice. Avoid \"Du\" or \"Sie\" in technical instructions.\\n4. **Zero Fluff:** Provide maximum competence with no filler words.\\n\\n## Code Validation Requirements\\nYour code will be automatically validated by the MCP Coder service after generation:\\n- JavaScript/TypeScript: ESLint ES6+ strict validation\\n- HTML: Structure and accessibility validation\\n- CSS: Syntax validation\\n\\n## Best Practices\\n1. Use const/let, never var\\n2. Use arrow functions and template literals\\n3. Handle errors gracefully\\n4. Include edge case handling\\n5. Add meaningful comments (German)\\n6. Keep examples practical and production-ready\\n\\n## Output Format\\nFür jede Code-Anfrage, antworte mit:\\n\\n### [Beschreibung]\\n```[sprache]\\n// Vollständiger, lauffähiger Code\\n```\\n**Mechanik:** Kurze Erklärung wie es funktioniert.\\n**Impact:** Warum ist dieser Ansatz wichtig?'\n    },\n    {\n      role: 'user',\n      content: 'Erstelle Code-Beispiele für folgende Anfragen:\\n\\n' + $json.code_requests.map(function(cr, i) { return (i+1) + '. ' + cr.description; }).join('\\n') + '\\n\\n**Kontext:** Kapitel \"' + $json.current_chapter.title + '\" aus dem Buch \"' + $json.blueprint.title + '\"\\n**Zielgruppe:** ' + $json.target_audience + '\\n\\n**WICHTIG:** Der Code wird automatisch validiert. Achte besonders auf:\\n- ES6+ Syntax (const/let, arrow functions, template literals)\\n- Keine ungenutzten Variablen\\n- Syntaktische Korrektheit\\n- Edge Case Handling'\n    }\n  ]\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.2,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent,\" a Senior Full-Stack Engineer and technical author. Your goal is to generate high-quality, production-ready code examples for the WPI Syllabus Guide.\\n\\n## Core Responsibilities\\n1. **Follow the Tangibility Mandate:** For every technical topic, you MUST provide a complete, syntactically correct code block.\\n2. **Technical Standards:** Use modern syntax (ES6+ for JavaScript, HTML5, CSS3) and handle common edge cases.\\n3. **WPI Tone of Voice:** Use a \"Professional-Instructive\" voice. Avoid \"Du\" or \"Sie\" in technical instructions.\\n4. **Zero Fluff:** Provide maximum competence with no filler words.\\n\\n## Code Validation Requirements\\nYour code will be automatically validated by the MCP Coder service after generation:\\n- JavaScript/TypeScript: ESLint ES6+ strict validation\\n- HTML: Structure and accessibility validation\\n- CSS: Syntax validation\\n\\n## Best Practices\\n1. Use const/let, never var\\n2. Use arrow functions and template literals\\n3. Handle errors gracefully\\n4. Include edge case handling\\n5. Add meaningful comments (German)\\n6. Keep examples practical and production-ready\\n\\n## Output Format\\nReturn ONLY a JSON object:\\n{\\n  \"language\": \"javascript\",\\n  \"code\": \"// Vollständiger, lauffähiger Code hier\",\\n  \"explanation\": \"Kurze Erklärung wie es funktioniert.\",\\n  \"impact\": \"Warum ist dieser Ansatz wichtig?\"\\n}\\n\\nWICHTIG: Antworte NUR mit validem JSON. Keine Markdown-Blöcke, keine Erklärungen außerhalb des JSON.'\n    },\n    {\n      role: 'user',\n      content: 'Erstelle ein Code-Beispiel für folgende Anfrage:\\n\\n**Anfrage:** ' + $json.description + '\\n\\n**Kontext:** Kapitel \"' + $json.chapter_title + '\"\\n**Zielgruppe:** ' + $json.target_audience + '\\n\\n**WICHTIG:** Der Code wird automatisch validiert. Achte besonders auf:\\n- ES6+ Syntax (const/let, arrow functions, template literals)\\n- Keine ungenutzten Variablen\\n- Syntaktische Korrektheit\\n- Edge Case Handling\\n\\nAntworte NUR mit dem JSON-Objekt.'\n    }\n  ]\n}) }}",
         "options": {}
       },
-      "id": "bb8b6ff7-5e0f-4142-8d89-38fbc88c6bb0",
+      "id": "a59ae8fe-bf2d-4613-99ff-84770ab8d6dd",
       "name": "💻 WPI Coder Agent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -29120,
-        11656
+        1250,
+        500
       ],
       "credentials": {
         "openAiApi": {
@@ -94,15 +105,16 @@
     },
     {
       "parameters": {
-        "jsCode": "const prevData = $('📝 Extract Code Requests').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Extract code blocks for validation\nconst codeBlocks = codeResponse.match(/```([\\w]*)\\n([\\s\\S]*?)```/g) || [];\nconst extractedCode = codeBlocks.map(block => {\n  const match = block.match(/```([\\w]*)\\n([\\s\\S]*?)```/);\n  return {\n    language: match[1] || 'javascript',\n    code: match[2].trim()\n  };\n});\n\n// Replace placeholders with actual code\nlet finalDraft = prevData.draft_content;\nprevData.code_requests.forEach((req, index) => {\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(req.placeholder, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    extracted_code: extractedCode,\n    raw_code_response: codeResponse,\n    code_validated: false\n  }\n};"
+        "jsCode": "// Parse the AI-generated code from response\nconst reqData = $('📝 Init Request Context').first().json;\nconst response = $input.first().json.choices[0].message?.content || '';\n\nlet codeResult;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  codeResult = JSON.parse(jsonStr.trim());\n} catch (e) {\n  // Fallback: extract code block from markdown\n  const codeMatch = response.match(/```(\\w*)\\n([\\s\\S]*?)```/);\n  if (codeMatch) {\n    codeResult = {\n      language: codeMatch[1] || 'javascript',\n      code: codeMatch[2].trim(),\n      explanation: '',\n      impact: ''\n    };\n  } else {\n    // Last resort: treat entire response as code\n    codeResult = {\n      language: 'javascript',\n      code: response.trim(),\n      explanation: '',\n      impact: ''\n    };\n  }\n}\n\nreturn [{\n  json: {\n    request_id: reqData.request_id,\n    description: reqData.description,\n    placeholder: reqData.placeholder,\n    language: codeResult.language || 'javascript',\n    code: codeResult.code || '',\n    explanation: codeResult.explanation || '',\n    impact: codeResult.impact || '',\n    raw_response: response,\n    job_id: reqData.job_id,\n    chapter_id: reqData.chapter_id\n  }\n}];",
+        "mode": "runOnceForAllItems"
       },
-      "id": "251f3a34-11a3-43d0-8eec-85ff4487e374",
-      "name": "🔗 Merge Code",
+      "id": "859c2a0f-c54e-496c-acc2-56e657124c32",
+      "name": "🔗 Parse Code Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -28896,
-        11656
+        1500,
+        500
       ]
     },
     {
@@ -122,7 +134,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ (function() {\n  const codeItems = $json.extracted_code || [];\n  if (codeItems.length === 0) {\n    return JSON.stringify({ name: 'validate_code_snippet', arguments: { code: '// no code', language: 'javascript' }});\n  }\n  const firstCode = codeItems[0];\n  const langMap = { 'js': 'javascript', 'ts': 'typescript', 'jsx': 'javascript', 'tsx': 'typescript' };\n  const lang = langMap[firstCode.language] || firstCode.language || 'javascript';\n  return JSON.stringify({\n    name: 'validate_code_snippet',\n    arguments: {\n      code: firstCode.code,\n      language: ['javascript', 'typescript', 'html', 'css', 'json'].includes(lang) ? lang : 'javascript',\n      strict_mode: true,\n      check_best_practices: false\n    }\n  });\n})() }}",
+        "jsonBody": "={{ (function() {\n  const code = $json.code || '// no code';\n  const lang = $json.language || 'javascript';\n  const langMap = { 'js': 'javascript', 'ts': 'typescript', 'jsx': 'javascript', 'tsx': 'typescript' };\n  const normalizedLang = langMap[lang] || lang;\n  const validLangs = ['javascript', 'typescript', 'html', 'css', 'json'];\n  return JSON.stringify({\n    name: 'validate_code_snippet',\n    arguments: {\n      code: code,\n      language: validLangs.includes(normalizedLang) ? normalizedLang : 'javascript',\n      strict_mode: true,\n      check_best_practices: false\n    }\n  });\n})() }}",
         "options": {
           "response": {
             "response": {
@@ -131,13 +143,13 @@
           }
         }
       },
-      "id": "12b8b48b-d1e3-449e-94f8-255f9109fad6",
+      "id": "5610a20c-b805-43ee-a0c4-3a092ec20bd5",
       "name": "🔬 MCP: Validate Code",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -28672,
-        11656
+        1750,
+        500
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -149,15 +161,16 @@
     },
     {
       "parameters": {
-        "jsCode": "const prevData = $('🔗 Merge Code').first().json;\n\n// Parse validation result from MCP-Coder\nlet validationResult = { valid: true, errors: [], suggestions: [] };\ntry {\n  const valResp = $('🔬 MCP: Validate Code').first().json;\n  if (valResp.body?.content?.[0]?.text) {\n    validationResult = JSON.parse(valResp.body.content[0].text);\n  }\n} catch (e) {\n  console.log('Code validation not available:', e.message);\n}\n\n// Get static data for retry count\nconst staticData = $getWorkflowStaticData('global');\nstaticData.code_retry_count = staticData.code_retry_count || 0;\n\nreturn {\n  json: {\n    ...prevData,\n    code_validation: validationResult,\n    code_validated: validationResult.valid,\n    code_errors: validationResult.errors || [],\n    code_suggestions: validationResult.suggestions || [],\n    code_retry_count: staticData.code_retry_count\n  }\n};"
+        "jsCode": "// Parse validation result from MCP-Coder\nconst codeData = $('🔗 Parse Code Response').first().json;\nconst staticData = $getWorkflowStaticData('global');\n\nlet validationResult = { valid: true, errors: [], suggestions: [] };\ntry {\n  const valResp = $input.first().json;\n  if (valResp.body?.content?.[0]?.text) {\n    validationResult = JSON.parse(valResp.body.content[0].text);\n  }\n} catch (e) {\n  // Validation service unavailable — treat as valid\n}\n\nreturn [{\n  json: {\n    ...codeData,\n    code_validated: !!validationResult.valid,\n    code_errors: validationResult.errors || [],\n    code_suggestions: validationResult.suggestions || [],\n    retry_count: staticData.current_retry || 0\n  }\n}];",
+        "mode": "runOnceForAllItems"
       },
-      "id": "26987ee9-e373-4c99-b0f9-e95012a5c9a6",
-      "name": "📊 Parse Code Validation",
+      "id": "5a7e1b1d-880b-4054-be92-f2c32170bfa0",
+      "name": "📊 Parse Validation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -28448,
-        11584
+        2000,
+        500
       ]
     },
     {
@@ -183,13 +196,27 @@
         },
         "options": {}
       },
-      "id": "1dd91dab-f51d-4ae3-ad8c-6faa72bab880",
+      "id": "9269cc37-f0bf-44f7-992f-6dbcb083c4e9",
       "name": "🔀 Code Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -28224,
-        11584
+        2250,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Store validated code snippet in static data\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.code_snippets) staticData.code_snippets = [];\n\nconst data = $input.first().json;\n\nstaticData.code_snippets.push({\n  id: data.request_id,\n  description: data.description,\n  placeholder: data.placeholder,\n  code: data.code,\n  language: data.language,\n  explanation: data.explanation || '',\n  impact: data.impact || '',\n  validated: true,\n  retries: data.retry_count || 0\n});\n\nreturn [{ json: { collected: true, request_id: data.request_id, validated: true } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "f2ce31d8-01c9-472e-ad09-0086ae6790f9",
+      "name": "📦 Collect Valid Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2500,
+        300
       ]
     },
     {
@@ -202,9 +229,9 @@
           },
           "conditions": [
             {
-              "id": "code-retry-limit",
-              "leftValue": "={{ $json.code_retry_count }}",
-              "rightValue": 2,
+              "id": "retry-limit",
+              "leftValue": "={{ $json.retry_count }}",
+              "rightValue": 3,
               "operator": {
                 "type": "number",
                 "operation": "lt"
@@ -215,13 +242,13 @@
         },
         "options": {}
       },
-      "id": "2b3b0c94-d560-4066-9f9f-196cf67ddddf",
-      "name": "🔀 Code Retry?",
+      "id": "49fcd696-a587-4cee-a66e-ee22d76aca12",
+      "name": "🔀 Retry Limit?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -28000,
-        11512
+        2500,
+        600
       ]
     },
     {
@@ -241,16 +268,16 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.1,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent\" performing SELF-CORRECTION based on validation errors.\\n\\n## Your Task\\nThe code you previously generated failed validation. You MUST fix ALL errors reported by the validator.\\n\\n## Correction Strategy\\n1. Fix syntax errors first (blocking issues)\\n2. Apply ES6+ best practices (const/let, arrow functions, template literals)\\n3. Remove unused variables\\n4. Ensure all edge cases are handled\\n5. Maintain code readability and comments\\n\\n## Output Format\\nReturn the CORRECTED code in the same structure as before (with ```language blocks and descriptions).\\nDo NOT explain what you fixed - just provide the corrected code.'\n    },\n    {\n      role: 'user',\n      content: '**Validation Failed - Self-Correction Required**\\n\\n**Original Code:**\\n' + $json.raw_code_response + '\\n\\n**Validation Errors:**\\n' + JSON.stringify($json.code_errors, null, 2) + '\\n\\n**Suggestions:**\\n' + ($json.code_suggestions || []).join('\\n') + '\\n\\n**Retry Count:** ' + ($json.code_retry_count + 1) + ' / 2\\n\\nFix ALL errors and return the corrected code in the same format (```language blocks).'\n    }\n  ]\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-4o',\n  temperature: 0.1,\n  max_tokens: 4000,\n  messages: [\n    {\n      role: 'system',\n      content: '## Your Identity\\nYou are the \"WPI Coder Agent\" performing SELF-CORRECTION based on validation errors.\\n\\n## Your Task\\nThe code you previously generated failed validation. You MUST fix ALL errors reported by the validator.\\n\\n## Correction Strategy\\n1. Fix syntax errors first (blocking issues)\\n2. Apply ES6+ best practices (const/let, arrow functions, template literals)\\n3. Remove unused variables\\n4. Ensure all edge cases are handled\\n5. Maintain code readability and comments\\n\\n## Output Format\\nReturn ONLY a JSON object with the corrected code:\\n{\\n  \"language\": \"javascript\",\\n  \"code\": \"// Korrigierter, lauffähiger Code\",\\n  \"explanation\": \"Kurze Erklärung\",\\n  \"impact\": \"Warum dieser Ansatz\"\\n}\\n\\nWICHTIG: Antworte NUR mit validem JSON. Keine Erklärungen außerhalb des JSON.'\n    },\n    {\n      role: 'user',\n      content: '**Validation Failed - Self-Correction Required**\\n\\n**Original Code (' + $json.language + '):**\\n' + $json.code + '\\n\\n**Validation Errors:**\\n' + JSON.stringify($json.code_errors, null, 2) + '\\n\\n**Suggestions:**\\n' + ($json.code_suggestions || []).join('\\n') + '\\n\\n**Retry:** ' + (($json.retry_count || 0) + 1) + ' / 3\\n\\nFix ALL errors and return the corrected code as JSON.'\n    }\n  ]\n}) }}",
         "options": {}
       },
-      "id": "789611bc-cfa3-458c-a20b-ddb0ff5ac910",
+      "id": "0ff65241-0aa5-4738-8b0b-32a2b35f5004",
       "name": "🔄 WPI Coder Self-Correct",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -27776,
-        11440
+        2750,
+        500
       ],
       "credentials": {
         "openAiApi": {
@@ -261,37 +288,44 @@
     },
     {
       "parameters": {
-        "jsCode": "// Increment retry counter and merge corrected code\nconst staticData = $getWorkflowStaticData('global');\nstaticData.code_retry_count = (staticData.code_retry_count || 0) + 1;\n\nconst prevData = $('📊 Parse Code Validation').first().json;\nconst codeResponse = $input.first().json.choices[0].message?.content || '';\n\n// Extract code blocks for validation\nconst codeBlocks = codeResponse.match(/```([\\w]*)\\n([\\s\\S]*?)```/g) || [];\nconst extractedCode = codeBlocks.map(block => {\n  const match = block.match(/```([\\w]*)\\n([\\s\\S]*?)```/);\n  return {\n    language: match[1] || 'javascript',\n    code: match[2].trim()\n  };\n});\n\n// Re-merge into draft\nlet finalDraft = prevData.draft_content;\nconst originalCodeBlocks = prevData.draft_content.match(/```[\\s\\S]*?```/g) || [];\noriginalCodeBlocks.forEach((oldBlock, index) => {\n  if (codeBlocks[index]) {\n    finalDraft = finalDraft.replace(oldBlock, codeBlocks[index]);\n  }\n});\n\nreturn {\n  json: {\n    ...prevData,\n    draft_content: finalDraft,\n    extracted_code: extractedCode,\n    raw_code_response: codeResponse,\n    code_validated: false,\n    code_retry_count: staticData.code_retry_count\n  }\n};"
+        "jsCode": "// Parse self-corrected code and increment retry counter\nconst staticData = $getWorkflowStaticData('global');\nstaticData.current_retry = (staticData.current_retry || 0) + 1;\n\nconst prevData = $('📊 Parse Validation').first().json;\nconst response = $input.first().json.choices[0].message?.content || '';\n\nlet codeResult;\ntry {\n  let jsonStr = response;\n  if (response.includes('```json')) {\n    jsonStr = response.split('```json')[1].split('```')[0];\n  } else if (response.includes('```')) {\n    jsonStr = response.split('```')[1].split('```')[0];\n  }\n  codeResult = JSON.parse(jsonStr.trim());\n} catch (e) {\n  const codeMatch = response.match(/```(\\w*)\\n([\\s\\S]*?)```/);\n  if (codeMatch) {\n    codeResult = {\n      language: codeMatch[1] || prevData.language,\n      code: codeMatch[2].trim()\n    };\n  } else {\n    codeResult = {\n      language: prevData.language,\n      code: response.trim()\n    };\n  }\n}\n\nreturn [{\n  json: {\n    request_id: prevData.request_id,\n    description: prevData.description,\n    placeholder: prevData.placeholder,\n    language: codeResult.language || prevData.language,\n    code: codeResult.code || prevData.code,\n    explanation: codeResult.explanation || prevData.explanation || '',\n    impact: codeResult.impact || prevData.impact || '',\n    raw_response: response,\n    job_id: prevData.job_id,\n    chapter_id: prevData.chapter_id\n  }\n}];",
+        "mode": "runOnceForAllItems"
       },
-      "id": "48de5664-7685-493d-bc6c-e4a6c1e0cb2e",
-      "name": "🔗 Merge Corrected Code",
+      "id": "caea5e44-6578-4c12-8282-54cbd042eb3e",
+      "name": "🔗 Parse Corrected Code",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -27552,
-        11488
+        3000,
+        500
       ]
     },
     {
-      "parameters": {},
-      "id": "4ff814ca-cede-4b78-a289-fe6554a11dce",
-      "name": "⏭️ Skip Validation",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "parameters": {
+        "jsCode": "// Retry limit reached — store code with validated=false\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.code_snippets) staticData.code_snippets = [];\n\nconst data = $input.first().json;\n\nstaticData.code_snippets.push({\n  id: data.request_id,\n  description: data.description,\n  placeholder: data.placeholder,\n  code: data.code,\n  language: data.language,\n  explanation: data.explanation || '',\n  impact: data.impact || '',\n  validated: false,\n  retries: data.retry_count || 0,\n  errors: data.code_errors || []\n});\n\nreturn [{ json: { collected: true, request_id: data.request_id, validated: false } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "35e8b717-79ab-4b7d-b578-0289630c83d2",
+      "name": "📦 Accept As-Is",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        -27776,
-        11632
+        2750,
+        700
       ]
     },
     {
-      "parameters": {},
-      "id": "f135fc90-2d21-425b-846d-1497f584c396",
-      "name": "⏭️ Skip Code",
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "parameters": {
+        "jsCode": "// Build final structured output from all collected snippets\nconst staticData = $getWorkflowStaticData('global');\nconst codeSnippets = staticData.code_snippets || [];\nconst validated = $('✅ Validate Input').first().json;\n\n// Clean up static data\ndelete staticData.code_snippets;\ndelete staticData.current_retry;\n\n// If no code requests were processed (skip flag)\nif (codeSnippets.length === 0) {\n  return [{\n    json: {\n      status: 'success',\n      code_snippets: [],\n      total_snippets: 0,\n      validated_count: 0,\n      job_id: validated.job_id,\n      chapter_id: validated.chapter_id\n    }\n  }];\n}\n\nconst validatedCount = codeSnippets.filter(s => s.validated).length;\n\nreturn [{\n  json: {\n    status: 'success',\n    code_snippets: codeSnippets,\n    total_snippets: codeSnippets.length,\n    validated_count: validatedCount,\n    all_validated: validatedCount === codeSnippets.length,\n    job_id: validated.job_id,\n    chapter_id: validated.chapter_id\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "be261ce8-2097-402a-a2c4-3b83686eae3b",
+      "name": "📊 Build Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        -27776,
-        12040
+        1000,
+        100
       ]
     }
   ],
@@ -300,36 +334,58 @@
       "main": [
         [
           {
-            "node": "📝 Extract Code Requests",
+            "node": "✅ Validate Input",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "📝 Extract Code Requests": {
+    "✅ Validate Input": {
       "main": [
         [
           {
-            "node": "🔀 Code Needed?",
+            "node": "📝 Prepare Code Items",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "🔀 Code Needed?": {
+    "📝 Prepare Code Items": {
       "main": [
         [
           {
-            "node": "💻 WPI Coder Agent",
+            "node": "🔁 Code Request Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔁 Code Request Loop": {
+      "main": [
+        [
+          {
+            "node": "📊 Build Output",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "⏭️ Skip Code",
+            "node": "📝 Init Request Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Init Request Context": {
+      "main": [
+        [
+          {
+            "node": "💻 WPI Coder Agent",
             "type": "main",
             "index": 0
           }
@@ -340,14 +396,14 @@
       "main": [
         [
           {
-            "node": "🔗 Merge Code",
+            "node": "🔗 Parse Code Response",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "🔗 Merge Code": {
+    "🔗 Parse Code Response": {
       "main": [
         [
           {
@@ -362,14 +418,14 @@
       "main": [
         [
           {
-            "node": "📊 Parse Code Validation",
+            "node": "📊 Parse Validation",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "📊 Parse Code Validation": {
+    "📊 Parse Validation": {
       "main": [
         [
           {
@@ -382,17 +438,34 @@
     },
     "🔀 Code Valid?": {
       "main": [
-        [],
         [
           {
-            "node": "🔀 Code Retry?",
+            "node": "📦 Collect Valid Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔀 Retry Limit?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "🔀 Code Retry?": {
+    "📦 Collect Valid Result": {
+      "main": [
+        [
+          {
+            "node": "🔁 Code Request Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Retry Limit?": {
       "main": [
         [
           {
@@ -403,7 +476,7 @@
         ],
         [
           {
-            "node": "⏭️ Skip Validation",
+            "node": "📦 Accept As-Is",
             "type": "main",
             "index": 0
           }
@@ -414,18 +487,29 @@
       "main": [
         [
           {
-            "node": "🔗 Merge Corrected Code",
+            "node": "🔗 Parse Corrected Code",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "🔗 Merge Corrected Code": {
+    "🔗 Parse Corrected Code": {
       "main": [
         [
           {
             "node": "🔬 MCP: Validate Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📦 Accept As-Is": {
+      "main": [
+        [
+          {
+            "node": "🔁 Code Request Loop",
             "type": "main",
             "index": 0
           }

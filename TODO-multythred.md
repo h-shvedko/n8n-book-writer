@@ -428,23 +428,23 @@ Maintains `current_chapter_draft` as a running accumulator to avoid token fatigu
 
 Generates and validates code snippets for a chapter. Self-correction loop is internal.
 
-- [ ] **5.1** Create workflow `WF-4-Coder.json`
+- [x] **5.1** Create workflow `WF-4-Coder.json`
   - Trigger: `Execute Workflow Trigger`
   - Input: `{ job_id, chapter_id, code_requests: [...], chapter_context }`
-- [ ] **5.2** Migrate Coder Agent (WPI Coder Agent — OpenAI HTTP call)
+- [x] **5.2** Migrate Coder Agent (WPI Coder Agent — OpenAI HTTP call)
   - Loop over each `code_request` and generate code
-- [ ] **5.3** Migrate code validation step (MCP: Validate Code — mcp-coder:3004)
-- [ ] **5.4** Implement internal self-correction loop (encapsulated inside this workflow)
+- [x] **5.3** Migrate code validation step (MCP: Validate Code — mcp-coder:3004)
+- [x] **5.4** Implement internal self-correction loop (encapsulated inside this workflow)
   - If validation fails → re-prompt Coder with error (WPI Coder Self-Correct)
   - Max 3 retries per code snippet
-- [ ] **5.5** Return output:
+- [x] **5.5** Return output:
   ```json
   {
     "status": "success",
     "code_snippets": [{ "id": "req_1", "code": "...", "language": "js", "validated": true }]
   }
   ```
-- [ ] **5.6** If no `code_requests` → skip (Manager should not call this WF if `has_code_requests == false`)
+- [x] **5.6** If no `code_requests` → skip (Manager should not call this WF if `has_code_requests == false`)
 
 ---
 
