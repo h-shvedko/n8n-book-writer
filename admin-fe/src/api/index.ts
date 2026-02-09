@@ -432,7 +432,7 @@ export const standardsApi = {
   },
 };
 
-// Admin API (MySQL storage via admin-api service)
+// Admin API (PostgreSQL storage via admin-api service)
 const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_BASE || '/api/local';
 
 export const adminApi = {
@@ -459,6 +459,13 @@ export const adminApi = {
   async getBook(id: number): Promise<(Book & { chapters: Chapter[] }) | null> {
     try {
       return await fetchApi<Book & { chapters: Chapter[] }>(`${ADMIN_API_BASE}/books/${id}`);
+    } catch { return null; }
+  },
+
+  // Find book by job_id
+  async getBookByJobId(jobId: string): Promise<Book | null> {
+    try {
+      return await fetchApi<Book>(`${ADMIN_API_BASE}/books/by-job/${jobId}`);
     } catch { return null; }
   },
 

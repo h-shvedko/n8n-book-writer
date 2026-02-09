@@ -11,7 +11,10 @@
     "dev": "tsc -w",
     "test": "vitest run",
     "lint": "tsc --noEmit",
-    "ingest-html": "tsx scripts/ingest-html.ts"
+    "ingest-html": "tsx scripts/ingest-html.ts",
+    "ingest-md": "tsx scripts/ingest-md.ts",
+    "ingest-all": "tsx scripts/ingest-all.ts",
+    "verify-ingestion": "tsx scripts/verify-ingestion.ts"
   },
   "keywords": [
     "mcp",

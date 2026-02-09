@@ -15,13 +15,13 @@ router.post("/jobs", async (req, res) => {
         .json({ error: "id and syllabus_name are required" });
     }
 
-    await pool.execute(
+    await pool.query(
       `INSERT INTO jobs (id, syllabus_name, strategy, target_audience, total_chapters, status, started_at)
-       VALUES (?, ?, ?, ?, ?, 'running', NOW())`,
+       VALUES ($1, $2, $3, $4, $5, 'running', NOW())`,
       [id, syllabus_name, strategy || null, target_audience || null, total_chapters || 0]
     );
 
-    const [rows] = await pool.execute("SELECT * FROM jobs WHERE id = ?", [id]);
+    const { rows } = await pool.query("SELECT * FROM jobs WHERE id = $1", [id]);
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error("[jobs] POST /jobs error:", err.message);
@@ -32,7 +32,7 @@ router.post("/jobs", async (req, res) => {
 // GET /api/jobs — list all jobs
 router.get("/jobs", async (_req, res) => {
   try {
-    const [rows] = await pool.execute(
+    const { rows } = await pool.query(
       "SELECT * FROM jobs ORDER BY created_at DESC"
     );
     res.json(rows);
@@ -45,7 +45,7 @@ router.get("/jobs", async (_req, res) => {
 // GET /api/jobs/:id — get a single job
 router.get("/jobs/:id", async (req, res) => {
   try {
-    const [rows] = await pool.execute("SELECT * FROM jobs WHERE id = ?", [
+    const { rows } = await pool.query("SELECT * FROM jobs WHERE id = $1", [
       req.params.id,
     ]);
     if (rows.length === 0) {
@@ -70,11 +70,13 @@ router.patch("/jobs/:id", async (req, res) => {
 
     const sets = [];
     const values = [];
+    let paramIdx = 1;
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
-        sets.push(`${field} = ?`);
+        sets.push(`${field} = $${paramIdx}`);
         values.push(req.body[field]);
+        paramIdx++;
       }
     }
 
@@ -83,12 +85,12 @@ router.patch("/jobs/:id", async (req, res) => {
     }
 
     values.push(req.params.id);
-    await pool.execute(
-      `UPDATE jobs SET ${sets.join(", ")} WHERE id = ?`,
+    await pool.query(
+      `UPDATE jobs SET ${sets.join(", ")} WHERE id = $${paramIdx}`,
       values
     );
 
-    const [rows] = await pool.execute("SELECT * FROM jobs WHERE id = ?", [
+    const { rows } = await pool.query("SELECT * FROM jobs WHERE id = $1", [
       req.params.id,
     ]);
     if (rows.length === 0) {

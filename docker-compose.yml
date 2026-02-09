@@ -217,26 +217,25 @@ services:
           memory: 256M
 
   # ============================================
-  # MySQL Database (Storage & Tracking)
+  # PostgreSQL Database (Storage & Tracking)
   # ============================================
-  mysql:
-    image: mysql:8.0
-    container_name: wpi-mysql
+  postgres:
+    image: postgres:16-alpine
+    container_name: wpi-postgres
     restart: unless-stopped
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-wpi_root_pass}
-      - MYSQL_DATABASE=wpi_content
-      - MYSQL_USER=${MYSQL_USER:-wpi_user}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-wpi_pass}
+      - POSTGRES_DB=wpi_content
+      - POSTGRES_USER=${POSTGRES_USER:-wpi_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-wpi_pass}
     ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - wpi-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-wpi_root_pass}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wpi_user} -d wpi_content"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -249,7 +248,7 @@ services:
           memory: 256M
 
   # ============================================
-  # Admin API (Express Backend for MySQL)
+  # Admin API (Express Backend for PostgreSQL)
   # ============================================
   admin-api:
     build:
@@ -260,16 +259,16 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3005
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=wpi_content
-      - MYSQL_USER=${MYSQL_USER:-wpi_user}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-wpi_pass}
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGDATABASE=wpi_content
+      - PGUSER=${POSTGRES_USER:-wpi_user}
+      - PGPASSWORD=${POSTGRES_PASSWORD:-wpi_pass}
       - API_TOKEN=${MCP_AUTH_TOKEN:-}
     ports:
       - "${ADMIN_API_PORT:-3005}:3005"
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     networks:
       - wpi-network
@@ -322,6 +321,33 @@ services:
         reservations:
           memory: 64M
 
+  # ============================================
+  # pgAdmin 4 — PostgreSQL Web UI
+  # ============================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: wpi-pgadmin
+    restart: unless-stopped
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@wpi.local}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+      - PGADMIN_LISTEN_PORT=5050
+    ports:
+      - "${PGADMIN_PORT:-5050}:5050"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - wpi-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
 # ============================================
 # Networks
 # ============================================
@@ -349,6 +375,9 @@ volumes:
   mcp_standards_data:
     driver: local
     name: wpi-mcp-standards-data
-  mysql_data:
+  postgres_data:
     driver: local
-    name: wpi-mysql-data
+    name: wpi-postgres-data
+  pgadmin_data:
+    driver: local
+    name: wpi-pgadmin-data

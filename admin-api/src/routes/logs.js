@@ -23,9 +23,10 @@ router.post("/logs", async (req, res) => {
         .json({ error: "job_id and workflow_name are required" });
     }
 
-    const [result] = await pool.execute(
+    const { rows: insertRows } = await pool.query(
       `INSERT INTO workflow_logs (job_id, workflow_name, chapter_id, status, input_summary, output_summary, error_message, duration_ms)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id`,
       [
         job_id,
         workflow_name,
@@ -38,9 +39,9 @@ router.post("/logs", async (req, res) => {
       ]
     );
 
-    const [rows] = await pool.execute(
-      "SELECT * FROM workflow_logs WHERE id = ?",
-      [result.insertId]
+    const { rows } = await pool.query(
+      "SELECT * FROM workflow_logs WHERE id = $1",
+      [insertRows[0].id]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -52,8 +53,8 @@ router.post("/logs", async (req, res) => {
 // GET /api/jobs/:jobId/logs — get all logs for a job
 router.get("/jobs/:jobId/logs", async (req, res) => {
   try {
-    const [rows] = await pool.execute(
-      "SELECT * FROM workflow_logs WHERE job_id = ? ORDER BY created_at ASC",
+    const { rows } = await pool.query(
+      "SELECT * FROM workflow_logs WHERE job_id = $1 ORDER BY created_at ASC",
       [req.params.jobId]
     );
     res.json(rows);

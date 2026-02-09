@@ -17,14 +17,15 @@ router.post("/books", async (req, res) => {
       ? JSON.stringify(exam_questions)
       : null;
 
-    const [result] = await pool.execute(
+    const { rows: insertRows } = await pool.query(
       `INSERT INTO books (job_id, title, json_content, exam_questions)
-       VALUES (?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
       [job_id, title, jsonContentStr, examQuestionsStr]
     );
 
-    const [rows] = await pool.execute("SELECT * FROM books WHERE id = ?", [
-      result.insertId,
+    const { rows } = await pool.query("SELECT * FROM books WHERE id = $1", [
+      insertRows[0].id,
     ]);
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -36,8 +37,8 @@ router.post("/books", async (req, res) => {
 // GET /api/books — list all books with chapter count
 router.get("/books", async (_req, res) => {
   try {
-    const [rows] = await pool.execute(
-      `SELECT b.*, COUNT(c.id) AS chapter_count
+    const { rows } = await pool.query(
+      `SELECT b.*, COUNT(c.id)::int AS chapter_count
        FROM books b
        LEFT JOIN chapters c ON c.book_id = b.id
        GROUP BY b.id
@@ -50,18 +51,35 @@ router.get("/books", async (_req, res) => {
   }
 });
 
+// GET /api/books/by-job/:jobId — find book by job_id
+router.get("/books/by-job/:jobId", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT * FROM books WHERE job_id = $1 ORDER BY created_at DESC LIMIT 1",
+      [req.params.jobId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "No book found for this job" });
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("[books] GET /books/by-job/:jobId error:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // GET /api/books/:id — get single book with all its chapters
 router.get("/books/:id", async (req, res) => {
   try {
-    const [bookRows] = await pool.execute("SELECT * FROM books WHERE id = ?", [
+    const { rows: bookRows } = await pool.query("SELECT * FROM books WHERE id = $1", [
       req.params.id,
     ]);
     if (bookRows.length === 0) {
       return res.status(404).json({ error: "Book not found" });
     }
 
-    const [chapterRows] = await pool.execute(
-      "SELECT * FROM chapters WHERE book_id = ? ORDER BY chapter_index",
+    const { rows: chapterRows } = await pool.query(
+      "SELECT * FROM chapters WHERE book_id = $1 ORDER BY chapter_index",
       [req.params.id]
     );
 

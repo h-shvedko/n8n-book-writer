@@ -136,7 +136,7 @@ const nodeMapping = {
   'WF-7': {
     name: 'WF-7-Publisher',
     title: 'WF-7 Publisher',
-    description: 'Publishes book to Admin FE API (MySQL storage).',
+    description: 'Publishes book to Admin FE API (PostgreSQL storage).',
     nodes: [
       // Legacy nodes (will be replaced):
       '📄 Convert Book MD',

@@ -96,7 +96,7 @@
 
 ### WF-7 Publisher
 - **File:** `WF-7-Publisher.json`
-- **Description:** Publishes book to Admin FE API (MySQL storage).
+- **Description:** Publishes book to Admin FE API (PostgreSQL storage).
 - **Nodes:** 10
 
 ### WF-0 Master Orchestrator

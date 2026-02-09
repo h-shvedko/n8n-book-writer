@@ -14,11 +14,11 @@
     },
     {
       "parameters": {
-        "jsCode": "\n// Extract book data from workflow input\nconst input = $input.first().json;\nconst { job_id, book_json, exam_questions_json } = input;\n\nreturn [{\n  json: {\n    job_id,\n    title: book_json.title || 'Untitled Book',\n    json_content: book_json,\n    exam_questions: exam_questions_json || [],\n    chapters: book_json.chapters || []\n  }\n}];\n",
+        "jsCode": "// Validate and extract book data from workflow input\nconst input = $input.first().json;\n\nconst required = ['job_id', 'book_json'];\nconst missing = required.filter(f => !input[f]);\nif (missing.length > 0) {\n  throw new Error('WF-7 input validation failed. Missing: ' + missing.join(', '));\n}\n\nconst { job_id, book_json, exam_questions_json } = input;\n\nreturn [{\n  json: {\n    job_id,\n    title: book_json.title || 'Untitled Book',\n    json_content: book_json,\n    exam_questions: exam_questions_json || [],\n    chapters: book_json.chapters || []\n  }\n}];",
         "mode": "runOnceForAllItems"
       },
       "id": "ee0e9b56-fbbf-437c-b351-3c344f130cf7",
-      "name": "📦 Prepare Book Data",
+      "name": "Prepare Book Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -30,27 +30,37 @@
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/books",
-        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"json_content\": {{ JSON.stringify($json.json_content) }},\n  \"exam_questions\": {{ JSON.stringify($json.exam_questions) }}\n}"
+        "jsonBody": "={\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"json_content\": {{ JSON.stringify($json.json_content) }},\n  \"exam_questions\": {{ JSON.stringify($json.exam_questions) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
       },
       "id": "446e45a5-9c9c-483a-8a56-765fca46e629",
-      "name": "📚 Store Book in DB",
+      "name": "Store Book in DB",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         500,
         300
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
-        "jsCode": "\n// Prepare chapters for batch storage\nconst input = $input.first().json;\nconst book_id = input.id; // returned from book creation\nconst chapters = $('📦 Prepare Book Data').first().json.chapters;\n\nreturn chapters.map((ch, idx) => ({\n  json: {\n    book_id,\n    job_id: $('📦 Prepare Book Data').first().json.job_id,\n    chapter_id: ch.chapter_id || ch.id || `ch-${idx+1}`,\n    title: ch.title || `Chapter ${idx+1}`,\n    chapter_index: idx,\n    json_content: ch,\n    exam_questions: ch.closer?.mcqs || null,\n    chapter_summary: ch.closer?.synthesis || null,\n    editor_score: ch.editor_score || null\n  }\n}));\n",
+        "jsCode": "// Check if book creation succeeded and tag result\nconst response = $input.first().json;\n\n// Detect error: neverError means HTTP errors come as data, not exceptions\nconst isError = !!(response.error || response.statusCode >= 400 || !response.id);\nconst errorMsg = isError\n  ? (response.error || response.message || 'Book creation failed — no ID returned')\n  : '';\n\nreturn [{\n  json: {\n    ...response,\n    _book_ok: !isError,\n    _error: errorMsg\n  }\n}];",
         "mode": "runOnceForAllItems"
       },
-      "id": "618298da-a4e4-432d-b0bd-cfbf5b15e86d",
-      "name": "📑 Prepare Chapters",
+      "id": "a1b2c3d4-1111-4444-aaaa-111111111111",
+      "name": "Check Book Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -60,13 +70,29 @@
     },
     {
       "parameters": {
-        "batchSize": 1,
-        "options": {}
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "rightValue": ""
+          },
+          "conditions": [
+            {
+              "id": "book-ok-check",
+              "leftValue": "={{ $json._book_ok }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
       },
-      "id": "c4dd287a-23e8-4136-b991-e3a80a6ce97b",
-      "name": "🔁 Store Chapters Loop",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
+      "id": "a1b2c3d4-6666-4444-aaaa-666666666666",
+      "name": "Book Stored OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
       "position": [
         1000,
         300
@@ -74,52 +100,156 @@
     },
     {
       "parameters": {
+        "jsCode": "// R2.3.1: Prepare chapters for batch storage\n// Key names aligned: assessment.mcqs (not closer.mcqs), summary (not closer.synthesis)\nconst bookResponse = $input.first().json;\nconst book_id = bookResponse.id;\nconst bookData = $('Prepare Book Data').first().json;\nconst chapters = bookData.chapters;\n\nif (!chapters || chapters.length === 0) {\n  // No chapters to store — pass through to job status update\n  return [{ json: { book_id, skip_chapters: true } }];\n}\n\nreturn chapters.map((ch, idx) => ({\n  json: {\n    book_id,\n    job_id: bookData.job_id,\n    chapter_id: ch.chapter_id || ch.id || 'ch-' + (idx + 1),\n    title: ch.title || 'Chapter ' + (idx + 1),\n    chapter_index: idx,\n    json_content: ch,\n    // R2.3.1: Use new key names (assessment.mcqs instead of closer.mcqs)\n    exam_questions: ch.assessment?.mcqs || ch.exam_questions || null,\n    chapter_summary: ch.summary || ch.chapter_summary || null,\n    editor_score: ch.editor_score || ch.score || null\n  }\n}));",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "618298da-a4e4-432d-b0bd-cfbf5b15e86d",
+      "name": "Prepare Chapters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1250,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "c4dd287a-23e8-4136-b991-e3a80a6ce97b",
+      "name": "Store Chapters Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/chapters",
-        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"book_id\": {{ $json.book_id }},\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"chapter_id\": \"{{ $json.chapter_id }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"chapter_index\": {{ $json.chapter_index }},\n  \"json_content\": {{ JSON.stringify($json.json_content) }},\n  \"exam_questions\": {{ JSON.stringify($json.exam_questions) }},\n  \"chapter_summary\": \"{{ $json.chapter_summary }}\",\n  \"editor_score\": {{ $json.editor_score || 'null' }}\n}"
+        "jsonBody": "={\n  \"book_id\": {{ $json.book_id }},\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"chapter_id\": \"{{ $json.chapter_id }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"chapter_index\": {{ $json.chapter_index }},\n  \"json_content\": {{ JSON.stringify($json.json_content) }},\n  \"exam_questions\": {{ JSON.stringify($json.exam_questions) }},\n  \"chapter_summary\": {{ $json.chapter_summary ? '\"' + String($json.chapter_summary).replace(/\"/g, '\\\\\"').slice(0, 500) + '\"' : 'null' }},\n  \"editor_score\": {{ $json.editor_score || 'null' }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
       },
       "id": "3737b15b-300c-4504-a011-4a19f6efe7af",
-      "name": "💾 Store Chapter",
+      "name": "Store Chapter",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1250,
-        300
-      ]
+        1750,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
         "method": "PATCH",
-        "url": "=http://admin-api:3005/api/jobs/{{ $(\"📦 Prepare Book Data\").first().json.job_id }}",
-        "options": {},
+        "url": "=http://admin-api:3005/api/jobs/{{ $('Prepare Book Data').first().json.job_id }}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"status\": \"completed\", \"completed_at\": \"{{ new Date().toISOString() }}\" }"
+        "jsonBody": "={ \"status\": \"completed\", \"completed_at\": \"{{ new Date().toISOString() }}\" }",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
       },
       "id": "d77c0604-5e0a-4863-b195-1484c5de64af",
-      "name": "✅ Update Job Status",
+      "name": "Update Job Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1250,
-        100
+        1750,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build final success result\nconst bookResponse = $('Check Book Response').first().json;\nconst jobId = $('Prepare Book Data').first().json.job_id;\n\nreturn [{\n  json: {\n    status: 'success',\n    book_id: bookResponse.id,\n    job_id: jobId\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "f308c11e-18d6-484f-9d26-4f1d2c678b8e",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        0
       ]
     },
     {
       "parameters": {
-        "jsCode": "\nconst bookId = $('📚 Store Book in DB').first().json.id;\nreturn [{ json: { status: \"success\", book_id: bookId } }];\n",
+        "jsCode": "// Build error payload for logging\nconst response = $input.first().json;\nconst jobId = (() => {\n  try { return $('Prepare Book Data').first().json.job_id; } catch(e) { return 'unknown'; }\n})();\n\nreturn [{\n  json: {\n    job_id: jobId,\n    error: response._error || 'Unknown error in WF-7 Publisher'\n  }\n}];",
         "mode": "runOnceForAllItems"
       },
-      "id": "f308c11e-18d6-484f-9d26-4f1d2c678b8e",
-      "name": "📤 Return Result",
+      "id": "a1b2c3d4-3333-4444-aaaa-333333333333",
+      "name": "Prepare Error Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
+        1250,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://admin-api:3005/api/logs",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"workflow_name\": \"WF-7-Publisher\",\n  \"status\": \"failed\",\n  \"error_message\": \"{{ $json.error }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "a1b2c3d4-4444-4444-aaaa-444444444444",
+      "name": "Log Error to DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
         1500,
-        100
+        500
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Throw error so WF-0 Manager catches it and marks job failed\nconst errorData = $('Prepare Error Data').first().json;\nthrow new Error('WF-7 Publisher failed: ' + errorData.error);",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "a1b2c3d4-5555-4444-aaaa-555555555555",
+      "name": "Throw Error to Caller",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1750,
+        500
       ]
     }
   ],
@@ -128,80 +258,131 @@
       "main": [
         [
           {
-            "node": "📦 Prepare Book Data",
+            "node": "Prepare Book Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "📦 Prepare Book Data": {
+    "Prepare Book Data": {
       "main": [
         [
           {
-            "node": "📚 Store Book in DB",
+            "node": "Store Book in DB",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "📚 Store Book in DB": {
+    "Store Book in DB": {
       "main": [
         [
           {
-            "node": "📑 Prepare Chapters",
+            "node": "Check Book Response",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "📑 Prepare Chapters": {
+    "Check Book Response": {
       "main": [
         [
           {
-            "node": "🔁 Store Chapters Loop",
+            "node": "Book Stored OK?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "🔁 Store Chapters Loop": {
+    "Book Stored OK?": {
       "main": [
         [
           {
-            "node": "✅ Update Job Status",
+            "node": "Prepare Chapters",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "💾 Store Chapter",
+            "node": "Prepare Error Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "💾 Store Chapter": {
+    "Prepare Chapters": {
       "main": [
         [
           {
-            "node": "🔁 Store Chapters Loop",
+            "node": "Store Chapters Loop",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "✅ Update Job Status": {
+    "Store Chapters Loop": {
       "main": [
         [
           {
-            "node": "📤 Return Result",
+            "node": "Update Job Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Store Chapter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Chapter": {
+      "main": [
+        [
+          {
+            "node": "Store Chapters Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Job Status": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Error Data": {
+      "main": [
+        [
+          {
+            "node": "Log Error to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error to DB": {
+      "main": [
+        [
+          {
+            "node": "Throw Error to Caller",
             "type": "main",
             "index": 0
           }
@@ -214,5 +395,6 @@
   },
   "meta": {
     "templateCredsSetupCompleted": true
-  }
+  },
+  "pinData": {}
 }

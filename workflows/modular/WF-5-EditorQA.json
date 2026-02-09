@@ -28,6 +28,20 @@
     },
     {
       "parameters": {
+        "jsCode": "// R2.2.4: Structural pre-check — validate chapter JSON schema before quality scoring\nconst input = $input.first().json;\nlet chapter;\ntry {\n  chapter = typeof input.json_content === 'string'\n    ? JSON.parse(input.json_content)\n    : input.json_content;\n} catch (e) {\n  return [{ json: { ...input, schema_valid: false, schema_errors: ['json_content is not valid JSON: ' + e.message] } }];\n}\n\nfunction validateChapterSchema(ch) {\n  const errors = [];\n  const required = ['chapter_id', 'title', 'metadata', 'sections', 'summary', 'assessment'];\n  for (const key of required) {\n    if (ch[key] === undefined || ch[key] === null) {\n      errors.push('Missing required key: ' + key);\n    }\n  }\n  if (typeof ch.chapter_id !== 'string') errors.push('chapter_id must be a string');\n  if (typeof ch.title !== 'string' || !ch.title) errors.push('title must be a non-empty string');\n  if (typeof ch.summary !== 'string' || !ch.summary) errors.push('summary must be a non-empty string');\n  // metadata\n  if (ch.metadata && typeof ch.metadata === 'object') {\n    if (!ch.metadata.header) errors.push('Missing metadata.header');\n    if (!ch.metadata.learning_objectives) errors.push('Missing metadata.learning_objectives');\n    else if (!Array.isArray(ch.metadata.learning_objectives)) errors.push('metadata.learning_objectives must be an array');\n    if (!ch.metadata.professional_context) errors.push('Missing metadata.professional_context');\n  }\n  // sections\n  if (Array.isArray(ch.sections)) {\n    if (ch.sections.length === 0) errors.push('sections must be a non-empty array');\n    ch.sections.forEach(function(s, i) {\n      if (!s.lo_id) errors.push('sections[' + i + '] missing lo_id');\n      if (!s.theory_content) errors.push('sections[' + i + '] missing theory_content');\n      else if (!Array.isArray(s.theory_content)) errors.push('sections[' + i + '].theory_content must be an array');\n      if (!s.key_takeaway) errors.push('sections[' + i + '] missing key_takeaway');\n    });\n  } else if (ch.sections !== undefined) {\n    errors.push('sections must be an array');\n  }\n  // assessment\n  if (ch.assessment && typeof ch.assessment === 'object') {\n    if (!Array.isArray(ch.assessment.mcqs)) errors.push('assessment.mcqs must be an array');\n    else if (ch.assessment.mcqs.length === 0) errors.push('assessment.mcqs must not be empty');\n    if (!ch.assessment.drill || typeof ch.assessment.drill !== 'object') errors.push('assessment.drill must be an object');\n  }\n  return { valid: errors.length === 0, errors: errors };\n}\n\nconst result = validateChapterSchema(chapter);\n\nreturn [{ json: {\n  ...input,\n  schema_valid: result.valid,\n  schema_errors: result.errors\n}}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "c1d2e3f4-a5b6-4c89-9123-456789abcdef",
+      "name": "🔒 Schema Pre-Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "http://mcp-standards:3002/call",
         "authentication": "genericCredentialType",
@@ -57,7 +71,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        500,
+        750,
         300
       ],
       "credentials": {
@@ -78,7 +92,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        750,
+        1000,
         300
       ]
     },
@@ -92,7 +106,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1000,
+        1250,
         300
       ]
     },
@@ -121,7 +135,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1250,
+        1500,
         300
       ],
       "credentials": {
@@ -141,13 +155,13 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1500,
+        1750,
         300
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Build structured output with verdict — no revision loop (6.8: Manager decides)\nconst data = $input.first().json;\nconst editor = data.editor_result || {};\nconst loCoverage = data.lo_coverage || {};\nconst loCoverageSummary = data.lo_coverage_summary || {};\n\n// Score threshold (6.6)\nconst APPROVAL_THRESHOLD = 90;\nconst score = editor.score || 0;\nconst verdict = score >= APPROVAL_THRESHOLD ? 'approved' : 'needs_revision';\n\n// Build feedback combining all checks\nconst feedback = [];\n\n// Editor feedback\nif (editor.feedback?.required_changes) {\n  feedback.push(...editor.feedback.required_changes);\n}\n\n// LO coverage gaps\nif (!loCoverageSummary.all_covered) {\n  const missingLOs = Object.entries(loCoverage)\n    .filter(([_, covered]) => !covered)\n    .map(([loId]) => loId);\n  if (missingLOs.length > 0) {\n    feedback.push('Missing LO coverage: ' + missingLOs.join(', '));\n  }\n}\n\n// Hallucinated topics (6.5)\nif (editor.hallucinated_topics && editor.hallucinated_topics.length > 0) {\n  feedback.push('Hallucinated topics detected (content leak from other chapters): ' + editor.hallucinated_topics.join(', '));\n}\n\n// ISO compliance issues\nif (!editor.iso_compliant && data.iso_compliance) {\n  feedback.push('ISO 17024 compliance issues detected');\n}\n\nreturn [{\n  json: {\n    status: 'success',\n    verdict: verdict,\n    score: score,\n    approval_threshold: APPROVAL_THRESHOLD,\n    iso_compliant: !!editor.iso_compliant,\n    lo_coverage: loCoverage,\n    lo_coverage_summary: loCoverageSummary,\n    hallucinated_topics: editor.hallucinated_topics || [],\n    scoring_breakdown: editor.scoring_breakdown || {},\n    audit_log: editor.audit_log || {},\n    feedback: feedback,\n    strengths: editor.feedback?.strengths || [],\n    exam_questions: editor.exam_questions || [],\n    job_id: data.job_id,\n    chapter_id: data.chapter_id\n  }\n}];",
+        "jsCode": "// Build structured output with verdict — no revision loop (6.8: Manager decides)\nconst data = $input.first().json;\nconst editor = data.editor_result || {};\nconst loCoverage = data.lo_coverage || {};\nconst loCoverageSummary = data.lo_coverage_summary || {};\n\n// Score threshold (6.6)\nconst APPROVAL_THRESHOLD = 90;\nconst score = editor.score || 0;\nconst schemaValid = data.schema_valid !== false;\nconst verdict = (score >= APPROVAL_THRESHOLD && schemaValid) ? 'approved' : 'needs_revision';\n\n// Build feedback combining all checks\nconst feedback = [];\n\n// Schema validation errors (R2.2.4)\nif (!schemaValid && data.schema_errors && data.schema_errors.length > 0) {\n  feedback.push('JSON Schema validation failed: ' + data.schema_errors.join('; '));\n}\n\n// Editor feedback\nif (editor.feedback?.required_changes) {\n  feedback.push(...editor.feedback.required_changes);\n}\n\n// LO coverage gaps\nif (!loCoverageSummary.all_covered) {\n  const missingLOs = Object.entries(loCoverage)\n    .filter(([_, covered]) => !covered)\n    .map(([loId]) => loId);\n  if (missingLOs.length > 0) {\n    feedback.push('Missing LO coverage: ' + missingLOs.join(', '));\n  }\n}\n\n// Hallucinated topics (6.5)\nif (editor.hallucinated_topics && editor.hallucinated_topics.length > 0) {\n  feedback.push('Hallucinated topics detected (content leak from other chapters): ' + editor.hallucinated_topics.join(', '));\n}\n\n// ISO compliance issues\nif (!editor.iso_compliant && data.iso_compliance) {\n  feedback.push('ISO 17024 compliance issues detected');\n}\n\nreturn [{\n  json: {\n    status: 'success',\n    verdict: verdict,\n    score: score,\n    approval_threshold: APPROVAL_THRESHOLD,\n    schema_valid: schemaValid,\n    schema_errors: data.schema_errors || [],\n    iso_compliant: !!editor.iso_compliant,\n    lo_coverage: loCoverage,\n    lo_coverage_summary: loCoverageSummary,\n    hallucinated_topics: editor.hallucinated_topics || [],\n    scoring_breakdown: editor.scoring_breakdown || {},\n    audit_log: editor.audit_log || {},\n    feedback: feedback,\n    strengths: editor.feedback?.strengths || [],\n    exam_questions: editor.exam_questions || [],\n    job_id: data.job_id,\n    chapter_id: data.chapter_id\n  }\n}];",
         "mode": "runOnceForAllItems"
       },
       "id": "b99ccdcc-809a-45b5-a011-b0d4556b162b",
@@ -155,7 +169,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1750,
+        2000,
         300
       ]
     }
@@ -176,7 +190,7 @@
       "main": [
         [
           {
-            "node": "📋 MCP: ISO Compliance Check",
+            "node": "🔒 Schema Pre-Check",
             "type": "main",
             "index": 0
           }
@@ -232,6 +246,17 @@
         [
           {
             "node": "📊 Build Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔒 Schema Pre-Check": {
+      "main": [
+        [
+          {
+            "node": "📋 MCP: ISO Compliance Check",
             "type": "main",
             "index": 0
           }

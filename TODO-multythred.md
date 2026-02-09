@@ -1,6 +1,6 @@
 # TODO: n8n + Admin FE Integration (Multi-Thread)
 
-> Integration of n8n Content Factory with Admin Frontend and MySQL storage.
+> Integration of n8n Content Factory with Admin Frontend and PostgreSQL storage.
 > Pattern: n8n (drafting) -> Admin FE API (storage & tracking) -> External Tiptap App (rendering from JSON)
 >
 > **Architecture: Modular Multi-Workflow with Double-Loop** — each concern is an independent n8n workflow.
@@ -20,16 +20,16 @@
 - [ ] **AC-1** Architecture Validation — Two nested workflows execute successfully:
   - Loop 1 (Master Orchestrator / WF-0): Iterates through syllabus chapters one by one
   - Loop 2 (Chapter Builder / WF-3): Iterates through the specific Learning Objectives (LOs) of a single chapter
-- [ ] **AC-2** Context Continuity:
+- [ ] **AC-2** Context Continuity (JSON State Management):
   - **Global History**: The system generates and stores a summary of past chapters to inform future ones
-  - **Local Draft**: The system maintains a running `current_chapter_draft` that accumulates content step-by-step and is re-injected as context for the next LO
-- [ ] **AC-3** Micro-Step Protocol — Chapter generation follows the strict three-phase sequence:
-  - **Opener**: Header + LO List + Professional Context (no body content)
-  - **Body**: Content for one LO at a time, using RAG data
-  - **Closer**: Synthesis + Assessment (MCQs + Drill)
+  - **Local Draft (JSON Accumulator)**: The system maintains a `current_chapter_json` object. Instead of appending text strings, it pushes new LO objects into a `sections` array within the JSON structure. This object is re-injected as context for the next LO
+- [ ] **AC-3** Micro-Step Protocol (Schema-Driven Generation) — Generation follows a strict JSON schema structure:
+  - **Step A (Opener)**: Generates the `metadata` and `intro` keys (Title, LO List, Professional Context) — no body content
+  - **Step B (Body)**: For each LO, generates a distinct object with keys `lo_id`, `theory_content`, `key_takeaway`, then pushes it into the `sections` array
+  - **Step C (Closer)**: Generates the `summary` and `assessment` keys (MCQs + Drill) and merges them into the final object
 - [ ] **AC-4** Input Integration — The system correctly utilizes System Prompt (v30), Syllabus, and Vector-Based RAG Content as the immutable sources of truth
-- [ ] **AC-5** Artifact Delivery — Final output is a **structured JSON document** (saved to MySQL DB via Admin FE API) and a text summary (passed to Global History)
-- [ ] **AC-6** Storage — All execution logs, tracking data, and resulting books are persisted in the MySQL database container
+- [ ] **AC-5** Artifact Delivery — Final output is a **strictly validated JSON file** (e.g., `chapter_1.1.json`). The file must pass a **JSON Schema validation check** (ensuring no missing keys like `lo_id` or `theory_content`) before being saved to PostgreSQL DB via Admin FE API. A separate text summary is generated for Global History
+- [ ] **AC-6** Storage — All execution logs, tracking data, and resulting books are persisted in the PostgreSQL database container
 - [ ] **AC-7** Status Tracking — Admin FE displays real-time workflow-level progress (which WF is running, not individual nodes)
 
 ---
@@ -57,27 +57,27 @@ Vector DB (Qdrant) is already set up and running in the Docker environment.
 │    ┌─────────────────────────────────────────────────────────────────┐  │
 │    │  LOOP 2 — WF-3: CHAPTER BUILDER                                │  │
 │    │  Iterates: Learning Objectives (LO 1.1.1, LO 1.1.2, ...)      │  │
-│    │  Maintains: current_chapter_draft (accumulator, grows per LO)  │  │
+│    │  Maintains: current_chapter_json (JSON accumulator, push per LO)│  │
 │    │                                                                 │  │
 │    │  Phase 1: OPENER                                                │  │
 │    │    → Header + LO List + Professional Context                    │  │
-│    │    → Appended to current_chapter_draft                          │  │
+│    │    → Written into metadata/intro keys of current_chapter_json    │  │
 │    │                                                                 │  │
 │    │  Phase 2: BODY (SplitInBatches — one LO at a time)             │  │
 │    │    → For each LO:                                               │  │
 │    │       ├─ RAG lookup (Qdrant) for this LO                        │  │
-│    │       ├─ Generate content with context:                         │  │
+│    │       ├─ Generate LO object with context:                       │  │
 │    │       │    system_prompt_v30 + syllabus + rag_data              │  │
-│    │       │    + global_history + current_chapter_draft              │  │
-│    │       └─ Append result to current_chapter_draft                 │  │
+│    │       │    + global_history + current_chapter_json               │  │
+│    │       └─ Push LO object into sections[] array                   │  │
 │    │                                                                 │  │
 │    │  Phase 3: CLOSER                                                │  │
 │    │    → Synthesis + Assessment (MCQs + Drill)                      │  │
-│    │    → Appended to current_chapter_draft                          │  │
-│    │    → Final JSON = structured chapter content                    │  │
+│    │    → Merged into summary/assessment keys of chapter_json        │  │
+│    │    → Final JSON = strictly validated chapter object              │  │
 │    └─────────────────────────────────────────────────────────────────┘  │
 │                                                                         │
-│    → Save JSON to MySQL via Admin FE API (WF-7 Publisher)               │
+│    → Save JSON to PostgreSQL via Admin FE API (WF-7 Publisher)           │
 │    → Generate chapter summary → append to global_history                │
 │    → Report WF-level status to Admin FE API                             │
 │    → Next chapter...                                                    │
@@ -97,7 +97,7 @@ State held by Manager:
   - current_chapter_index:  number — which chapter we're on
 
 State held by Chapter Builder (WF-3) internally:
-  - current_chapter_draft:  string — accumulator, grows with each LO (the "Local Draft")
+  - current_chapter_json:   object — JSON accumulator, grows via push() per LO (the "Local Draft")
   - los_remaining:          array  — LOs left to process in this chapter
 
 Immutable inputs (never modified during execution):
@@ -112,15 +112,15 @@ Status reporting:
 
 ---
 
-## Thread 0: Database Container — MySQL for Storage & Tracking
+## Thread 0: Database Container — PostgreSQL for Storage & Tracking
 
-> Set up a MySQL Docker container to store execution logs, workflow tracking, and generated book content.
+> Set up a PostgreSQL Docker container to store execution logs, workflow tracking, and generated book content.
 
-- [x] **0.1** Add MySQL service to `docker-compose.yml`
-  - Image: `mysql:8.0`
-  - Port: 3306 (internal network only, not exposed to host unless needed for debugging)
-  - Persistent volume for data: `mysql_data:/var/lib/mysql`
-  - Environment: `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE=wpi_content`, `MYSQL_USER`, `MYSQL_PASSWORD`
+- [x] **0.1** Add PostgreSQL service to `docker-compose.yml`
+  - Image: `postgres:16-alpine`
+  - Port: 5432 (internal network only, not exposed to host unless needed for debugging)
+  - Persistent volume for data: `postgres_data:/var/lib/postgresql/data`
+  - Environment: `POSTGRES_DB=wpi_content`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
 - [x] **0.2** Design database schema
   - Table: `jobs` — workflow execution tracking
     ```sql
@@ -129,69 +129,79 @@ Status reporting:
       syllabus_name VARCHAR(255),
       strategy VARCHAR(50),
       target_audience VARCHAR(100),
-      status ENUM('pending', 'running', 'completed', 'failed') DEFAULT 'pending',
-      total_chapters INT,
+      status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed')),
+      total_chapters INT DEFAULT 0,
       completed_chapters INT DEFAULT 0,
-      current_workflow VARCHAR(50),
-      started_at TIMESTAMP NULL,
-      completed_at TIMESTAMP NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      current_workflow VARCHAR(50) DEFAULT NULL,
+      started_at TIMESTAMPTZ NULL,
+      completed_at TIMESTAMPTZ NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     );
     ```
   - Table: `workflow_logs` — per-workflow execution log
     ```sql
     CREATE TABLE workflow_logs (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      job_id VARCHAR(36),
-      workflow_name VARCHAR(100),
-      chapter_id VARCHAR(20) NULL,
-      status ENUM('started', 'completed', 'failed') DEFAULT 'started',
-      input_summary TEXT NULL,
-      output_summary TEXT NULL,
-      error_message TEXT NULL,
-      duration_ms INT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (job_id) REFERENCES jobs(id)
+      id SERIAL PRIMARY KEY,
+      job_id VARCHAR(36) NOT NULL,
+      workflow_name VARCHAR(100) NOT NULL,
+      chapter_id VARCHAR(20) DEFAULT NULL,
+      status VARCHAR(20) DEFAULT 'started' CHECK (status IN ('started', 'completed', 'failed')),
+      input_summary TEXT DEFAULT NULL,
+      output_summary TEXT DEFAULT NULL,
+      error_message TEXT DEFAULT NULL,
+      duration_ms INT DEFAULT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
     );
     ```
   - Table: `books` — completed book storage
     ```sql
     CREATE TABLE books (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      job_id VARCHAR(36),
-      title VARCHAR(255),
-      json_content JSON NOT NULL,
-      exam_questions JSON NULL,
-      global_history TEXT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (job_id) REFERENCES jobs(id)
+      id SERIAL PRIMARY KEY,
+      job_id VARCHAR(36) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      json_content JSONB NOT NULL,
+      exam_questions JSONB DEFAULT NULL,
+      global_history TEXT DEFAULT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
     );
     ```
   - Table: `chapters` — individual chapter storage
     ```sql
     CREATE TABLE chapters (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      book_id INT,
-      job_id VARCHAR(36),
-      chapter_id VARCHAR(20),
-      title VARCHAR(255),
-      chapter_index INT,
-      json_content JSON NOT NULL,
-      exam_questions JSON NULL,
-      chapter_summary TEXT NULL,
-      editor_score INT NULL,
-      status ENUM('draft', 'approved') DEFAULT 'draft',
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (book_id) REFERENCES books(id),
-      FOREIGN KEY (job_id) REFERENCES jobs(id)
+      id SERIAL PRIMARY KEY,
+      book_id INT DEFAULT NULL,
+      job_id VARCHAR(36) NOT NULL,
+      chapter_id VARCHAR(20) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      chapter_index INT NOT NULL,
+      json_content JSONB NOT NULL,
+      exam_questions JSONB DEFAULT NULL,
+      chapter_summary TEXT DEFAULT NULL,
+      editor_score INT DEFAULT NULL,
+      status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'approved')),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE SET NULL,
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
     );
+    ```
+  - Trigger: `updated_at` auto-update function (replaces MySQL's ON UPDATE CURRENT_TIMESTAMP)
+    ```sql
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = NOW();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
     ```
 - [x] **0.3** Create init SQL script (`db/init.sql`) — runs on first container start
 - [x] **0.4** Add Admin FE API endpoints for DB access (see Thread 8)
-- [ ] **0.5** Add n8n credentials for MySQL (if n8n writes directly) or HTTP credentials for Admin FE API
-- [x] **0.6** Connect MySQL container to the same Docker network as n8n and Admin FE
+- [ ] **0.5** Add n8n credentials for PostgreSQL (if n8n writes directly) or HTTP credentials for Admin FE API
+- [x] **0.6** Connect PostgreSQL container to the same Docker network as n8n and Admin FE
 
 ---
 
@@ -327,12 +337,13 @@ Performs **per-LO RAG lookups** against the existing Qdrant instance and returns
 ## Thread 4: n8n — WF-3 Chapter Builder (Loop 2: Learning Objectives)
 
 > **Jira Sub-task:** Workflow B: Build the "Chapter Builder" in n8n with the "Split In Batches" loop for LOs.
-> **Jira Sub-task:** Logic: Implement the "Accumulator" pattern in n8n code nodes to append generated text to `current_chapter_draft`.
+> **Jira Sub-task:** Logic (JSON Aggregation): Implement the "JSON Accumulator" pattern in n8n Code Nodes.
+> Replace simple string concatenation (`text += new_text`) with array operations (`chapter.sections.push(new_section)`).
 
 **This is Loop 2** — the inner loop that iterates Learning Objectives within a single chapter.
-Implements the **Micro-Step Protocol** (Opener → Body per LO → Closer).
-Maintains `current_chapter_draft` as a running accumulator to avoid token fatigue.
-**Output: structured JSON** — no HTML, no Markdown. HTML rendering happens externally.
+Implements the **Micro-Step Protocol** as **Schema-Driven Generation** (Opener → Body per LO → Closer).
+Maintains `current_chapter_json` as a running JSON accumulator — builds the chapter object via `push()` operations.
+**Output: strictly validated JSON object** — no HTML, no Markdown. HTML rendering happens externally.
 
 - [x] **4.1** Create workflow `WF-3-ChapterBuilder.json`
   - Trigger: `Execute Workflow Trigger`
@@ -347,15 +358,15 @@ Maintains `current_chapter_draft` as a running accumulator to avoid token fatigu
       "revision_feedback": null
     }
     ```
-- [x] **4.2** **Initialize Accumulator** (Code node at workflow start)
-  - Set `current_chapter_draft = ""` as a workflow variable
-  - This string grows with each phase and is re-injected as context
+- [x] **4.2** **Initialize JSON Accumulator** (Code node at workflow start)
+  - Set `current_chapter_json = { metadata: {}, sections: [], summary: {}, assessment: {} }` as a workflow variable
+  - This object grows via key writes and `push()` operations and is re-injected as context
 - [x] **4.3** **Phase 1: OPENER** (AI call — OpenAI HTTP Request)
   - Prompt context: `system_prompt_v30 + syllabus_chapter + global_history`
   - Generate: Chapter Header + LO List + Professional Context paragraph
   - **No styling/CSS instructions** — pure content structure
   - **Rule:** No body content — only framing and context-setting
-  - Append result to `current_chapter_draft` via Code node (Accumulator pattern)
+  - Write result into `current_chapter_json.metadata` and `current_chapter_json.intro` keys (Code node)
 - [x] **4.4** **Phase 2: BODY — LO Loop** (`SplitInBatches` node over `learning_objectives`)
   - For each LO:
     - **4.4.1** Retrieve per-LO RAG data from `fact_sheet.lo_research[lo_id]`
@@ -364,41 +375,42 @@ Maintains `current_chapter_draft` as a running accumulator to avoid token fatigu
       - `syllabus` section for this LO (immutable)
       - `rag_data` for this LO (immutable)
       - `global_history` (read-only — what came before this chapter)
-      - `current_chapter_draft` (what's been written so far in THIS chapter)
-    - **4.4.3** Append AI output to `current_chapter_draft` (Code node — Accumulator)
+      - `current_chapter_json` (what's been built so far in THIS chapter)
+    - **4.4.3** Push LO object into `current_chapter_json.sections[]` (Code node — JSON Accumulator)
     - **4.4.4** Extract `<<CODE_REQUEST>>` placeholders if any
-  - **Critical:** The accumulator ensures each LO generation sees all prior LOs' output,
+  - **Critical:** The JSON accumulator ensures each LO generation sees the full chapter object so far,
     preventing repetition and maintaining narrative flow
 - [x] **4.5** **Phase 3: CLOSER** (AI call — OpenAI HTTP Request)
-  - Prompt context: `system_prompt_v30 + current_chapter_draft (full) + chapter LOs`
+  - Prompt context: `system_prompt_v30 + current_chapter_json (full object) + chapter LOs`
   - Generate:
     - Synthesis / Summary section
     - Assessment: Multiple Choice Questions (MCQs)
     - Assessment: Practical Drill / Exercise
-  - Append to `current_chapter_draft` (final accumulator write)
+  - Merge into `current_chapter_json.summary` and `current_chapter_json.assessment` keys (final accumulator write)
 - [x] **4.6** **Finalize & Return as JSON** (Code node)
-  - Convert `current_chapter_draft` into structured JSON:
+  - `current_chapter_json` IS the output — no text-to-JSON conversion needed:
     ```json
     {
       "status": "success",
       "json_content": {
         "chapter_id": "1.1",
         "title": "Chapter Title",
-        "opener": {
+        "metadata": {
           "header": "...",
           "learning_objectives": ["LO-1.1.1", "LO-1.1.2"],
           "professional_context": "..."
         },
-        "body": [
+        "sections": [
           {
             "lo_id": "LO-1.1.1",
             "description": "Understand X",
-            "content": "...",
+            "theory_content": "...",
+            "key_takeaway": "...",
             "code_examples": [...]
           }
         ],
-        "closer": {
-          "synthesis": "...",
+        "summary": "...",
+        "assessment": {
           "mcqs": [...],
           "drill": { "description": "...", "starter_code": "..." }
         }
@@ -408,19 +420,26 @@ Maintains `current_chapter_draft` as a running accumulator to avoid token fatigu
       "has_code_requests": true
     }
     ```
-- [x] **4.7** **Accumulator Implementation Detail** (Code node pattern)
+- [x] **4.7** **JSON Accumulator Implementation Detail** (Code node pattern)
   ```javascript
-  // In n8n Code node — Accumulator append
-  const currentDraft = $('Init Accumulator').first().json.current_chapter_draft || '';
-  const newContent = $input.first().json.generated_text;
-  const updatedDraft = currentDraft + '\n' + newContent;
-  return [{ json: { current_chapter_draft: updatedDraft } }];
+  // In n8n Code node — JSON Accumulator: push LO object into sections[]
+  const chapterJson = $('Init Accumulator').first().json.current_chapter_json;
+  const loObject = $input.first().json;
+  chapterJson.sections.push({
+    lo_id: loObject.lo_id,
+    description: loObject.description,
+    theory_content: loObject.theory_content,
+    key_takeaway: loObject.key_takeaway,
+    code_examples: loObject.code_examples || []
+  });
+  return [{ json: { current_chapter_json: chapterJson } }];
   ```
+  - **Key change:** No string concatenation — use `push()` into `sections[]` array
   - Use n8n's `$('nodeName')` to reference the accumulator across loop iterations
   - Alternative: use workflow static data (`$getWorkflowStaticData()`) for persistence within execution
 - [x] **4.8** Handle revision mode
-  - When called with `revision_feedback` → include previous draft + editor notes in Opener prompt
-  - Re-run the full Opener → Body → Closer pipeline with feedback context
+  - When called with `revision_feedback` → include previous JSON object + editor notes in Opener prompt
+  - Re-run the full Opener → Body → Closer pipeline with feedback context, rebuilding the JSON from scratch
 
 ---
 
@@ -504,9 +523,10 @@ Assembles all finished chapters into a complete book as **JSON only**.
       {
         "chapter_id": "1.1",
         "title": "...",
-        "opener": { ... },
-        "body": [ ... ],
-        "closer": { ... }
+        "metadata": { ... },
+        "sections": [ ... ],
+        "summary": "...",
+        "assessment": { ... }
       }
     ],
     "exam_questions": [ ... ]
@@ -525,26 +545,26 @@ Assembles all finished chapters into a complete book as **JSON only**.
 
 ## Thread 8: n8n — WF-7 Publisher Workflow + Admin FE API
 
-Publishes finished content to Admin FE API which stores everything in the MySQL database.
+Publishes finished content to Admin FE API which stores everything in the PostgreSQL database.
 No Google Drive, no email, no external targets.
 
 ### 8A: n8n Publisher Workflow
 
-- [ ] **8.1** Create workflow `WF-7-Publisher.json`
+- [x] **8.1** Create workflow `WF-7-Publisher.json`
   - Trigger: `Execute Workflow Trigger`
   - Input: `{ job_id, book_json, exam_questions_json }`
-- [ ] **8.2** **Store book to DB** — HTTP Request to Admin FE API
+- [x] **8.2** **Store book to DB** — HTTP Request to Admin FE API
   - `POST /api/books` → `{ job_id, title, json_content, exam_questions }`
-- [ ] **8.3** **Store individual chapters** — Loop over chapters
+- [x] **8.3** **Store individual chapters** — Loop over chapters
   - `POST /api/chapters` → `{ book_id, job_id, chapter_id, title, chapter_index, json_content, exam_questions, chapter_summary, editor_score }`
-- [ ] **8.4** **Update job status** — `PATCH /api/jobs/{job_id}` → `{ status: "completed" }`
-- [ ] **8.5** Add error handling (retry on 5xx, log errors to DB)
-- [ ] **8.6** Return output: `{ status: "success", book_id: 123 }`
+- [x] **8.4** **Update job status** — `PATCH /api/jobs/{job_id}` → `{ status: "completed" }`
+- [x] **8.5** Add error handling (retry on 5xx, log errors to DB)
+- [x] **8.6** Return output: `{ status: "success", book_id: 123 }`
 
 ### 8B: Admin FE API Endpoints (new)
 
 - [x] **8.7** Add API layer to Admin FE (Express/Node.js routes)
-  - All endpoints connect to the MySQL container
+  - All endpoints connect to the PostgreSQL container
 - [x] **8.8** Implement job endpoints:
   - `POST /api/jobs` — create new job record
   - `GET /api/jobs` — list all jobs with status
@@ -571,7 +591,7 @@ No Google Drive, no email, no external targets.
   - Show: which WF is currently running (WF-0..WF-7), chapter progress (3/10)
   - Poll `GET /api/jobs/:id` for status updates
   - Display workflow pipeline as visual steps (not individual n8n nodes)
-- [ ] **8.16** Enhance existing trigger interface to start new jobs and track them
+- [x] **8.16** Enhance existing trigger interface to start new jobs and track them
 
 ---
 
@@ -621,7 +641,7 @@ End-to-end validation of the Double-Loop architecture using a single chapter.
   - Drill exercise is relevant to the LOs covered
 - [ ] **10.6** Verify `chapter_summary` is accurate and usable for `global_history`
 - [ ] **10.7** Verify final JSON is well-structured and contains all expected sections
-- [ ] **10.8** Verify data is stored correctly in MySQL via Admin FE API
+- [ ] **10.8** Verify data is stored correctly in PostgreSQL via Admin FE API
 - [ ] **10.9** Run the full pipeline through WF-0 Manager for Chapter 1.1 only
   - Confirm: Research → Chapter Build → (Coder if needed) → QA → Publisher → all pass
 
@@ -648,7 +668,7 @@ End-to-end validation of the Double-Loop architecture using a single chapter.
 
 ```
 Phase 1: Infrastructure
-  1. Thread  0   (MySQL container + schema)
+  1. Thread  0   (PostgreSQL container + schema)
   2. Thread 11   (MCP-Standards cleanup — remove styling)
 
 Phase 2: Core Double-Loop Engine
@@ -661,7 +681,7 @@ Phase 2: Core Double-Loop Engine
 
 Phase 3: Storage & Publishing
   9. Thread  8A  (WF-7 Publisher — Admin FE API)
- 10. Thread  8B  (Admin FE API endpoints + MySQL integration)
+ 10. Thread  8B  (Admin FE API endpoints + PostgreSQL integration)
  11. Thread  8C  (Admin FE UI — books list, job monitor)
 
 Phase 4: Validation
@@ -674,15 +694,15 @@ Phase 4: Validation
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Database | MySQL 8.0 in Docker | Structured data (jobs, books, chapters), JSON column support, well-known |
+| Database | PostgreSQL 16 in Docker | Structured data (jobs, books, chapters), JSONB column support, advanced query capabilities |
 | Output format | JSON only | HTML rendered externally by Tiptap app; keeps generation pipeline clean |
 | Vector DB | Qdrant (already running) | Already implemented in Docker environment |
 | Styling in MCP | Removed | Styling is rendering concern, not generation concern |
-| Accumulator storage in WF-3 | `$getWorkflowStaticData()` | Persists across loop iterations within execution |
-| State storage in Manager | MySQL via Admin FE API | Persistent across restarts, queryable |
+| Accumulator pattern in WF-3 | JSON object + `push()` into `sections[]` | Schema-driven, no string concat. Persists via `$getWorkflowStaticData()` |
+| State storage in Manager | PostgreSQL via Admin FE API | Persistent across restarts, queryable |
 | Sub-workflow communication | Execute Workflow | Native n8n, synchronous, typed I/O |
 | Parallel chapter processing | Sequential | Global History requires chapters in order |
-| Publishing target | Admin FE API → MySQL | Single target, no email/Drive needed |
+| Publishing target | Admin FE API → PostgreSQL | Single target, no email/Drive needed |
 | Frontend | Admin FE (React, existing) | Already built, extend with books/jobs pages |
 | Workflow file management | `workflows/modular/` subfolder | Git-versioned |
 
@@ -708,6 +728,46 @@ workflows/
 
 ---
 
+## REVISION 2 FROM 09-02-2026
+
+> Alignment with Jira epic: "Implement Double-Loop Agentic Workflow for **JSON** Chapter Generation".
+> Key change: accumulator pattern switched from **string concatenation** to **JSON object building** (`push()` into `sections[]`).
+
+### R2.1: Rewrite WF-3 Accumulator — String → JSON Object (Thread 4)
+
+- [x] **R2.1.1** Rewrite `Init Accumulator` Code node: initialize `current_chapter_json = { metadata: {}, sections: [], summary: {}, assessment: {} }` instead of empty string
+- [x] **R2.1.2** Rewrite Opener Code node: write AI output into `current_chapter_json.metadata` and `.intro` keys instead of string append
+- [x] **R2.1.3** Rewrite Body (LO loop) Code node: `current_chapter_json.sections.push({ lo_id, description, theory_content, key_takeaway, code_examples })` instead of string concat
+- [x] **R2.1.4** Rewrite Closer Code node: merge AI output into `current_chapter_json.summary` and `.assessment` keys instead of string append
+- [x] **R2.1.5** Remove the text-to-JSON conversion step in 4.6 — the accumulator IS the final JSON, no conversion needed
+- [x] **R2.1.6** Update all AI prompts in WF-3 to instruct the model to return structured JSON keys (not free-form text)
+
+### R2.2: Define and Implement JSON Schema Validation (NEW)
+
+- [x] **R2.2.1** Define a JSON Schema for the chapter output (required keys: `chapter_id`, `title`, `metadata`, `sections[]` with `lo_id` + `theory_content` + `key_takeaway`, `summary`, `assessment`)
+- [x] **R2.2.2** Implement a "Schema Validator" Code node in WF-3 (after finalization, before return) that checks the JSON against the schema
+- [x] **R2.2.3** On validation failure: return `{ status: "failed", validation_errors: [...] }` so Manager can trigger revision
+- [x] **R2.2.4** Add same schema check in WF-5 (Editor/QA) as a structural pre-check before content quality scoring
+
+### R2.3: Align JSON Key Names Across All Workflows
+
+- [x] **R2.3.1** Rename `body` → `sections` in WF-6 Compiler (book assembly) and WF-7 Publisher — also renamed `opener`→`metadata`, `closer`→`summary`+`assessment`
+- [x] **R2.3.2** Rename `content` → `theory_content` in all LO object references across WFs — already done in R2.1 (WF-3 Body prompt uses `theory_content`)
+- [x] **R2.3.3** Add `key_takeaway` field to the LO generation prompt in WF-3 Phase 2 (Body) — already done in R2.1.6
+- [x] **R2.3.4** Update Admin FE API and UI to expect new key names (`sections`, `theory_content`, `key_takeaway`) — N/A: API stores `json_content` as opaque JSONB, FE types use `any` — no key-specific changes needed
+
+### R2.4: RAG Source Material Ingestion Tracking
+
+- [x] **R2.4.1** Verify all RAG source material is ingested into Qdrant for the target syllabus
+  - Created `scripts/verify-ingestion.ts` — domain coverage report against WPI-SYL-SEOAI-V5.2
+  - Created `scripts/ingest-all.ts` — batch ingestion for all source materials
+  - Created `scripts/ingest-md.ts` — Markdown ingestion support (for editorial guide)
+  - Source inventory: `rag-content-seo.html` (broad), `kapitel1.html` (domain-1.1), `Editorial Guide 2.9.md` (cross-domain)
+- [x] **R2.4.2** Document the ingestion process and data sources
+  - Created `docs/RAG-INGESTION.md` — comprehensive guide covering architecture, source inventory, ingestion pipeline, commands, domain mapping, troubleshooting
+
+---
+
 *Created: 2026-02-05*
-*Updated: 2026-02-07 — Removed Laravel/Tiptap/Vector DB threads (handled externally or already implemented). Switched to JSON-only output. Added MySQL container for storage. All data flows through Admin FE API.*
+*Updated: 2026-02-09 — REVISION 2: Aligned with Jira epic for JSON Chapter Generation. Accumulator changed from string concat to JSON object building (push into sections[]). Added JSON Schema validation step. Renamed body→sections, content→theory_content, added key_takeaway. Migrated from MySQL 8.0 to PostgreSQL 16.*
 *Based on: Jira "Double-Loop" user story + Admin FE integration requirements*

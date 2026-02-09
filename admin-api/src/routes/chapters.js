@@ -29,9 +29,10 @@ router.post("/chapters", async (req, res) => {
       ? JSON.stringify(exam_questions)
       : null;
 
-    const [result] = await pool.execute(
+    const { rows: insertRows } = await pool.query(
       `INSERT INTO chapters (book_id, job_id, chapter_id, title, chapter_index, json_content, exam_questions, chapter_summary, editor_score)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id`,
       [
         book_id,
         job_id,
@@ -45,8 +46,8 @@ router.post("/chapters", async (req, res) => {
       ]
     );
 
-    const [rows] = await pool.execute("SELECT * FROM chapters WHERE id = ?", [
-      result.insertId,
+    const { rows } = await pool.query("SELECT * FROM chapters WHERE id = $1", [
+      insertRows[0].id,
     ]);
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -58,7 +59,7 @@ router.post("/chapters", async (req, res) => {
 // GET /api/chapters/:id — get single chapter
 router.get("/chapters/:id", async (req, res) => {
   try {
-    const [rows] = await pool.execute("SELECT * FROM chapters WHERE id = ?", [
+    const { rows } = await pool.query("SELECT * FROM chapters WHERE id = $1", [
       req.params.id,
     ]);
     if (rows.length === 0) {
@@ -74,8 +75,8 @@ router.get("/chapters/:id", async (req, res) => {
 // GET /api/books/:bookId/chapters — list chapters for a book
 router.get("/books/:bookId/chapters", async (req, res) => {
   try {
-    const [rows] = await pool.execute(
-      "SELECT * FROM chapters WHERE book_id = ? ORDER BY chapter_index",
+    const { rows } = await pool.query(
+      "SELECT * FROM chapters WHERE book_id = $1 ORDER BY chapter_index",
       [req.params.bookId]
     );
     res.json(rows);
