@@ -2,7 +2,9 @@
   "name": "WF-1 Blueprint Generator",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "anyInput"
+      },
       "id": "b947a82d-ebb7-451c-b973-c386a1358309",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
@@ -450,7 +452,8 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
   },
   "meta": {
     "templateCredsSetupCompleted": true

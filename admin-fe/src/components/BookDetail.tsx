@@ -6,7 +6,6 @@ import {
   Calendar,
   Layers,
   Star,
-  CheckCircle,
   FileText,
   ChevronDown,
   ChevronUp,
