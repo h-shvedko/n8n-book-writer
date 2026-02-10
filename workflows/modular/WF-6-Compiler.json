@@ -2,7 +2,9 @@
   "name": "WF-6 Book Compiler",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "anyInput"
+      },
       "id": "1a703732-7b6f-48f5-a72f-90bf5ac2bc42",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",

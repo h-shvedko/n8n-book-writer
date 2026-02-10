@@ -2,7 +2,9 @@
   "name": "WF-3 Chapter Builder",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "anyInput"
+      },
       "id": "5207ef37-f8cf-497f-a27d-5a21f277f77c",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",

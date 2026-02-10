@@ -214,4 +214,64 @@ return { tokens: usage.total_tokens, cost_usd: cost };
 
 ---
 
+## Architecture Overview
+
+The application uses a multi-threaded architecture for optimal performance:
+
+- **Main Thread**: UI rendering, user interactions, and thread coordination
+- **Writer Thread**: AI content generation and processing
+- **Scheduler Thread**: Task queue management and scheduling
+- **Storage Thread**: File I/O operations and data persistence
+
+### Thread Communication
+
+Threads communicate via message passing:
+- Main → Writer: Content generation requests
+- Main → Scheduler: Task scheduling requests
+- Main → Storage: File operation requests
+- Worker threads → Main: Results and status updates
+
+### Performance Considerations
+
+- Non-blocking UI operations
+- Parallel task processing
+- Efficient resource utilization
+- Thread-safe data sharing via SharedArrayBuffer for counters
+
+---
+
+## Development Setup
+
+### Testing Multi-threaded Features
+
+```bash
+# Run unit tests for individual threads
+npm test -- --grep "Thread"
+
+# Run integration tests for thread communication
+npm test -- --grep "Integration"
+
+# Run performance tests
+npm test -- --grep "Performance"
+```
+
+### Debugging Workers
+
+Enable worker debugging in VS Code:
+
+```json
+{
+  "type": "node",
+  "request": "launch",
+  "name": "Debug with Workers",
+  "program": "${workspaceFolder}/src/main/index.ts",
+  "runtimeArgs": ["--inspect-brk=9229"],
+  "env": {
+    "NODE_OPTIONS": "--inspect-workers"
+  }
+}
+```
+
+---
+
 **Fragen?** Kontaktiere: Hennadii Shvedko

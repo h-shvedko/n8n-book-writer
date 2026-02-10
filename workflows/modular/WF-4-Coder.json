@@ -2,7 +2,9 @@
   "name": "WF-4 Code Generation",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "anyInput"
+      },
       "id": "6e00015f-0876-41bd-8b0d-e07c5dc2344d",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",

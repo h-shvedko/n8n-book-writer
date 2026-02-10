@@ -48,6 +48,9 @@
       "Bash(git rm:*)",
       "Bash(powershell -Command:*)",
       "Bash(node fix-workflow.js:*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Hennadii Shvedko Documents\\source code\\Webakademy\\new WPI\\n8n writer"
     ]
   }
 }

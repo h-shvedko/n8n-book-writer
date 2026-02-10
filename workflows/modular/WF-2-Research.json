@@ -2,7 +2,9 @@
   "name": "WF-2 Research Workflow",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "anyInput"
+      },
       "id": "db179d5f-59d8-4fff-8416-c5087d89e934",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",

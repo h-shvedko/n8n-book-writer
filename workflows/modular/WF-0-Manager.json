@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "path": "3d9430f4-c69d-4392-bae9-70bef5444575",
+        "path": "e0083a23-8db3-4b38-8039-d76e4ad9d519",
         "formTitle": "WPI Book Generator",
         "formDescription": "AI-gestützte Erstellung von Fachbüchern basierend auf Syllabus-Domains. Jede Domain wird zu einem Kapitel.",
         "formFields": {
@@ -60,15 +60,15 @@
         },
         "options": {}
       },
-      "id": "38dbd0c6-0f86-4ba5-927f-2aeb9963c6e9",
+      "id": "47cd121f-2185-41bb-93f5-4092c78b25c3",
       "name": "📥 Book Request Form",
       "type": "n8n-nodes-base.formTrigger",
       "typeVersion": 2.1,
       "position": [
-        0,
-        300
+        -6992,
+        384
       ],
-      "webhookId": "3d9430f4-c69d-4392-bae9-70bef5444575"
+      "webhookId": "e0083a23-8db3-4b38-8039-d76e4ad9d519"
     },
     {
       "parameters": {
@@ -76,282 +76,371 @@
         "jsonOutput": "={{ (function() {\n  const formData = $('📥 Book Request Form').first().json;\n  const syllabusSelection = formData['Syllabus'] || '';\n  \n  // Parse syllabus ID from format: 'Name (syllabus-xxxxx)'\n  // Example: 'WPI Web Development (syllabus-1738051200123)'\n  const match = syllabusSelection.match(/\\(([^)]+)\\)/);\n  const syllabusId = match ? match[1] : null;\n  \n  if (!syllabusId) {\n    throw new Error('Invalid syllabus selection. Expected format: Name (syllabus-id)');\n  }\n  \n  const strategy = formData['Generation Strategy'] || 'By Domain';\n  \n  return {\n    syllabus_id: syllabusId,\n    syllabus_name: syllabusSelection.split('(')[0].trim(),\n    generation_strategy: strategy,\n    target_audience: formData['Target Audience'] || 'Mid-Level Professionals'\n  };\n})() }}",
         "options": {}
       },
-      "id": "3b986b29-2fff-416a-8ddc-d632f682e0cb",
+      "id": "92794d0d-3879-4017-931d-76dcf29b7693",
       "name": "🔍 Extract Syllabus ID",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        250,
-        300
+        -6768,
+        384
       ],
       "notes": "Parses syllabus ID from the form dropdown selection"
     },
     {
       "parameters": {
-        "jsCode": "// Initialize workflow state using static data\nconst staticData = $getWorkflowStaticData('global');\nstaticData.global_history = '';\nstaticData.chapters_completed = [];\nstaticData.revision_counts = {};\n\nconst formData = $('🔍 Extract Syllabus ID').first().json;\nreturn [{\n  json: {\n    job_id: $runId,\n    syllabus_id: formData.syllabus_id,\n    syllabus_name: formData.syllabus_name,\n    generation_strategy: formData.generation_strategy,\n    target_audience: formData.target_audience,\n    global_history: '',\n    status: 'init'\n  }\n}];",
-        "mode": "runOnceForAllItems"
+        "jsCode": "// Initialize workflow state using static data\nconst staticData = $getWorkflowStaticData('global');\nstaticData.global_history = '';\nstaticData.chapters_completed = [];\nstaticData.revision_counts = {};\n\nconst formData = $('🔍 Extract Syllabus ID').first().json;\nreturn [{\n  json: {\n    job_id: $execution.id,\n    syllabus_id: formData.syllabus_id,\n    syllabus_name: formData.syllabus_name,\n    generation_strategy: formData.generation_strategy,\n    target_audience: formData.target_audience,\n    global_history: '',\n    status: 'init'\n  }\n}];"
       },
-      "id": "dc5e398a-9a7c-49e3-bb3c-828ecfa07db5",
+      "id": "93739a32-c425-4bd0-87f8-66b1214d3a90",
       "name": "🔧 Initialize State",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
-        300
+        -6544,
+        384
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/jobs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"id\": \"{{ $json.job_id }}\",\n  \"syllabus_name\": \"{{ $json.syllabus_name }}\",\n  \"strategy\": \"{{ $json.generation_strategy }}\",\n  \"target_audience\": \"{{ $json.target_audience }}\",\n  \"status\": \"running\",\n  \"started_at\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
-      "id": "ab78db88-b81a-4604-93db-1249c847a3df",
+      "id": "17fcc74e-48e4-4fce-a032-c713704ebce8",
       "name": "📋 Register Job",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        750,
-        300
-      ]
+        -6320,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=http://admin-api:3005/api/jobs/{{ $('🔧 Initialize State').first().json.job_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={ \"current_workflow\": \"WF-1-Blueprint\" }",
         "options": {}
       },
-      "id": "cfe6c42f-c9b3-44a0-98b6-2aa10a2fc225",
+      "id": "59184cb1-fcc4-4493-9b1c-4628c1480ce5",
       "name": "📊 Report: WF-1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1000,
-        300
-      ]
+        -6096,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "list"
-        }
+          "value": "G8l-tvukXKbg3TtTjucgh",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/G8l-tvukXKbg3TtTjucgh",
+          "cachedResultName": "WF-1 Blueprint Generator"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
       },
-      "id": "8186e0ef-68b3-450f-9b27-564f54e5a201",
+      "id": "4d6cd102-0653-4f94-968e-b2bacb4da5e2",
       "name": "🏗️ Call WF-1 Blueprint",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        1250,
-        300
+        -5872,
+        384
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_id\": \"{{ $('🔧 Initialize State').first().json.job_id }}\",\n  \"workflow_name\": \"WF-1-Blueprint\",\n  \"chapter_id\": {{ $json.chapter_id ? '\"' + $json.chapter_id + '\"' : 'null' }},\n  \"status\": \"completed\"\n}",
         "options": {}
       },
-      "id": "fe26ec77-8495-4e1d-ab90-a3d8ba231ba0",
+      "id": "1fa6fe7b-4daa-4983-bc7c-1a99563bbe2f",
       "name": "📝 Log: WF-1",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1500,
-        300
-      ]
+        -5648,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// Extract chapters from blueprint output and prepare for loop\nconst blueprint = $('🏗️ Call WF-1 Blueprint').first().json;\nconst chapters = blueprint.blueprint?.chapters || blueprint.chapters || [];\nconst state = $('🔧 Initialize State').first().json;\n\nreturn chapters.map((ch, idx) => ({\n  json: {\n    chapter_id: ch.id || ch.chapter_id || 'ch-' + (idx + 1),\n    title: ch.title || 'Chapter ' + (idx + 1),\n    learning_objectives: ch.learning_objectives || ch.sections || [],\n    domain_id: ch.domain_id || ch.id || 'D' + (idx + 1),\n    chapter_index: idx,\n    job_id: state.job_id,\n    syllabus_id: state.syllabus_id,\n    target_audience: state.target_audience\n  }\n}));",
-        "mode": "runOnceForAllItems"
+        "jsCode": "// Extract chapters from blueprint output and prepare for loop\nconst blueprint = $('🏗️ Call WF-1 Blueprint').first().json;\nconst chapters = blueprint.blueprint?.chapters || blueprint.chapters || [];\nconst state = $('🔧 Initialize State').first().json;\n\nreturn chapters.map((ch, idx) => ({\n  json: {\n    chapter_id: ch.id || ch.chapter_id || 'ch-' + (idx + 1),\n    title: ch.title || 'Chapter ' + (idx + 1),\n    learning_objectives: ch.learning_objectives || ch.sections || [],\n    domain_id: ch.domain_id || ch.id || 'D' + (idx + 1),\n    chapter_index: idx,\n    job_id: state.job_id,\n    syllabus_id: state.syllabus_id,\n    target_audience: state.target_audience\n  }\n}));"
       },
-      "id": "19e85f7c-48bd-492b-8337-4dc6fba0bf82",
+      "id": "b5d9cc65-51dc-4c22-88f7-5a2c99a49bd1",
       "name": "📑 Prepare Chapter List",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1750,
-        300
+        -5424,
+        384
       ]
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=http://admin-api:3005/api/jobs/{{ $('🔧 Initialize State').first().json.job_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={ \"total_chapters\": {{ $input.all().length }} }",
         "options": {}
       },
-      "id": "13b3bdde-0f58-4810-b5ee-1b66d88bd71f",
+      "id": "c4a5f555-e069-483d-ade7-7de118df2a1c",
       "name": "📊 Update Total Chapters",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2000,
-        300
-      ]
+        -5200,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "batchSize": 1,
         "options": {}
       },
-      "id": "997cc010-eeb1-4be7-8571-5b9383a3af1b",
+      "id": "b505061f-a3ed-4ff0-b52a-da5832cd402f",
       "name": "🔁 Chapter Loop",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        2250,
-        300
+        -4976,
+        384
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Inject current global_history from static data into chapter data\nconst staticData = $getWorkflowStaticData('global');\nconst chapter = $input.first().json;\nreturn [{\n  json: {\n    ...chapter,\n    global_history: staticData.global_history || ''\n  }\n}];",
-        "mode": "runOnceForAllItems"
+        "jsCode": "// Inject current global_history from static data into chapter data\nconst staticData = $getWorkflowStaticData('global');\nconst chapter = $input.first().json;\nreturn [{\n  json: {\n    ...chapter,\n    global_history: staticData.global_history || ''\n  }\n}];"
       },
-      "id": "092fea1f-170a-408b-b165-8112684415d2",
+      "id": "3f4e8048-6407-468b-8d98-eb5ce682f95e",
       "name": "📖 Inject Global History",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2500,
-        500
+        -4752,
+        384
       ]
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=http://admin-api:3005/api/jobs/{{ $('🔧 Initialize State').first().json.job_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={ \"current_workflow\": \"WF-2-Research\" }",
         "options": {}
       },
-      "id": "97638818-51f6-4412-9fcb-cea9701a5725",
+      "id": "d73a7255-7037-4104-8f13-b3f362fab1dd",
       "name": "📊 Report: WF-2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2750,
-        500
-      ]
+        -4528,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "list"
-        }
+          "value": "VWL-HAciYrsv6RHQsPPp3",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/VWL-HAciYrsv6RHQsPPp3",
+          "cachedResultName": "WF-2 Research Workflow"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
       },
-      "id": "26703abd-453b-4a70-a647-469a36cbdf59",
+      "id": "97ff2dac-89e1-4e48-ad1f-822c6540fa59",
       "name": "🔍 Call WF-2 Research",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        3000,
-        500
+        -4304,
+        384
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_id\": \"{{ $('🔧 Initialize State').first().json.job_id }}\",\n  \"workflow_name\": \"WF-2-Research\",\n  \"chapter_id\": {{ $json.chapter_id ? '\"' + $json.chapter_id + '\"' : 'null' }},\n  \"status\": \"completed\"\n}",
         "options": {}
       },
-      "id": "52b4ef69-e4ee-4e21-b11c-d40d11a736eb",
+      "id": "75b8d500-a664-45a6-b39d-cce619a3a575",
       "name": "📝 Log: WF-2",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3250,
-        500
-      ]
+        -4080,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=http://admin-api:3005/api/jobs/{{ $('🔧 Initialize State').first().json.job_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={ \"current_workflow\": \"WF-3-ChapterBuilder\" }",
         "options": {}
       },
-      "id": "3f78515b-2dff-4529-b967-853990c5e707",
+      "id": "0d5c54d0-9656-4a66-84c2-1d28ff9e96cf",
       "name": "📊 Report: WF-3",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3500,
-        500
-      ]
+        -3856,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "list"
-        }
+          "value": "VzCZtw9u2OcflwWXm572X",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/VzCZtw9u2OcflwWXm572X",
+          "cachedResultName": "WF-3 Chapter Builder"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
       },
-      "id": "c29c8d7f-294c-4cb7-846e-c738a548ad72",
+      "id": "2754bfb1-389e-40e8-b90a-7d410f38be08",
       "name": "✍️ Call WF-3 Chapter Builder",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        3750,
-        500
+        -3632,
+        304
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_id\": \"{{ $('🔧 Initialize State').first().json.job_id }}\",\n  \"workflow_name\": \"WF-3-ChapterBuilder\",\n  \"chapter_id\": {{ $json.chapter_id ? '\"' + $json.chapter_id + '\"' : 'null' }},\n  \"status\": \"completed\"\n}",
         "options": {}
       },
-      "id": "e64a9960-fd77-41da-8380-c6239dfdebce",
+      "id": "fb8eafbd-2f65-48ad-a13e-59f56f9b497c",
       "name": "📝 Log: WF-3",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        4000,
-        500
-      ]
+        -3408,
+        304
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const result = $input.first().json;\nreturn [{ json: { ...result, has_code: !!(result.has_code_requests && result.code_requests?.length > 0) } }];",
-        "mode": "runOnceForAllItems"
+        "jsCode": "const result = $input.first().json;\nreturn [{ json: { ...result, has_code: !!(result.has_code_requests && result.code_requests?.length > 0) } }];"
       },
-      "id": "5aa4a7a5-9e79-4c4e-98d1-de299e2b0c41",
+      "id": "c27a0744-9d0d-4cfb-9e18-f258b86337f7",
       "name": "🔀 Has Code Requests?",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4250,
-        500
+        -3184,
+        304
       ]
     },
     {
@@ -373,119 +462,163 @@
               }
             }
           ]
-        }
+        },
+        "options": {}
       },
-      "id": "6fce3af5-eab6-4c02-83cc-7debc087251f",
+      "id": "83e0f5a1-338f-4436-87a9-cb5643919fbf",
       "name": "🔀 Code Needed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        4500,
-        500
+        -2960,
+        304
       ]
     },
     {
       "parameters": {
-        "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "list"
-        }
+          "value": "bX7V3TqHlu2olNq83QKjb",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/bX7V3TqHlu2olNq83QKjb",
+          "cachedResultName": "WF-4 Code Generation"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
       },
-      "id": "ea48f83b-ea12-4018-a5d8-63335ed86bb5",
+      "id": "21b64a41-ed53-40ac-a85a-6027efa60096",
       "name": "💻 Call WF-4 Coder",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        4750,
-        400
+        -2736,
+        240
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_id\": \"{{ $('🔧 Initialize State').first().json.job_id }}\",\n  \"workflow_name\": \"WF-4-Coder\",\n  \"chapter_id\": {{ $json.chapter_id ? '\"' + $json.chapter_id + '\"' : 'null' }},\n  \"status\": \"completed\"\n}",
         "options": {}
       },
-      "id": "5c965985-bec2-42fc-bcb5-fdf1e09959fe",
+      "id": "2a52e276-4949-499c-9773-3122259b6b60",
       "name": "📝 Log: WF-4",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        5000,
-        400
-      ]
+        -2512,
+        240
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=http://admin-api:3005/api/jobs/{{ $('🔧 Initialize State').first().json.job_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={ \"current_workflow\": \"WF-5-EditorQA\" }",
         "options": {}
       },
-      "id": "fedc60a8-cec5-4a76-b778-8ada8f966cdb",
+      "id": "352d9cfa-2142-47db-87b3-134698b28b47",
       "name": "📊 Report: WF-5",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        5250,
-        500
-      ]
+        -2288,
+        304
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "list"
-        }
+          "value": "SFZWJs-r141fXfI6jIX49",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/SFZWJs-r141fXfI6jIX49",
+          "cachedResultName": "WF-5 Editor / QA"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
       },
-      "id": "bd7a0fb9-bdb9-4c72-973b-db238bb70c82",
+      "id": "1f71ca99-9b8d-4472-8dd2-ea8cf04e4bf9",
       "name": "🔍 Call WF-5 Editor/QA",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        5500,
-        500
+        -2064,
+        304
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_id\": \"{{ $('🔧 Initialize State').first().json.job_id }}\",\n  \"workflow_name\": \"WF-5-EditorQA\",\n  \"chapter_id\": {{ $json.chapter_id ? '\"' + $json.chapter_id + '\"' : 'null' }},\n  \"status\": \"completed\"\n}",
         "options": {}
       },
-      "id": "a73d35ef-462a-49db-8f9f-903861afa39d",
+      "id": "a2b2f70b-f3ae-4946-bac9-e6f571fb9b06",
       "name": "📝 Log: WF-5",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        5750,
-        500
-      ]
+        -1840,
+        304
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// Check QA verdict and revision count\nconst result = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nconst chapterId = result.chapter_id || 'unknown';\nconst revisionCount = staticData.revision_counts[chapterId] || 0;\n\nconst needsRevision = result.verdict === 'needs_revision' && revisionCount < 3;\n\nif (needsRevision) {\n  staticData.revision_counts[chapterId] = revisionCount + 1;\n}\n\nreturn [{\n  json: {\n    ...result,\n    needs_revision: needsRevision,\n    revision_count: revisionCount + (needsRevision ? 1 : 0),\n    revision_feedback: result.feedback || ''\n  }\n}];",
-        "mode": "runOnceForAllItems"
+        "jsCode": "// Check QA verdict and revision count\nconst result = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nconst chapterId = result.chapter_id || 'unknown';\nconst revisionCount = staticData.revision_counts[chapterId] || 0;\n\nconst needsRevision = result.verdict === 'needs_revision' && revisionCount < 3;\n\nif (needsRevision) {\n  staticData.revision_counts[chapterId] = revisionCount + 1;\n}\n\nreturn [{\n  json: {\n    ...result,\n    needs_revision: needsRevision,\n    revision_count: revisionCount + (needsRevision ? 1 : 0),\n    revision_feedback: result.feedback || ''\n  }\n}];"
       },
-      "id": "807717ee-e8ed-48d0-aff8-e70687e878b6",
+      "id": "3f03f42b-6001-41e2-825b-3c854981b72c",
       "name": "🔍 Check QA Verdict",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6000,
-        500
+        -1616,
+        304
       ]
     },
     {
@@ -507,286 +640,375 @@
               }
             }
           ]
-        }
+        },
+        "options": {}
       },
-      "id": "cec1967d-4890-4f9e-a501-6db2caf267c9",
+      "id": "c1188bf3-ea0e-4eaa-9c4b-65f88458c59c",
       "name": "🔀 Needs Revision?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        6250,
-        500
+        -1392,
+        304
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_id\": \"{{ $('🔧 Initialize State').first().json.job_id }}\",\n  \"workflow_name\": \"Revision\",\n  \"chapter_id\": \"{{ $json.chapter_id }}\",\n  \"status\": \"started\",\n  \"input_summary\": \"Revision {{ $json.revision_count }}/3: {{ $json.revision_feedback }}\"\n}",
         "options": {}
       },
-      "id": "6f52438d-d261-416d-9d68-7db45ae8002c",
+      "id": "4ddc575e-ab5e-4e50-be69-a0c208eefbbf",
       "name": "📝 Log: Revision",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        6500,
-        400
-      ]
+        -1168,
+        208
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// Prepare input for WF-3 re-call with revision feedback\nconst result = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nreturn [{\n  json: {\n    chapter_id: result.chapter_id,\n    title: result.title,\n    learning_objectives: result.learning_objectives || [],\n    domain_id: result.domain_id,\n    job_id: result.job_id || $('🔧 Initialize State').first().json.job_id,\n    syllabus_id: $('🔧 Initialize State').first().json.syllabus_id,\n    target_audience: $('🔧 Initialize State').first().json.target_audience,\n    global_history: staticData.global_history || '',\n    revision_feedback: result.revision_feedback,\n    previous_draft: result.json_content || ''\n  }\n}];",
-        "mode": "runOnceForAllItems"
+        "jsCode": "// Prepare input for WF-3 re-call with revision feedback\nconst result = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nreturn [{\n  json: {\n    chapter_id: result.chapter_id,\n    title: result.title,\n    learning_objectives: result.learning_objectives || [],\n    domain_id: result.domain_id,\n    job_id: result.job_id || $('🔧 Initialize State').first().json.job_id,\n    syllabus_id: $('🔧 Initialize State').first().json.syllabus_id,\n    target_audience: $('🔧 Initialize State').first().json.target_audience,\n    global_history: staticData.global_history || '',\n    revision_feedback: result.revision_feedback,\n    previous_draft: result.json_content || ''\n  }\n}];"
       },
-      "id": "db65e105-2064-48b9-984f-f04a4c84e594",
+      "id": "dc5d2918-e4d9-42fd-81f3-30379bad690f",
       "name": "🔄 Prepare Revision",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6750,
-        400
+        -944,
+        384
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Append chapter summary to global_history in static data\nconst staticData = $getWorkflowStaticData('global');\nconst result = $input.first().json;\nconst chapterSummary = result.chapter_summary || '';\n\nif (chapterSummary) {\n  staticData.global_history = (staticData.global_history || '') + '\\n\\n--- Chapter: ' + (result.title || result.chapter_id) + ' ---\\n' + chapterSummary;\n}\n\n// Track completed chapter\nif (!staticData.chapters_completed) staticData.chapters_completed = [];\nstaticData.chapters_completed.push({\n  chapter_id: result.chapter_id,\n  title: result.title,\n  score: result.score || null\n});\n\nreturn [{ json: { ...result, global_history_updated: true } }];",
-        "mode": "runOnceForAllItems"
+        "jsCode": "// Append chapter summary to global_history in static data\nconst staticData = $getWorkflowStaticData('global');\nconst result = $input.first().json;\nconst chapterSummary = result.chapter_summary || '';\n\nif (chapterSummary) {\n  staticData.global_history = (staticData.global_history || '') + '\\n\\n--- Chapter: ' + (result.title || result.chapter_id) + ' ---\\n' + chapterSummary;\n}\n\n// Track completed chapter\nif (!staticData.chapters_completed) staticData.chapters_completed = [];\nstaticData.chapters_completed.push({\n  chapter_id: result.chapter_id,\n  title: result.title,\n  score: result.score || null\n});\n\nreturn [{ json: { ...result, global_history_updated: true } }];"
       },
-      "id": "b95b9495-881f-4fc9-8333-cf12aa675e6c",
+      "id": "31899547-18d7-42ac-9fad-29f89f9c09f8",
       "name": "📝 Update Global History",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6500,
-        600
+        -1168,
+        400
       ]
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=http://admin-api:3005/api/jobs/{{ $('🔧 Initialize State').first().json.job_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"completed_chapters\": {{ $getWorkflowStaticData('global').chapters_completed?.length || 0 }}\n}",
         "options": {}
       },
-      "id": "05098646-e486-4ea4-8937-ea2330972550",
+      "id": "48950f40-3268-406c-8fc8-e445dd4c3710",
       "name": "📊 Update Chapter Progress",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        6750,
-        600
-      ]
+        -944,
+        576
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// All chapters processed — prepare for compilation\nconst staticData = $getWorkflowStaticData('global');\nreturn [{\n  json: {\n    all_done: true,\n    job_id: $('🔧 Initialize State').first().json.job_id,\n    chapters_completed: staticData.chapters_completed || [],\n    total_chapters: staticData.chapters_completed?.length || 0\n  }\n}];",
-        "mode": "runOnceForAllItems"
+        "jsCode": "// All chapters processed — prepare for compilation\nconst staticData = $getWorkflowStaticData('global');\nreturn [{\n  json: {\n    all_done: true,\n    job_id: $('🔧 Initialize State').first().json.job_id,\n    chapters_completed: staticData.chapters_completed || [],\n    total_chapters: staticData.chapters_completed?.length || 0\n  }\n}];"
       },
-      "id": "0d7cd3bb-2756-4002-9c4c-e0049e29e999",
+      "id": "7e83e5b1-9a4c-4f10-b1f1-b5b15f15c2ea",
       "name": "✅ All Chapters Done",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2500,
-        100
+        -4752,
+        112
       ]
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=http://admin-api:3005/api/jobs/{{ $('🔧 Initialize State').first().json.job_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={ \"current_workflow\": \"WF-6-Compiler\" }",
         "options": {}
       },
-      "id": "356f6a06-9131-424f-a086-e0618d350f5a",
+      "id": "3504f7ee-fe8d-4593-b385-f6699811c54c",
       "name": "📊 Report: WF-6",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2750,
-        100
-      ]
+        -4528,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "list"
-        }
+          "value": "OpjAbdxtiBVIEtXED02Ds",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/OpjAbdxtiBVIEtXED02Ds",
+          "cachedResultName": "WF-6 Book Compiler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
       },
-      "id": "98fd436d-d6e4-47a8-83ec-54abe61730a5",
+      "id": "2ff0e599-d361-4af4-bf49-f10183185505",
       "name": "📚 Call WF-6 Compiler",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        3000,
-        100
+        -4304,
+        112
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_id\": \"{{ $('🔧 Initialize State').first().json.job_id }}\",\n  \"workflow_name\": \"WF-6-Compiler\",\n  \"chapter_id\": {{ $json.chapter_id ? '\"' + $json.chapter_id + '\"' : 'null' }},\n  \"status\": \"completed\"\n}",
         "options": {}
       },
-      "id": "8bc87fda-1d58-4e3c-95ef-bd30f577aee9",
+      "id": "4fdddc92-bcd2-4b40-a2d2-4d76985d5758",
       "name": "📝 Log: WF-6",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3250,
-        100
-      ]
+        -4080,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=http://admin-api:3005/api/jobs/{{ $('🔧 Initialize State').first().json.job_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={ \"current_workflow\": \"WF-7-Publisher\" }",
         "options": {}
       },
-      "id": "b7781a06-b86c-4225-8ad0-baba2654d8a2",
+      "id": "03f274cc-a73e-4878-b3b9-009cd2aaf4e2",
       "name": "📊 Report: WF-7",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3500,
-        100
-      ]
+        -3856,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "",
-          "mode": "list"
-        }
+          "value": "EXaf4y_dl9rV1XPTArYAX",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/EXaf4y_dl9rV1XPTArYAX",
+          "cachedResultName": "WF-7 Publisher"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
       },
-      "id": "501adece-0561-44b2-a3ca-987f19ca1264",
+      "id": "db673c5f-e87d-424a-983c-1f79adffd01a",
       "name": "📤 Call WF-7 Publisher",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        3750,
-        100
+        -3632,
+        112
       ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_id\": \"{{ $('🔧 Initialize State').first().json.job_id }}\",\n  \"workflow_name\": \"WF-7-Publisher\",\n  \"chapter_id\": {{ $json.chapter_id ? '\"' + $json.chapter_id + '\"' : 'null' }},\n  \"status\": \"completed\"\n}",
         "options": {}
       },
-      "id": "9107a303-0b06-401e-b002-264638aa7505",
+      "id": "96e4148f-0671-481e-92e7-d5aac0d869b8",
       "name": "📝 Log: WF-7",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        4000,
-        100
-      ]
+        -3408,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=http://admin-api:3005/api/jobs/{{ $('🔧 Initialize State').first().json.job_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"status\": \"completed\",\n  \"completed_at\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
-      "id": "9f4ace03-7121-4014-8c97-ae4d736989f9",
+      "id": "b1299b47-0934-4e30-a153-73d6515d93d0",
       "name": "✅ Mark Job Complete",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        4250,
-        100
-      ]
+        -3184,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const jobId = $('🔧 Initialize State').first().json.job_id;\nconst staticData = $getWorkflowStaticData('global');\nreturn [{\n  json: {\n    status: 'success',\n    job_id: jobId,\n    message: 'Book generation complete',\n    chapters_generated: staticData.chapters_completed?.length || 0\n  }\n}];",
-        "mode": "runOnceForAllItems"
+        "jsCode": "const jobId = $('🔧 Initialize State').first().json.job_id;\nconst staticData = $getWorkflowStaticData('global');\nreturn [{\n  json: {\n    status: 'success',\n    job_id: jobId,\n    message: 'Book generation complete',\n    chapters_generated: staticData.chapters_completed?.length || 0\n  }\n}];"
       },
-      "id": "ef0c7ad0-49c2-431f-a627-cde9682a7bc5",
+      "id": "f97478b6-993d-4157-a08d-5b7d767bd0f1",
       "name": "🎉 Job Complete",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4500,
-        100
+        -2960,
+        112
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Global error handler — log error and mark job failed\nconst error = $input.first().json;\nconst jobId = $('🔧 Initialize State').first().json?.job_id || 'unknown';\n\nreturn [{\n  json: {\n    job_id: jobId,\n    error: error.message || error.error || 'Unknown error',\n    status: 'failed'\n  }\n}];",
-        "mode": "runOnceForAllItems"
+        "jsCode": "// Global error handler — log error and mark job failed\nconst error = $input.first().json;\nconst jobId = $('🔧 Initialize State').first().json?.job_id || 'unknown';\n\nreturn [{\n  json: {\n    job_id: jobId,\n    error: error.message || error.error || 'Unknown error',\n    status: 'failed'\n  }\n}];"
       },
-      "id": "9b4cfd1b-8278-4c59-9603-49b351b318b6",
+      "id": "b8bdc569-1ff4-4621-9bce-c073e888bf58",
       "name": "❌ Error Handler",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4500,
-        -100
+        -6992,
+        -112
       ]
     },
     {
       "parameters": {
         "method": "PATCH",
         "url": "=http://admin-api:3005/api/jobs/{{ $json.job_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"status\": \"failed\",\n  \"completed_at\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
-      "id": "da4f8b95-d479-433c-9079-22ff657114af",
+      "id": "58be8261-4d6e-413e-a751-5400dbf51c95",
       "name": "❌ Mark Job Failed",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        4750,
-        -100
-      ]
+        -6768,
+        -112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"workflow_name\": \"Error\",\n  \"status\": \"failed\",\n  \"error_message\": \"{{ $json.error }}\"\n}",
         "options": {}
       },
-      "id": "2937f51d-ea80-491e-8176-c782cdc8bdde",
+      "id": "76f1cd94-e617-47e8-97bc-56d31cbcb6e2",
       "name": "📝 Log: Error",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        5000,
-        -100
-      ]
+        -6544,
+        -112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      }
     }
   ],
+  "pinData": {},
   "connections": {
     "📥 Book Request Form": {
       "main": [
@@ -1250,11 +1472,15 @@
       ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1",
-    "errorWorkflow": ""
+    "availableInMCP": false
   },
+  "versionId": "9b1181f1-f1d1-4479-89f0-86df3cd05122",
   "meta": {
-    "templateCredsSetupCompleted": true
-  }
+    "instanceId": "60d48302a9aa1e8edca02aea5b256f3d430c6966fd15714072dd79eb1d923da5"
+  },
+  "id": "DwjjUNGZRimc7YG5lTzOq",
+  "tags": []
 }

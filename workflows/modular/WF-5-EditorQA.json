@@ -2,7 +2,9 @@
   "name": "WF-5 Editor / QA",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "anyInput"
+      },
       "id": "a5094cf5-b2d0-466f-9846-07df729746d2",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",

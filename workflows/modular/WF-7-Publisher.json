@@ -2,7 +2,9 @@
   "name": "WF-7 Publisher",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "mode": "anyInput"
+      },
       "id": "9472b027-e937-4743-81aa-059bbd90218d",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
@@ -30,6 +32,8 @@
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/books",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"json_content\": {{ JSON.stringify($json.json_content) }},\n  \"exam_questions\": {{ JSON.stringify($json.exam_questions) }}\n}",
@@ -50,6 +54,12 @@
         500,
         300
       ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000
@@ -130,6 +140,8 @@
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/chapters",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"book_id\": {{ $json.book_id }},\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"chapter_id\": \"{{ $json.chapter_id }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"chapter_index\": {{ $json.chapter_index }},\n  \"json_content\": {{ JSON.stringify($json.json_content) }},\n  \"exam_questions\": {{ JSON.stringify($json.exam_questions) }},\n  \"chapter_summary\": {{ $json.chapter_summary ? '\"' + String($json.chapter_summary).replace(/\"/g, '\\\\\"').slice(0, 500) + '\"' : 'null' }},\n  \"editor_score\": {{ $json.editor_score || 'null' }}\n}",
@@ -150,6 +162,12 @@
         1750,
         400
       ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000
@@ -158,6 +176,8 @@
       "parameters": {
         "method": "PATCH",
         "url": "=http://admin-api:3005/api/jobs/{{ $('Prepare Book Data').first().json.job_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={ \"status\": \"completed\", \"completed_at\": \"{{ new Date().toISOString() }}\" }",
@@ -178,6 +198,12 @@
         1750,
         0
       ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 2000
@@ -214,6 +240,8 @@
       "parameters": {
         "method": "POST",
         "url": "=http://admin-api:3005/api/logs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"job_id\": \"{{ $json.job_id }}\",\n  \"workflow_name\": \"WF-7-Publisher\",\n  \"status\": \"failed\",\n  \"error_message\": \"{{ $json.error }}\"\n}",
@@ -234,6 +262,12 @@
         1500,
         500
       ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "xOk2J7CAxWG1jwph",
+          "name": "Header Auth account"
+        }
+      },
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 1000
